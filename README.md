@@ -2,9 +2,7 @@
 
 Repository for a reliable Deep Neural Network model
 
-[//]: #  source https://hips.hearstapps.com/digitalspyuk.cdnds.net/16/45/1478879153-die-hard.jpg
-
-![Die hard photo](/diehard.jpg){:height="50%" width="50%"}
+![Die hard photo](/diehard.jpg)
 
 ## Directories
 
