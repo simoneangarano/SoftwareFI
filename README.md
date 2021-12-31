@@ -2,6 +2,7 @@
 
 Repository for a reliable Deep Neural Network model
 
+![alt text](https://hips.hearstapps.com/digitalspyuk.cdnds.net/16/45/1478879153-die-hard.jpg)
 
 ## Directories
 
