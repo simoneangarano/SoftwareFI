@@ -30,3 +30,7 @@
 *.exe
 *.out
 *.app
+
+# Pycharm files
+*.xml
+*.iml
