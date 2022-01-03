@@ -24,11 +24,10 @@ class HansGruberNI(torch.nn.Module):
         # Otherwise it is necessary to use AutoGrads
         output = input.clone()
         # TODO: Need to fix it before use
-        warnings.warn("Need to fix the HansGruber noise injector to support more than 2d dimention before use")
+        warnings.warn("Need to fix the HansGruber noise injector to support more than 2d dimension before use")
         # assert len(input.shape) == 2, f"Generalize this method to n-arrays {input.shape}\n{input}"
         # rows, cols = input.shape
         relative_error = random.uniform(0, 100)
-
         if self.error_model == ErrorModel.ROW:
             # relative_errors = torch.FloatTensor(1, rows).uniform_(0, 1)
             rand_row = random.randrange(0, input.shape[0])
@@ -41,4 +40,6 @@ class HansGruberNI(torch.nn.Module):
             raise NotImplementedError
         elif self.error_model == ErrorModel.ALL:
             raise NotImplementedError
+        print(input[input != output])
+
         return output

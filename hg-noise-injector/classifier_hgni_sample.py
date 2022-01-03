@@ -130,7 +130,7 @@ def test_network():
     images, labels = dataiter.next()
 
     # print images
-    imshow(torchvision.utils.make_grid(images))
+    # imshow(torchvision.utils.make_grid(images))
     print('GroundTruth: ', ' '.join('%5s' % classes[labels[j]] for j in range(4)))
     net = Net()
     net.load_state_dict(torch.load(MODEL_PATH))
@@ -157,7 +157,7 @@ def test_network_noise():
     images, labels = dataiter.next()
 
     # print images
-    imshow(torchvision.utils.make_grid(images))
+    # imshow(torchvision.utils.make_grid(images))
     print('GroundTruth: ', ' '.join('%5s' % classes[labels[j]] for j in range(4)))
     net = NetWithNoise()
     net.load_state_dict(torch.load(MODEL_PATH))
@@ -174,4 +174,5 @@ if __name__ == '__main__':
     elif option == "test":
         test_network()
     elif option == "testni":
+        test_network()
         test_network_noise()
