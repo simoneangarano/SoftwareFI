@@ -34,3 +34,5 @@
 # Pycharm files
 *.xml
 *.iml
+
+data/
