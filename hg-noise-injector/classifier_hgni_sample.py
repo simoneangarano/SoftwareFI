@@ -16,7 +16,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import csv
-from hans_gruber import HansGruberNI, ErrorModel
+from hans_gruber import HansGruberNI, LINE, SQUARE, RANDOM, ALL
 
 DATA_PATH = "../data"
 MODEL_PATH = f"{DATA_PATH}/cifar_net.pth"
@@ -49,15 +49,15 @@ class NetWithNoise(nn.Module):
         self.pool = nn.MaxPool2d(2, 2)
         self.conv2 = nn.Conv2d(6, 16, 5)
         # TODO: How to inject the error model? Is it static for the whole training?
-        self.noise_data = list()
-        self.noise_injector = HansGruberNI(error_model=ErrorModel.COL)
+        self.noise_injector = HansGruberNI(error_model=LINE)
         self.fc1 = nn.Linear(16 * 5 * 5, 120)
         self.fc2 = nn.Linear(120, 84)
         self.fc3 = nn.Linear(84, 10)
 
     def load_noise_file(self, noise_file_path):
         with open(noise_file_path) as fp:
-            self.noise_data = list(csv.DictReader(fp))
+            noise_data = list(csv.DictReader(fp))
+        self.noise_injector.set_noise_data(noise_data)
 
     def forward(self, x):
         x = self.pool(F.relu(self.conv1(x)))
