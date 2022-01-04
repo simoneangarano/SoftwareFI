@@ -15,7 +15,7 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-
+import csv
 from hans_gruber import HansGruberNI, ErrorModel
 
 DATA_PATH = "../data"
@@ -48,15 +48,25 @@ class NetWithNoise(nn.Module):
         self.conv1 = nn.Conv2d(3, 6, 5)
         self.pool = nn.MaxPool2d(2, 2)
         self.conv2 = nn.Conv2d(6, 16, 5)
+        # TODO: How to inject the error model? Is it static for the whole training?
+        self.noise_data = list()
         self.noise_injector = HansGruberNI(error_model=ErrorModel.COL)
         self.fc1 = nn.Linear(16 * 5 * 5, 120)
         self.fc2 = nn.Linear(120, 84)
         self.fc3 = nn.Linear(84, 10)
 
+    def load_noise_file(self, noise_file_path):
+        with open(noise_file_path) as fp:
+            self.noise_data = list(csv.DictReader(fp))
+
     def forward(self, x):
         x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
+        # Inject the noise after a conv2
+        # TODO: Here I call the noise_injector only once, but in the
+        # TODO: Training we need to define how many times it will be called and when
+        x = self.conv2(x)
         x = self.noise_injector(x)
+        x = self.pool(F.relu(x))
         x = torch.flatten(x, 1)  # flatten all dimensions except batch
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
@@ -121,13 +131,13 @@ def test_network():
     batch_size = 4
     classes = ('plane', 'car', 'bird', 'cat',
                'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
-    testset = torchvision.datasets.CIFAR10(root='./data', train=False,
-                                           download=True, transform=transform)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size,
-                                             shuffle=False, num_workers=2)
+    test_set = torchvision.datasets.CIFAR10(root='./data', train=False,
+                                            download=True, transform=transform)
+    test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size,
+                                              shuffle=False, num_workers=2)
 
-    dataiter = iter(testloader)
-    images, labels = dataiter.next()
+    data_iter = iter(test_loader)
+    images, labels = data_iter.next()
 
     # print images
     # imshow(torchvision.utils.make_grid(images))
@@ -148,19 +158,20 @@ def test_network_noise():
     batch_size = 4
     classes = ('plane', 'car', 'bird', 'cat',
                'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
-    testset = torchvision.datasets.CIFAR10(root='./data', train=False,
-                                           download=True, transform=transform)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size,
-                                             shuffle=False, num_workers=2)
+    test_set = torchvision.datasets.CIFAR10(root='./data', train=False,
+                                            download=True, transform=transform)
+    test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size,
+                                              shuffle=False, num_workers=2)
 
-    dataiter = iter(testloader)
-    images, labels = dataiter.next()
+    data_iter = iter(test_loader)
+    images, labels = data_iter.next()
 
     # print images
     # imshow(torchvision.utils.make_grid(images))
     print('GroundTruth: ', ' '.join('%5s' % classes[labels[j]] for j in range(4)))
     net = NetWithNoise()
     net.load_state_dict(torch.load(MODEL_PATH))
+    net.load_noise_file(f"{DATA_PATH}/yolov3_scheduler_fault_model.csv")
     outputs = net(images)
     _, predicted = torch.max(outputs, 1)
 

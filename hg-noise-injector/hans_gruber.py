@@ -23,7 +23,7 @@ class HansGruberNI(torch.nn.Module):
         # We can inject the relative errors using only Torch built-in functions
         # Otherwise it is necessary to use AutoGrads
         output = input.clone()
-        # TODO: Need to fix it before use
+        # TODO: It must be generalized for tensors that have more than 2 dim
         warnings.warn("Need to fix the HansGruber noise injector to support more than 2d dimension before use")
         # assert len(input.shape) == 2, f"Generalize this method to n-arrays {input.shape}\n{input}"
         # rows, cols = input.shape
