@@ -5,6 +5,7 @@ in the training process
 import random
 import warnings
 
+import numpy as np
 import torch
 
 LINE, SQUARE, RANDOM, ALL = "LINE", "SQUARE", "RANDOM", "ALL"
@@ -17,14 +18,17 @@ class HansGruberNI(torch.nn.Module):
         self.error_model = error_model
         self.noise_data = list()
 
-    def set_noise_data(self, noise_data: list = None):
+    def set_noise_data(self, noise_data: list = None) -> None:
+        r"""Set the noise data that we extract and parse from radiation experiments
+        The noise data is extracted form a CSV file, pass only a numpy array to the function
+        """
         # make a subset of the errors
         self.noise_data = [i for i in noise_data if i["geometry_format"] == self.error_model]
 
-    def forward(self, input):
+    def forward(self, forward_input: torch.Tensor) -> torch.Tensor:
         # We can inject the relative errors using only Torch built-in functions
         # Otherwise it is necessary to use AutoGrads
-        output = input.clone()
+        output = forward_input.clone()
         # TODO: It must be generalized for tensors that have more than 2 dim
         warnings.warn("Need to fix the HansGruber noise injector to support more than 2d dimension before use")
         # assert len(input.shape) == 2, f"Generalize this method to n-arrays {input.shape}\n{input}"
@@ -33,7 +37,7 @@ class HansGruberNI(torch.nn.Module):
         relative_error = random.uniform(float(relative_error["min_relative"]), float(relative_error["max_relative"]))
         if self.error_model == LINE:
             # relative_errors = torch.FloatTensor(1, rows).uniform_(0, 1)
-            rand_row = random.randrange(0, input.shape[0])
+            rand_row = random.randrange(0, forward_input.shape[0])
             output[rand_row, :].mul_(relative_error)
         # elif self.error_model == ErrorModel.COL:
         #     # relative_errors = torch.FloatTensor(1, cols).uniform_(0, 1)
@@ -41,6 +45,6 @@ class HansGruberNI(torch.nn.Module):
         #     output[:, rand_col].mul_(relative_error)
         else:
             raise NotImplementedError
-        print(input[input != output])
+        print(forward_input[forward_input != output])
 
         return output

@@ -89,7 +89,7 @@ def train_network():
 
     batch_size = 4
 
-    train_set = torchvision.datasets.CIFAR10(root='../data', train=True,
+    train_set = torchvision.datasets.CIFAR10(root=DATA_PATH, train=True,
                                              download=True, transform=transform)
     train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size,
                                                shuffle=True, num_workers=2)
@@ -131,13 +131,13 @@ def test_network():
     batch_size = 4
     classes = ('plane', 'car', 'bird', 'cat',
                'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
-    test_set = torchvision.datasets.CIFAR10(root='./data', train=False,
+    test_set = torchvision.datasets.CIFAR10(root=DATA_PATH, train=False,
                                             download=True, transform=transform)
     test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size,
                                               shuffle=False, num_workers=2)
 
     data_iter = iter(test_loader)
-    images, labels = data_iter.next()
+    images, labels = next(data_iter)
 
     # print images
     # imshow(torchvision.utils.make_grid(images))
@@ -158,13 +158,13 @@ def test_network_noise():
     batch_size = 4
     classes = ('plane', 'car', 'bird', 'cat',
                'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
-    test_set = torchvision.datasets.CIFAR10(root='./data', train=False,
+    test_set = torchvision.datasets.CIFAR10(root=DATA_PATH, train=False,
                                             download=True, transform=transform)
     test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size,
                                               shuffle=False, num_workers=2)
 
     data_iter = iter(test_loader)
-    images, labels = data_iter.next()
+    images, labels = next(data_iter)
 
     # print images
     # imshow(torchvision.utils.make_grid(images))
