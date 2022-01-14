@@ -2,8 +2,8 @@ from torch.utils.data import DataLoader
 from torchvision.datasets import CIFAR10, CIFAR100
 import torchvision.transforms as transforms
 
-from resnetCIFAR import *
-from LightningModelWrapper import ModelWrapper
+from .resnetCIFAR import *
+from .LightningModelWrapper import ModelWrapper
 
 
 def get_dataset(dataset='cifar10', data_dir='data', batch_size=128, num_gpus=1):

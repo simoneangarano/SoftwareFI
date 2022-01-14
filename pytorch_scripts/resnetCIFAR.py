@@ -1,7 +1,7 @@
 ###########################################################################
-#### ADAPTED FROM: https://github.com/akamaster/pytorch_resnet_cifar10 ####
+# ## ADAPTED FROM: https://github.com/akamaster/pytorch_resnet_cifar10 ####
 ###########################################################################
-'''
+"""
 Properly implemented ResNet-s for CIFAR10 as described in paper [1].
 The implementation and structure of this file is hugely influenced by [2]
 which is implemented for ImageNet and doesn't have option A for identity.
@@ -23,11 +23,10 @@ Reference:
 [2] https://github.com/pytorch/vision/blob/master/torchvision/models/resnet.py
 If you use this implementation in you work, please don't forget to mention the
 author, Yerlan Idelbayev.
-'''
+"""
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.init as init
-
 
 __all__ = ['ResNet', 'resnet20', 'resnet32', 'resnet44', 'resnet56', 'resnet110', 'resnet1202']
 
@@ -64,11 +63,12 @@ class BasicBlock(nn.Module):
                 """
                 # This layer throws error in multi_gpu setting, set to B
                 self.shortcut = LambdaLayer(lambda x:
-                                            F.pad(x[:, :, ::2, ::2], (0, 0, 0, 0, planes//4, planes//4), "constant", 0))
+                                            F.pad(x[:, :, ::2, ::2], (0, 0, 0, 0, planes // 4, planes // 4), "constant",
+                                                  0))
             elif option == 'B':
                 self.shortcut = nn.Sequential(
-                     nn.Conv2d(in_planes, self.expansion * planes, kernel_size=1, stride=stride, bias=False),
-                     nn.BatchNorm2d(self.expansion * planes)
+                    nn.Conv2d(in_planes, self.expansion * planes, kernel_size=1, stride=stride, bias=False),
+                    nn.BatchNorm2d(self.expansion * planes)
                 )
 
     def forward(self, x):
@@ -94,7 +94,7 @@ class ResNet(nn.Module):
         self.apply(_weights_init)
 
     def _make_layer(self, block, planes, num_blocks, stride):
-        strides = [stride] + [1]*(num_blocks-1)
+        strides = [stride] + [1] * (num_blocks - 1)
         layers = []
         for stride in strides:
             layers.append(block(self.in_planes, planes, stride))
@@ -135,4 +135,3 @@ def resnet110(n_classes=10):
 
 def resnet1202(n_classes=10):
     return ResNet(BasicBlock, [200, 200, 200], n_classes)
-
