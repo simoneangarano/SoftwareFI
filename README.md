@@ -11,10 +11,10 @@ classified with DieHardNet and other with an error
 
 The directories are organized as follows:
 
-* hg-noise-injector - A module to inject realistic errors in the training process
-* low-level-fault-injection - Configuration files for NVBITFI for fault injection
-* pytorch-scripts - PyTorch scripts for training and inference for the 
-used DNNs. For for information read the [README](/pytorch_scripts/README.md).
+* hg_noise_injector - A module to inject realistic errors in the training process
+* eval_fault_injection_cfg - Configuration files for NVBITFI for fault injection
+* pytorch_scripts - PyTorch scripts for training and inference for the 
+used DNNs. For information read the [README](/pytorch_scripts/README.md).
 
 
 

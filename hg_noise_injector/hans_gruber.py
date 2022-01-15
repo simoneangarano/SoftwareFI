@@ -26,12 +26,21 @@ class HansGruberNI(torch.nn.Module):
         self.noise_data = [i for i in noise_data if i["geometry_format"] == self.error_model]
 
     def forward(self, forward_input: torch.Tensor) -> torch.Tensor:
+        r"""Perform a 'forward' operation to simulate the error model injection
+        in the training process
+        :param forward_input: torch.Tensor input for the forward
+        :return: processed torch.Tensor
+        """
+        # TODO: How to inject the error model? Is it static for the whole training?
+        #  I believe we should randomize it, let's say: we pick a given
+        #  layer and at each forward we randomly sample a certain feature
+        #  map to corrupt among all the features
+
         # We can inject the relative errors using only Torch built-in functions
         # Otherwise it is necessary to use AutoGrads
         output = forward_input.clone()
         # TODO: It must be generalized for tensors that have more than 2 dim
         warnings.warn("Need to fix the HansGruber noise injector to support more than 2d dimension before use")
-        # assert len(input.shape) == 2, f"Generalize this method to n-arrays {input.shape}\n{input}"
         # rows, cols = input.shape
         relative_error = random.choice(self.noise_data)
         relative_error = random.uniform(float(relative_error["min_relative"]), float(relative_error["max_relative"]))
