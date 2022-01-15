@@ -16,5 +16,39 @@ The directories are organized as follows:
 * pytorch_scripts - PyTorch scripts for training and inference for the 
 used DNNs. For information read the [README](/pytorch_scripts/README.md).
 
+## Run the training process 
 
+<ol>
+<li>With the Hans Gruber error injector</li>
 
+```{r, engine='bash', code_block_name} 
+$ ./main.py ....
+```
+
+<li>Without the error injector</li>
+
+```{r, engine='bash', code_block_name} 
+$ ./main.py ....
+```
+
+</ol>
+
+## Run the inference
+
+An example of running the inference with the pretrained 
+hardened model
+```{r, engine='bash', code_block_name} 
+$ ./main.py ....
+```
+
+# To cite this work
+```bibtex
+@INPROCEEDINGS{diehardnet,
+    author = {AUTHORS},
+    title = {TITLE},
+    booktitle = {PROCEEDINGS},
+    series = {EVENT},
+    year = {2022},
+    isbn = {ISBN},
+} 
+```
