@@ -25,6 +25,22 @@ class HansGruberNI(torch.nn.Module):
         # make a subset of the errors
         self.noise_data = [i for i in noise_data if i["geometry_format"] == self.error_model]
 
+    @property
+    def random_relative_error(self):
+        r"""Generator for relative errors to be injected on the training
+        TODO: Initially the error will be static, we will fix it to the following approach
+        We have seen in the past relative error distributions that follow a Power Law PDF
+        so we will use the approach proposed at https://arxiv.org/abs/1208.3524
+        We will implement the function based on https://stats.stackexchange.com/a/406705
+        Example:
+        x_min, alpha, r = 5, 2.5, random()
+        relative_error = x_min * (1 - r) ** (-1 / (alpha - 1))
+        :return: the calculated relative_error
+        """
+        relative_error = 1.0
+
+        return relative_error
+
     def forward(self, forward_input: torch.Tensor) -> torch.Tensor:
         r"""Perform a 'forward' operation to simulate the error model injection
         in the training process
@@ -41,19 +57,19 @@ class HansGruberNI(torch.nn.Module):
         output = forward_input.clone()
         # TODO: It must be generalized for tensors that have more than 2 dim
         warnings.warn("Need to fix the HansGruber noise injector to support more than 2d dimension before use")
-        # rows, cols = input.shape
-        relative_error = random.choice(self.noise_data)
-        relative_error = random.uniform(float(relative_error["min_relative"]), float(relative_error["max_relative"]))
+        # TODO: put 1 relative error that is critical for the chosen network
+        #  line or column
+
         if self.error_model == LINE:
             # relative_errors = torch.FloatTensor(1, rows).uniform_(0, 1)
             rand_row = random.randrange(0, forward_input.shape[0])
-            output[rand_row, :].mul_(relative_error)
-        # elif self.error_model == ErrorModel.COL:
-        #     # relative_errors = torch.FloatTensor(1, cols).uniform_(0, 1)
-        #     rand_col = random.randrange(0, input.shape[1])
-        #     output[:, rand_col].mul_(relative_error)
-        else:
-            raise NotImplementedError
+            output[rand_row, :].mul_(self.random_relative_error)
+        elif self.error_model == SQUARE:
+            raise NotImplementedError("Implement SQUARE error model first")
+        elif self.error_model == RANDOM:
+            raise NotImplementedError("Implement RANDOM first")
+        elif self.error_model == ALL:
+            raise NotImplementedError("Implement ALL first")
         print(forward_input[forward_input != output])
 
         return output
