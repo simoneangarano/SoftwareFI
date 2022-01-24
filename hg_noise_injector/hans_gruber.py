@@ -61,7 +61,7 @@ class HansGruberNI(torch.nn.Module):
         if self.error_model == LINE:
             # relative_errors = torch.FloatTensor(1, rows).uniform_(0, 1)
             rand_row = random.randrange(0, forward_input.shape[0])
-            output[rand_row, :].mul_(self.random_relative_error)
+            output[rand_row, :] = output[rand_row, :].mul_(self.random_relative_error)
         elif self.error_model == SQUARE:
             raise NotImplementedError("Implement SQUARE error model first")
         elif self.error_model == RANDOM:
