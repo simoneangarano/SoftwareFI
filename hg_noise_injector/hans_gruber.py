@@ -1,11 +1,9 @@
 """Hans Gruber training noise injector
-This file encapsulate the noise injector to be used
+This file encapsulates the noise injector to be used
 in the training process
 """
 import random
 import warnings
-
-import numpy as np
 import torch
 
 LINE, SQUARE, RANDOM, ALL = "LINE", "SQUARE", "RANDOM", "ALL"
@@ -26,9 +24,8 @@ class HansGruberNI(torch.nn.Module):
         self.noise_data = [i for i in noise_data if i["geometry_format"] == self.error_model]
 
     @property
-    def random_relative_error(self):
+    def random_relative_error(self) -> float:
         r"""Generator for relative errors to be injected on the training
-        TODO: Initially the error will be static, we will fix it to the following approach
         We have seen in the past relative error distributions that follow a Power Law PDF
         so we will use the approach proposed at https://arxiv.org/abs/1208.3524
         We will implement the function based on https://stats.stackexchange.com/a/406705
@@ -37,8 +34,9 @@ class HansGruberNI(torch.nn.Module):
         relative_error = x_min * (1 - r) ** (-1 / (alpha - 1))
         :return: the calculated relative_error
         """
-        relative_error = 1.0
-
+        # TODO: Generalize the random generation to the values observed on GEMM output
+        x_min, alpha, r = 1.0728769e-07, 1.0868737e+00, random.random()
+        relative_error = x_min * (1 - r) ** (-1 / (alpha - 1))
         return relative_error
 
     def forward(self, forward_input: torch.Tensor) -> torch.Tensor:

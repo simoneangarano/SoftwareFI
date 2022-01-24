@@ -9,9 +9,6 @@ import sys
 import torch
 import torchvision
 import torchvision.transforms as transforms
-import matplotlib.pyplot as plt
-import numpy as np
-
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
@@ -72,14 +69,6 @@ class NetWithNoise(nn.Module):
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
         return x
-
-
-# functions to show an image
-def imshow(img):
-    img = img / 2 + 0.5  # unnormalize
-    npimg = img.numpy()
-    plt.imshow(np.transpose(npimg, (1, 2, 0)))
-    plt.show()
 
 
 def train_network():
@@ -171,7 +160,7 @@ def test_network_noise():
     print('GroundTruth: ', ' '.join('%5s' % classes[labels[j]] for j in range(4)))
     net = NetWithNoise()
     net.load_state_dict(torch.load(MODEL_PATH))
-    net.load_noise_file(f"{DATA_PATH}/yolov3_scheduler_fault_model.csv")
+    # net.load_noise_file(f"{DATA_PATH}/yolov3_scheduler_fault_model.csv")
     outputs = net(images)
     _, predicted = torch.max(outputs, 1)
 
