@@ -17,9 +17,9 @@ parser.add_argument('-c', '--config', default='', type=str, metavar='FILE',
 
 parser = argparse.ArgumentParser(description='PyTorch Training')
 
-parser.add_argument('--name', default='validation_test_wefcd', help='Experiment name.')
-parser.add_argument('--mode', default='train', help='train or validation')
-parser.add_argument('--ckpt', default=None, help='Pass the name of a checkpoint to resume training.')
+parser.add_argument('--name', default='injection_test_0', help='Experiment name.')
+parser.add_argument('--mode', default='validation', help='train or validation')
+parser.add_argument('--ckpt', default='c10_resnet20_base-epoch=155-val_acc=0.92.ckpt', help='Pass the name of a checkpoint to resume training.')
 parser.add_argument('--dataset', default='cifar10', help='Dataset name: cifar10 or cifar100.')
 parser.add_argument('--data_dir', default='./data', help='Path to dataset.')
 parser.add_argument('--num_gpus', default=1, help='Number of GPUs used.')
@@ -66,8 +66,10 @@ def main():
         args.ckpt = 'checkpoints/' + args.ckpt
     if args.mode == 'train':
         trainer.fit(net, cifar, ckpt_path=args.ckpt)
-    elif args.mode == 'validation':
+    elif args.mode == 'validation' or args.mode == 'validate':
         trainer.validate(net, cifar, ckpt_path=args.ckpt)
+    else:
+        print('ERROR: select a suitable mode "train" or "validate".')
 
 
 if __name__ == '__main__':
