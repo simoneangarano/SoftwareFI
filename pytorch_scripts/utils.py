@@ -51,10 +51,11 @@ class CifarDataModule(pytorch_lightning.LightningDataModule):
             self.test_data = CIFAR100(root=self.data_dir, train=False, transform=self.test_trans, download=True)
 
     def train_dataloader(self):
-        return DataLoader(self.train_data, batch_size=self.batch_size * self.num_gpus, num_workers=4 * self.num_gpus)
+        return DataLoader(self.train_data, batch_size=self.batch_size * self.num_gpus, num_workers=4 * self.num_gpus,
+                          shuffle=True, drop_last=True)
 
     def val_dataloader(self):
-        return DataLoader(self.test_data, batch_size=self.batch_size * self.num_gpus, num_workers=4 * self.num_gpus)
+        return DataLoader(self.test_data, batch_size=200 * self.num_gpus, num_workers=4 * self.num_gpus)
 
 
 def build_model(model='resnet20', n_classes=10, optim_params={}):
