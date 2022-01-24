@@ -1,0 +1,14 @@
+name: default
+mode: train
+ckpt: null
+dataset: cifar10
+data_dir: ./data
+num_gpus: 1
+model: resnet20
+epochs: 160
+batch_size: 128
+lr: !!float 1e-1
+wd: !!float 1e-4
+optimizer: sgd
+seed: 0
+comment: null
