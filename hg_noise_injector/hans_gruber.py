@@ -15,6 +15,7 @@ class HansGruberNI(torch.nn.Module):
         # Error model necessary for the forward
         self.error_model = error_model
         self.noise_data = list()
+        self.injection_pct = [True] * 3 + [False] * 7
 
     def set_noise_data(self, noise_data: list = None) -> None:
         r"""Set the noise data that we extract and parse from radiation experiments
@@ -45,6 +46,10 @@ class HansGruberNI(torch.nn.Module):
         :param forward_input: torch.Tensor input for the forward
         :return: processed torch.Tensor
         """
+        # Selects only 30% of the iterations
+        if random.choice(self.injection_pct) is False:
+            return forward_input
+
         # TODO: How to inject the error model? Is it static for the whole training?
         #  I believe we should randomize it, let's say: we pick a given
         #  layer and at each forward we randomly sample a certain feature
