@@ -3,7 +3,6 @@ This file encapsulates the noise injector to be used
 in the training process
 """
 import random
-import warnings
 import torch
 
 LINE, SQUARE, RANDOM, ALL = "LINE", "SQUARE", "RANDOM", "ALL"
@@ -24,6 +23,7 @@ class HansGruberNI(torch.nn.Module):
         # make a subset of the errors
         self.noise_data = [i for i in noise_data if i["geometry_format"] == self.error_model]
 
+    @property
     def random_relative_error(self) -> float:
         r"""Generator for relative errors to be injected on the training
         We have seen in the past relative error distributions that follow a Power Law PDF
@@ -43,20 +43,20 @@ class HansGruberNI(torch.nn.Module):
         # We can inject the relative errors using only Torch built-in functions
         # Otherwise it is necessary to use AutoGrads
         output = forward_input.clone()
-        B, C, H, W = output.shape
-        # select the samples which the injecttion is applied to with probability p
-        sampled_indexes = torch.bernoulli(torch.ones(B) * p)
+        b, c, h, w = output.shape
+        # select the samples which the injection is applied to with probability p
+        sampled_indexes = torch.bernoulli(torch.ones(b) * p)
         sampled_indexes = sampled_indexes > 0
 
         if self.error_model == LINE:
             # select the row
-            rand_row = torch.randint(H, size=(1,))
+            rand_row = torch.randint(h, size=(1,))
             if torch.bernoulli(torch.ones(1) * 0.5):
                 output[sampled_indexes, :, :, rand_row] = output[sampled_indexes, :, :, rand_row].mul_(
-                    self.random_relative_error())
+                    self.random_relative_error)
             else:
                 output[sampled_indexes, :, rand_row, :] = output[sampled_indexes, :, rand_row, :].mul_(
-                    self.random_relative_error())
+                    self.random_relative_error)
 
         elif self.error_model == SQUARE:
             raise NotImplementedError("Implement SQUARE error model first")
@@ -64,7 +64,6 @@ class HansGruberNI(torch.nn.Module):
             raise NotImplementedError("Implement RANDOM first")
         elif self.error_model == ALL:
             raise NotImplementedError("Implement ALL first")
-        #print(forward_input[forward_input != output])
 
         return output
 
