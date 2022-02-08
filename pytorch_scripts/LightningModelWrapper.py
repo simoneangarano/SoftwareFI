@@ -37,7 +37,7 @@ class ModelWrapper(pl.LightningModule):
         loss = self.criterion(outputs, get_one_hot(y, self.n_classes))
         _, preds = torch.max(outputs, 1)
         acc = torch.sum(preds == y) / x.shape[0]
-        print("Incorrect classified:", 1 - acc)
+        # print("Incorrect classified:", 1 - acc)
         return loss, acc
 
     def training_step(self, train_batch, batch_idx):
