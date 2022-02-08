@@ -36,8 +36,7 @@ class ModelWrapper(pl.LightningModule):
         outputs = self(x)
         loss = self.criterion(outputs, get_one_hot(y, self.n_classes))
         _, preds = torch.max(outputs, 1)
-        mask_correct_class = preds == y
-        acc = torch.sum(mask_correct_class) / x.shape[0]
+        acc = torch.sum(preds == y) / x.shape[0]
         print("Incorrect classified:", 1 - acc)
         return loss, acc
 
