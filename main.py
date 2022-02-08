@@ -10,7 +10,6 @@ from pytorch_lightning.loggers import WandbLogger
 
 # DieHardNET packages
 from pytorch_scripts.utils import build_model, CifarDataModule, _parse_args
-from hg_noise_injector.hans_gruber import HansGruberNI
 
 
 config_parser = parser = argparse.ArgumentParser(description='Configuration', add_help=False)

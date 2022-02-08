@@ -36,21 +36,24 @@ class ModelWrapper(pl.LightningModule):
         outputs = self(x)
         loss = self.criterion(outputs, get_one_hot(y, self.n_classes))
         _, preds = torch.max(outputs, 1)
-        acc = torch.sum(preds == y) / x.shape[0]
-        return loss, acc
+        mask_correct_class = preds == y
+        incorrect_classes = x[mask_correct_class], mask_correct_class
+        acc = torch.sum(mask_correct_class) / x.shape[0]
+        return loss, acc, incorrect_classes
 
     def training_step(self, train_batch, batch_idx):
-        loss, acc = self.get_metrics(train_batch)
+        loss, acc, _ = self.get_metrics(train_batch)
 
         self.epoch_log('train_loss', loss)
         self.epoch_log('train_acc', acc)
         return loss
 
     def validation_step(self, val_batch, batch_idx):
-        loss, acc = self.get_metrics(val_batch)
+        loss, acc, incorrect_class = self.get_metrics(val_batch)
 
         self.epoch_log('val_loss', loss)
         self.epoch_log('val_acc', acc)
+        self.epoch_log('incorrect_vals', incorrect_class[0])
         return loss
 
     def on_train_epoch_start(self):
