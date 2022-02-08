@@ -44,7 +44,7 @@ class HansGruberNI(torch.nn.Module):
                       2.3798765e+01, 2.3798765e+01, 2.3922783e+01, 1.2143508e+08, 3.4316596e+00, 1.2143508e+08,
                       1.0821200e+00, 1.0821160e+00, 1.0821200e+00]
 
-        alpha = max(alphas_fus)
+        alpha = random.choice(alphas_fus)
         x_min = x_mins_fus[alphas_fus.index(alpha)]
         r = random.random()
         relative_error = x_min * (1 - r) ** (-1 / (alpha - 1))
