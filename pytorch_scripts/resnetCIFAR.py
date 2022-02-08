@@ -83,7 +83,13 @@ class BasicBlock(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, block, num_blocks, num_classes=10):
+    def __init__(self, block, num_blocks, num_classes=10, use_noise_injection=True):
+        """ Class that represents the ResNet model
+        :param block:
+        :param num_blocks:
+        :param num_classes:
+        :param use_noise_injection: flag that defines if the noise injection is used or not
+        """
         super(ResNet, self).__init__()
         self.in_planes = 16
 
@@ -95,7 +101,7 @@ class ResNet(nn.Module):
         self.linear = nn.Linear(64, num_classes)
 
         self.noise_injector = HansGruberNI()
-
+        self.use_noise_injector = use_noise_injection
         self.apply(_weights_init)
 
     def load_noise_file(self, noise_file_path):
@@ -115,7 +121,8 @@ class ResNet(nn.Module):
     def forward(self, x):
         out = F.relu(self.bn1(self.conv1(x)))
         out = self.layer1(out)
-        out = self.noise_injector(out)
+        if self.use_noise_injector:
+            out = self.noise_injector(out)
         out = self.layer2(out)
         out = self.layer3(out)
         out = F.avg_pool2d(out, out.size()[3])
