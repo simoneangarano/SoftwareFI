@@ -49,7 +49,8 @@ class HansGruberNI(torch.nn.Module):
         r = random.random()
         relative_error = x_min * (1 - r) ** (-1 / (alpha - 1))
         # print(relative_error)
-        return relative_error
+        # return relative_error
+        return 27.119592052269397
 
     def inject(self, forward_input: torch.Tensor, p: float) -> torch.Tensor:
         # We can inject the relative errors using only Torch built-in functions
@@ -79,7 +80,7 @@ class HansGruberNI(torch.nn.Module):
 
         return output
 
-    def forward(self, forward_input: torch.Tensor, inject: bool=True) -> torch.Tensor:
+    def forward(self, forward_input: torch.Tensor, inject: bool = True) -> torch.Tensor:
         r"""Perform a 'forward' operation to simulate the error model injection
         in the training process
         :param inject: whether to apply injection or not at test time
