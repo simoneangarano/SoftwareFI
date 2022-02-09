@@ -83,7 +83,7 @@ class BasicBlock(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, block, num_blocks, num_classes=10, use_noise_injection=True):
+    def __init__(self, block, num_blocks, num_classes=10, inject_p=0.1):
         """ Class that represents the ResNet model
         :param block:
         :param num_blocks:
@@ -100,8 +100,7 @@ class ResNet(nn.Module):
         self.layer3 = self._make_layer(block, 64, num_blocks[2], stride=2)
         self.linear = nn.Linear(64, num_classes)
 
-        self.noise_injector = HansGruberNI()
-        self.use_noise_injector = use_noise_injection
+        self.noise_injector = HansGruberNI(p=inject_p)
         self.apply(_weights_init)
 
     def load_noise_file(self, noise_file_path):
@@ -118,11 +117,10 @@ class ResNet(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def forward(self, x):
+    def forward(self, x, inject=True):
         out = F.relu(self.bn1(self.conv1(x)))
         out = self.layer1(out)
-        if self.use_noise_injector:
-            out = self.noise_injector(out)
+        out = self.noise_injector(out, inject)
         out = self.layer2(out)
         out = self.layer3(out)
         out = F.avg_pool2d(out, out.size()[3])
@@ -131,25 +129,25 @@ class ResNet(nn.Module):
         return out
 
 
-def resnet20(n_classes=10):
-    return ResNet(BasicBlock, [3, 3, 3], n_classes)
+def resnet20(n_classes=10, inject_p=0.1):
+    return ResNet(BasicBlock, [3, 3, 3], n_classes, inject_p)
 
 
-def resnet32(n_classes=10):
-    return ResNet(BasicBlock, [5, 5, 5], n_classes)
+def resnet32(n_classes=10, inject_p=0.1):
+    return ResNet(BasicBlock, [5, 5, 5], n_classes, inject_p)
 
 
-def resnet44(n_classes=10):
-    return ResNet(BasicBlock, [7, 7, 7], n_classes)
+def resnet44(n_classes=10, inject_p=0.1):
+    return ResNet(BasicBlock, [7, 7, 7], n_classes, inject_p)
 
 
-def resnet56(n_classes=10):
-    return ResNet(BasicBlock, [9, 9, 9], n_classes)
+def resnet56(n_classes=10, inject_p=0.1):
+    return ResNet(BasicBlock, [9, 9, 9], n_classes, inject_p)
 
 
-def resnet110(n_classes=10):
-    return ResNet(BasicBlock, [18, 18, 18], n_classes)
+def resnet110(n_classes=10, inject_p=0.1):
+    return ResNet(BasicBlock, [18, 18, 18], n_classes, inject_p)
 
 
-def resnet1202(n_classes=10):
-    return ResNet(BasicBlock, [200, 200, 200], n_classes)
+def resnet1202(n_classes=10, inject_p=0.1):
+    return ResNet(BasicBlock, [200, 200, 200], n_classes, inject_p)

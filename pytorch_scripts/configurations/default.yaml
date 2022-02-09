@@ -11,4 +11,5 @@ lr: !!float 1e-1
 wd: !!float 1e-4
 optimizer: sgd
 seed: 0
+inject_p: !!float 0.1
 comment: null

@@ -15,8 +15,8 @@ class ModelWrapper(pl.LightningModule):
 
         self.criterion = nn.BCEWithLogitsLoss()
 
-    def forward(self, x):
-        return self.model(x)
+    def forward(self, x, inject=True):
+        return self.model(x, inject)
 
     def configure_optimizers(self):
         if self.optim['optimizer'] == 'sgd':
@@ -29,15 +29,14 @@ class ModelWrapper(pl.LightningModule):
         scheduler = CosineAnnealingLR(optimizer, self.optim['epochs'], eta_min=5e-5)
         return {'optimizer': optimizer, 'lr_scheduler': scheduler}
 
-    def get_metrics(self, batch):
+    def get_metrics(self, batch, inject=True):
         x, y = batch
 
         # forward
-        outputs = self(x)
+        outputs = self(x, inject)
         loss = self.criterion(outputs, get_one_hot(y, self.n_classes))
         _, preds = torch.max(outputs, 1)
         acc = torch.sum(preds == y) / x.shape[0]
-        # print("Incorrect classified:", 1 - acc)
         return loss, acc
 
     def training_step(self, train_batch, batch_idx):
@@ -48,11 +47,14 @@ class ModelWrapper(pl.LightningModule):
         return loss
 
     def validation_step(self, val_batch, batch_idx):
-        loss, acc = self.get_metrics(val_batch)
+        loss, acc = self.get_metrics(val_batch, False)
+        noisy_loss, noisy_acc = self.get_metrics(val_batch)
 
         self.epoch_log('val_loss', loss)
         self.epoch_log('val_acc', acc)
-        return loss
+        self.epoch_log('noisy_val_loss', noisy_loss)
+        self.epoch_log('noisy_val_acc', noisy_acc)
+        return noisy_loss
 
     def on_train_epoch_start(self):
         lr = self.optimizers().param_groups[0]['lr']

@@ -58,18 +58,18 @@ class CifarDataModule(pytorch_lightning.LightningDataModule):
         return DataLoader(self.test_data, batch_size=200 * self.num_gpus, num_workers=4 * self.num_gpus)
 
 
-def build_model(model='resnet20', n_classes=10, optim_params={}):
+def build_model(model='resnet20', n_classes=10, optim_params={}, inject_p=0.1):
     if model == 'resnet20':
-        net = resnet20(n_classes)
+        net = resnet20(n_classes, inject_p)
     elif model == 'resnet32':
-        net = resnet32(n_classes)
+        net = resnet32(n_classes, inject_p)
     elif model == 'resnet44':
-        net = resnet44(n_classes)
+        net = resnet44(n_classes, inject_p)
     elif model == 'resnet56':
-        net = resnet56(n_classes)
+        net = resnet56(n_classes), inject_p
     else:
         model = 'resnet20'
-        net = resnet20(n_classes)
+        net = resnet20(n_classes, inject_p)
 
     print(f'\n    {model} built.')
     return ModelWrapper(net, n_classes, optim_params)

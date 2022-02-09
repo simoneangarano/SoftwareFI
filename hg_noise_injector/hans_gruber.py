@@ -79,9 +79,10 @@ class HansGruberNI(torch.nn.Module):
 
         return output
 
-    def forward(self, forward_input: torch.Tensor) -> torch.Tensor:
+    def forward(self, forward_input: torch.Tensor, inject: bool=True) -> torch.Tensor:
         r"""Perform a 'forward' operation to simulate the error model injection
         in the training process
+        :param inject: whether to apply injection or not at test time
         :param forward_input: torch.Tensor input for the forward
         :return: processed torch.Tensor
         """
@@ -89,7 +90,10 @@ class HansGruberNI(torch.nn.Module):
             # inject noise to each sample with probability p
             output = self.inject(forward_input, self.p)
         else:
-            # inject noise to all samples
-            output = self.inject(forward_input, 1)
+            if inject:
+                # inject noise to all samples
+                output = self.inject(forward_input, 1)
+            else:
+                return forward_input
 
         return output

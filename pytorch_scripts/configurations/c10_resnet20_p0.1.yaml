@@ -1,10 +1,10 @@
-name: c100_resnet44_evaluation
-mode: evaluation
-ckpt: c100_resnet44_base-epoch=157-val_acc=0.66.ckpt
-dataset: cifar100
+name: c10_resnet20_p0.1
+mode: train
+ckpt: null
+dataset: cifar10
 data_dir: ./data
 num_gpus: 1
-model: resnet44
+model: resnet20
 epochs: 160
 batch_size: 128
 lr: !!float 1e-1
