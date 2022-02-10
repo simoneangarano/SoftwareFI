@@ -1,9 +1,9 @@
 #!/usr/bin/python3
 
 import argparse
+import warnings
+warnings.filterwarnings("ignore")  # Suppress the annoying warning for non-empty checkpoint directory
 
-# import torch
-# torch.autograd.set_detect_anomaly(True)
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
@@ -15,7 +15,7 @@ from pytorch_scripts.cifar_data_module import CifarDataModule
 
 config_parser = parser = argparse.ArgumentParser(description='Configuration', add_help=False)
 parser.add_argument('-c', '--config', default='', type=str, metavar='FILE',
-                    help='YAML config file specifying default arguments')
+                    help='YAML config file specifying default arguments.')
 
 parser = argparse.ArgumentParser(description='PyTorch Training')
 

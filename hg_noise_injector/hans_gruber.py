@@ -95,6 +95,7 @@ class HansGruberNI(torch.nn.Module):
                 # inject noise to all samples
                 output = self.inject(forward_input, 1)
             else:
+                # do not inject noise
                 return forward_input
 
         return output
