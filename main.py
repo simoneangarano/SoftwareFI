@@ -9,7 +9,8 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 
 # DieHardNET packages
-from pytorch_scripts.utils import build_model, CifarDataModule, _parse_args
+from pytorch_scripts.utils import build_model, _parse_args
+from pytorch_scripts.cifar_data_module import CifarDataModule
 
 
 config_parser = parser = argparse.ArgumentParser(description='Configuration', add_help=False)
