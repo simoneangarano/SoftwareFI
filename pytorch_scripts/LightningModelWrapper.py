@@ -6,14 +6,19 @@ import pytorch_lightning as pl
 
 
 class ModelWrapper(pl.LightningModule):
-    def __init__(self, model, n_classes, optim):
+    def __init__(self, model, n_classes, optim, loss):
         super(ModelWrapper, self).__init__()
 
         self.model = model
         self.n_classes = n_classes
         self.optim = optim
 
-        self.criterion = nn.BCEWithLogitsLoss()
+        if loss == 'bce':
+            self.criterion = nn.BCEWithLogitsLoss()
+            self.use_one_hot = True
+        elif loss == 'ce':
+            self.criterion = nn.CrossEntropyLoss()
+            self.use_one_hot = False
 
     def forward(self, x, inject=True):
         return self.model(x, inject)
@@ -34,7 +39,14 @@ class ModelWrapper(pl.LightningModule):
 
         # forward
         outputs = self(x, inject)
-        loss = self.criterion(outputs, get_one_hot(y, self.n_classes))
+        # loss
+        if self.use_one_hot:
+            # bce
+            loss = self.criterion(outputs, get_one_hot(y, self.n_classes))
+        else:
+            # ce
+            loss = self.criterion(outputs, y)
+        # accuracy
         _, preds = torch.max(outputs, 1)
         acc = torch.sum(preds == y) / x.shape[0]
         return loss, acc

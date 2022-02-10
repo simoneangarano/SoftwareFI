@@ -25,6 +25,7 @@ parser.add_argument('--dataset', default='cifar10', help='Dataset name: cifar10 
 parser.add_argument('--data_dir', default='./data', help='Path to dataset.')
 parser.add_argument('--num_gpus', default=1, help='Number of GPUs used.')
 parser.add_argument('--model', default='resnet20', help='Network name. Resnets only for now.')
+parser.add_argument('--loss', default='bce', help='bce or ce loss.')
 parser.add_argument('--epochs', default=160, help='Number of epochs.')
 parser.add_argument('--batch_size', default=128, help='Batch Size')
 parser.add_argument('--lr', default=1e-1, help='Learning rate.')
@@ -48,7 +49,7 @@ def main():
     # Build model (Resnet only up to now)
     optim_params = {'optimizer': args.optimizer, 'epochs': args.epochs, 'lr': args.lr, 'wd': args.wd}
     n_classes = 10 if args.dataset == 'cifar10' else 100
-    net = build_model(args.model, n_classes, optim_params, args.inject_p)
+    net = build_model(args.model, n_classes, optim_params, args.loss, args.inject_p)
 
     # W&B logger
     wandb_logger = WandbLogger(project="NeutronRobustness", name=args.name, id=args.name, entity="neutronstrikesback")

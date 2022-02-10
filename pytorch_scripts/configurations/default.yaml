@@ -5,6 +5,7 @@ dataset: cifar10
 data_dir: ./data
 num_gpus: 1
 model: resnet20
+loss: bce
 epochs: 160
 batch_size: 128
 lr: !!float 1e-1
