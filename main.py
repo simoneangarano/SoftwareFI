@@ -20,21 +20,24 @@ parser.add_argument('-c', '--config', default='', type=str, metavar='FILE',
 parser = argparse.ArgumentParser(description='PyTorch Training')
 
 parser.add_argument('--name', default='test', help='Experiment name.')
-parser.add_argument('--mode', default='train', help='Mode: train/training or validation/validate')
+parser.add_argument('--mode', default='train', help='Mode: train/training or validation/validate.')
 parser.add_argument('--ckpt', default=None, help='Pass the name of a checkpoint to resume training.')
 parser.add_argument('--dataset', default='cifar10', help='Dataset name: cifar10 or cifar100.')
 parser.add_argument('--data_dir', default='./data', help='Path to dataset.')
 parser.add_argument('--num_gpus', default=1, help='Number of GPUs used.')
 parser.add_argument('--model', default='resnet20', help='Network name. Resnets only for now.')
 parser.add_argument('--loss', default='bce', help='Loss: bce or ce.')
+parser.add_argument('--clip', default=None, help='Gradient clipping value.')
+parser.add_argument('--norm', default='batch', help='Normalization layer: batch or group.')
 parser.add_argument('--epochs', default=160, help='Number of epochs.')
 parser.add_argument('--batch_size', default=128, help='Batch Size')
 parser.add_argument('--lr', default=1e-1, help='Learning rate.')
 parser.add_argument('--wd', default=1e-4, help='Weight Decay.')
 parser.add_argument('--optimizer', default='sgd', help='Optimizer name: adamw or sgd.')
 parser.add_argument('--inject_p', default=0.1, help='Probability of noise injection at training time.')
+parser.add_argument('--inject_epoch', default=0, help='How many epochs before starting the injection.')
 parser.add_argument('--seed', default=0, help='Random seed for reproducibility.')
-parser.add_argument('--comment', default='ResNet trained with original settings but the scheduler',
+parser.add_argument('--comment', default='ResNet trained with original settings but the scheduler.',
                     help='Optional comment.')
 
 
@@ -50,7 +53,7 @@ def main():
     # Build model (Resnet only up to now)
     optim_params = {'optimizer': args.optimizer, 'epochs': args.epochs, 'lr': args.lr, 'wd': args.wd}
     n_classes = 10 if args.dataset == 'cifar10' else 100
-    net = build_model(args.model, n_classes, optim_params, args.loss, args.inject_p)
+    net = build_model(args.model, n_classes, optim_params, args.loss, args.inject_p, args.inject_epoch, args.norm)
 
     # W&B logger
     wandb_logger = WandbLogger(project="NeutronRobustness", name=args.name, id=args.name, entity="neutronstrikesback")
@@ -64,7 +67,8 @@ def main():
 
     # Pytorch-Lightning Trainer
     trainer = pl.Trainer(max_epochs=args.epochs, devices=args.num_gpus, callbacks=callbacks, logger=wandb_logger,
-                         deterministic=True, benchmark=True, accelerator='gpu', strategy="dp", sync_batchnorm=True)
+                         deterministic=True, benchmark=True, accelerator='gpu', strategy="dp", sync_batchnorm=True,
+                         gradient_clip_val=args.clip)
 
     if args.ckpt:
         args.ckpt = 'checkpoints/' + args.ckpt

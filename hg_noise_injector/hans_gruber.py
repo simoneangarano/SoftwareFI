@@ -9,12 +9,13 @@ LINE, SQUARE, RANDOM, ALL = "LINE", "SQUARE", "RANDOM", "ALL"
 
 
 class HansGruberNI(torch.nn.Module):
-    def __init__(self, error_model: str = LINE, p: float = 0.3):
+    def __init__(self, error_model: str = LINE, p: float = 0.3, inject_epoch: int = 0):
         super(HansGruberNI, self).__init__()
         # Error model necessary for the forward
         self.error_model = error_model
         self.noise_data = list()
         self.p = p  # fraction of the samples which the injection is applied to
+        self.inject_epoch = inject_epoch  # how many epochs before starting the injection
 
     def set_noise_data(self, noise_data: list = None) -> None:
         r"""Set the noise data that we extract and parse from radiation experiments
@@ -49,8 +50,8 @@ class HansGruberNI(torch.nn.Module):
         r = random.random()
         relative_error = x_min * (1 - r) ** (-1 / (alpha - 1))
         # print(relative_error)
-        # return relative_error
-        return 27.119592052269397
+        return relative_error
+        #return 27.119592052269397
 
     def inject(self, forward_input: torch.Tensor, p: float) -> torch.Tensor:
         # We can inject the relative errors using only Torch built-in functions
@@ -80,22 +81,21 @@ class HansGruberNI(torch.nn.Module):
 
         return output
 
-    def forward(self, forward_input: torch.Tensor, inject: bool = True) -> torch.Tensor:
+    def forward(self, forward_input: torch.Tensor, inject: bool = True, current_epoch: int = 0) -> torch.Tensor:
         r"""Perform a 'forward' operation to simulate the error model injection
         in the training process
         :param inject: whether to apply injection or not at test time
         :param forward_input: torch.Tensor input for the forward
         :return: processed torch.Tensor
         """
+        output = forward_input
         if self.training:
-            # inject noise to each sample with probability p
-            output = self.inject(forward_input, self.p)
+            if current_epoch >= self.inject_epoch:
+                # inject noise to each sample with probability p
+                output = self.inject(forward_input, self.p)
         else:
             if inject:
                 # inject noise to all samples
                 output = self.inject(forward_input, 1)
-            else:
-                # do not inject noise
-                return forward_input
 
         return output

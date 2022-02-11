@@ -4,18 +4,18 @@ from .resnetCIFAR import *
 from .LightningModelWrapper import ModelWrapper
 
 
-def build_model(model='resnet20', n_classes=10, optim_params={}, loss='bce', inject_p=0.1):
+def build_model(model='resnet20', n_classes=10, optim_params={}, loss='bce', inject_p=0.1, inject_epoch=0, norm='batch'):
     if model == 'resnet20':
-        net = resnet20(n_classes, inject_p)
+        net = resnet20(n_classes, inject_p, inject_epoch, norm)
     elif model == 'resnet32':
-        net = resnet32(n_classes, inject_p)
+        net = resnet32(n_classes, inject_p, inject_epoch, norm)
     elif model == 'resnet44':
-        net = resnet44(n_classes, inject_p)
+        net = resnet44(n_classes, inject_p, inject_epoch, norm)
     elif model == 'resnet56':
-        net = resnet56(n_classes), inject_p
+        net = resnet56(n_classes, inject_p, inject_epoch, norm)
     else:
         model = 'resnet20'
-        net = resnet20(n_classes, inject_p)
+        net = resnet20(n_classes, inject_p, inject_epoch, norm)
 
     print(f'\n    {model} built.')
     return ModelWrapper(net, n_classes, optim_params, loss)

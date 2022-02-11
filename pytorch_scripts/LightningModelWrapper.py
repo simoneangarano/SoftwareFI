@@ -21,7 +21,7 @@ class ModelWrapper(pl.LightningModule):
             self.use_one_hot = False
 
     def forward(self, x, inject=True):
-        return self.model(x, inject)
+        return self.model(x, inject, self.current_epoch)
 
     def configure_optimizers(self):
         if self.optim['optimizer'] == 'sgd':
