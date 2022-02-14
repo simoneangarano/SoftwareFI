@@ -94,14 +94,14 @@ class SymmetricCELoss(nn.Module):
         self.nnlloss = nn.NLLLoss()
         self.Softmax = nn.Softmax()
 
-    def CELoss(self, inputs, targets):
+    def negative_log_likelihood(self, inputs, targets):
         return - torch.sum(targets * torch.log(inputs + 1e-6)) / inputs.shape[0]
 
     def forward(self, inputs, targets):
         inputs = self.Softmax(inputs)
         targets = get_one_hot(targets, self.n_classes)
         # standard crossEntropy
-        ce = self.CELoss(inputs, targets)
+        ce = self.negative_log_likelihood(inputs, targets)
         # reverse crossEntropy
-        rce = self.CELoss(targets, inputs)
+        rce = self.negative_log_likelihood(targets, inputs)
         return ce * self.alpha + rce * self.beta
