@@ -1,4 +1,6 @@
 import yaml
+import torch
+import torch.nn as nn
 
 from .resnetCIFAR import *
 from .LightningModelWrapper import ModelWrapper

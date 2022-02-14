@@ -26,7 +26,7 @@ parser.add_argument('--dataset', default='cifar10', help='Dataset name: cifar10 
 parser.add_argument('--data_dir', default='./data', help='Path to dataset.')
 parser.add_argument('--num_gpus', default=1, help='Number of GPUs used.')
 parser.add_argument('--model', default='resnet20', help='Network name. Resnets only for now.')
-parser.add_argument('--loss', default='bce', help='Loss: bce or ce.')
+parser.add_argument('--loss', default='bce', help='Loss: bce, ce or sce.')
 parser.add_argument('--clip', default=None, help='Gradient clipping value.')
 parser.add_argument('--norm', default='batch', help='Normalization layer: batch or group.')
 parser.add_argument('--epochs', default=160, help='Number of epochs.')
