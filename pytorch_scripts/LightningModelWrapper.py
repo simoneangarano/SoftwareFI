@@ -92,13 +92,13 @@ class SymmetricCELoss(nn.Module):
         self.alpha = alpha
         self.beta = beta
         self.nnlloss = nn.NLLLoss()
-        self.logSoftmax = nn.LogSoftmax()
+        self.Softmax = nn.Softmax()
 
     def CELoss(self, inputs, targets):
-        return - torch.sum(targets * inputs) / inputs.shape[0]
+        return - torch.sum(targets * torch.log(inputs + 1e-6)) / inputs.shape[0]
 
     def forward(self, inputs, targets):
-        inputs = self.logSoftmax(inputs)
+        inputs = self.Softmax(inputs)
         targets = get_one_hot(targets, self.n_classes)
         # standard crossEntropy
         ce = self.CELoss(inputs, targets)
