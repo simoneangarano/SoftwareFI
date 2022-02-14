@@ -20,8 +20,8 @@ class ModelWrapper(pl.LightningModule):
             self.criterion = nn.CrossEntropyLoss()
             self.use_one_hot = False
         elif loss == 'sce':
-            self.criterion = SymmetricCELoss(self.n_classes)
-            self.use_one_hot = False
+            self.criterion = SymmetricCELoss()
+            self.use_one_hot = True
 
     def forward(self, x, inject=True):
         return self.model(x, inject, self.current_epoch)
@@ -44,10 +44,10 @@ class ModelWrapper(pl.LightningModule):
         outputs = self(x, inject)
         # loss
         if self.use_one_hot:
-            # bce
+            # bce or sce
             loss = self.criterion(outputs, get_one_hot(y, self.n_classes))
         else:
-            # ce or sce
+            # ce
             loss = self.criterion(outputs, y)
         # accuracy
         _, preds = torch.max(outputs, 1)
@@ -86,9 +86,8 @@ def get_one_hot(target, n_classes=10, device='cuda'):
 
 
 class SymmetricCELoss(nn.Module):
-    def __init__(self, n_classes=10, alpha=1, beta=1):
+    def __init__(self, alpha=1, beta=1):
         super(SymmetricCELoss, self).__init__()
-        self.n_classes = n_classes
         self.alpha = alpha
         self.beta = beta
         self.nnlloss = nn.NLLLoss()
@@ -99,7 +98,6 @@ class SymmetricCELoss(nn.Module):
 
     def forward(self, inputs, targets):
         inputs = self.Softmax(inputs)
-        targets = get_one_hot(targets, self.n_classes)
         # standard crossEntropy
         ce = self.negative_log_likelihood(inputs, targets)
         # reverse crossEntropy
