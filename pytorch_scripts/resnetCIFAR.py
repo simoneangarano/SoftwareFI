@@ -96,12 +96,7 @@ class BasicBlock(nn.Module):
 
 class ResNet(nn.Module):
     def __init__(self, block, num_blocks, num_classes=10, inject_p=0.1, inject_epoch=0, norm='batch'):
-        """ Class that represents the ResNet model
-        :param block:
-        :param num_blocks:
-        :param num_classes:
-        :param use_noise_injection: flag that defines if the noise injection is used or not
-        """
+        """ Class that represents the ResNet model """
         super(ResNet, self).__init__()
         self.in_planes = 16
 
