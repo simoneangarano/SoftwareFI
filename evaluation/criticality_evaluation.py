@@ -28,7 +28,7 @@ def main() -> None:
     # Model class must be defined somewhere
     model_path = "../checkpoints/c100_resnet32_base-epoch=156-val_acc=0.64.ckpt"
     golden_model = build_model(model="resnet20", inject_p=0)
-    golden_model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
+    golden_model.load_state_dict(torch.load(model_path))
     golden_model.eval()
     k = 5
     test_loader = load_imagenet(data_dir="../data", subset_size=100, transform=transforms.Compose(
