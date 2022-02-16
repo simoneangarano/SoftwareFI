@@ -21,7 +21,7 @@ def load_imagenet(data_dir: str, subset_size: int,
 def main() -> None:
     # Model class must be defined somewhere
     model_path = "../checkpoints/c100_resnet32_base-epoch=156-val_acc=0.64.ckpt"
-    model = torch.load(model_path, map_location=torch.device('cpu'))
+    model = torch.load(model_path)
     model.eval()
     k = 5
     test_loader = load_imagenet(data_dir="../data", subset_size=100, transform=transforms.Compose(
