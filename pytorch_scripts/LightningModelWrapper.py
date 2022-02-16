@@ -1,8 +1,8 @@
+import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 from torch.optim import SGD, AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
-import pytorch_lightning as pl
 
 
 class ModelWrapper(pl.LightningModule):

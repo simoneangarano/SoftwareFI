@@ -3,6 +3,7 @@ This file encapsulates the noise injector to be used
 in the training process
 """
 import random
+
 import torch
 
 LINE, SQUARE, RANDOM, ALL = "LINE", "SQUARE", "RANDOM", "ALL"
@@ -51,7 +52,7 @@ class HansGruberNI(torch.nn.Module):
         relative_error = x_min * (1 - r) ** (-1 / (alpha - 1))
         # print(relative_error)
         return relative_error
-        #return 27.119592052269397
+        # return 27.119592052269397
 
     def inject(self, forward_input: torch.Tensor, p: float) -> torch.Tensor:
         # We can inject the relative errors using only Torch built-in functions

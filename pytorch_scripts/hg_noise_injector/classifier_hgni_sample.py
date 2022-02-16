@@ -4,18 +4,19 @@
 This sample classifier will be used to test the Hans Gruber
 noise injector
 """
+import csv
 import sys
 
 import torch
-import torchvision
-import torchvision.transforms as transforms
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-import csv
-from hans_gruber import HansGruberNI, LINE, SQUARE, RANDOM, ALL
+import torchvision
+import torchvision.transforms as transforms
 
-DATA_PATH = "../data"
+from hans_gruber import HansGruberNI, LINE
+
+DATA_PATH = "../../data"
 MODEL_PATH = f"{DATA_PATH}/cifar_net.pth"
 
 

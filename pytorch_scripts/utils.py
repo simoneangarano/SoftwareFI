@@ -1,12 +1,11 @@
 import yaml
-import torch
-import torch.nn as nn
 
-from .resnetCIFAR import *
 from .LightningModelWrapper import ModelWrapper
+from .resnetCIFAR import *
 
 
-def build_model(model='resnet20', n_classes=10, optim_params={}, loss='bce', inject_p=0.1, inject_epoch=0, norm='batch'):
+def build_model(model='resnet20', n_classes=10, optim_params={}, loss='bce', inject_p=0.1, inject_epoch=0,
+                norm='batch'):
     if model == 'resnet20':
         net = resnet20(n_classes, inject_p, inject_epoch, norm)
     elif model == 'resnet32':
@@ -23,7 +22,7 @@ def build_model(model='resnet20', n_classes=10, optim_params={}, loss='bce', inj
     return ModelWrapper(net, n_classes, optim_params, loss)
 
 
-def _parse_args(parser, config_parser):
+def parse_args(parser, config_parser):
     # Do we have a config file to parse?
     args_config, remaining = config_parser.parse_known_args()
     if args_config.config:

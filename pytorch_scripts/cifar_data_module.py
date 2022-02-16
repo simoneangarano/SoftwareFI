@@ -1,7 +1,7 @@
 import pytorch_lightning
+import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 from torchvision.datasets import CIFAR10, CIFAR100
-import torchvision.transforms as transforms
 
 
 class CifarDataModule(pytorch_lightning.LightningDataModule):
@@ -26,8 +26,8 @@ class CifarDataModule(pytorch_lightning.LightningDataModule):
             self.n_classes = 100
 
         self.train_trans = transforms.Compose([transforms.RandomCrop(size=32, padding=4),
-                                          transforms.RandomHorizontalFlip(p=0.5),
-                                          transforms.ToTensor(), normalize])
+                                               transforms.RandomHorizontalFlip(p=0.5),
+                                               transforms.ToTensor(), normalize])
         self.test_trans = transforms.Compose([transforms.ToTensor(), normalize])
 
         if self.dataset == 'cifar10':

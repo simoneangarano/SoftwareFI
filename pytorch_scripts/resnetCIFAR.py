@@ -29,7 +29,8 @@ import csv
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.init as init
-from hg_noise_injector.hans_gruber import HansGruberNI
+
+from .hg_noise_injector.hans_gruber import HansGruberNI
 
 __all__ = ['ResNet', 'resnet20', 'resnet32', 'resnet44', 'resnet56', 'resnet110', 'resnet1202']
 
@@ -82,7 +83,7 @@ class BasicBlock(nn.Module):
                 elif norm == 'group':
                     self.shortcut = nn.Sequential(
                         nn.Conv2d(in_planes, self.expansion * planes, kernel_size=1, stride=stride, bias=False),
-                        nn.GroupNorm(self.expansion * planes//4, self.expansion * planes)
+                        nn.GroupNorm(self.expansion * planes // 4, self.expansion * planes)
                     )
 
     def forward(self, x):

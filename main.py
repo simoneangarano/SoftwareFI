@@ -2,16 +2,15 @@
 
 import argparse
 import warnings
-warnings.filterwarnings("ignore")  # Suppress the annoying warning for non-empty checkpoint directory
-
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 
 # DieHardNET packages
-from pytorch_scripts.utils import build_model, _parse_args
+from pytorch_scripts.utils import build_model, parse_args
 from pytorch_scripts.cifar_data_module import CifarDataModule
 
+warnings.filterwarnings("ignore")  # Suppress the annoying warning for non-empty checkpoint directory
 
 config_parser = parser = argparse.ArgumentParser(description='Configuration', add_help=False)
 parser.add_argument('-c', '--config', default='', type=str, metavar='FILE',
@@ -42,7 +41,7 @@ parser.add_argument('--comment', default='ResNet trained with original settings 
 
 
 def main():
-    args, args_text = _parse_args(parser, config_parser)
+    args, args_text = parse_args(parser, config_parser)
 
     # Set random seed
     pl.seed_everything(args.seed, workers=True)
@@ -82,4 +81,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
