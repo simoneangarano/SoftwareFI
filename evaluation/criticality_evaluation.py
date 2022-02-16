@@ -1,10 +1,16 @@
 #!/usr/bin/python3
 
+import os
+import sys
 import time
 
 import torch
 import torchvision
 from torchvision import transforms
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from pytorch_scripts.utils import build_model
 
 
 def load_imagenet(data_dir: str, subset_size: int,
@@ -21,8 +27,9 @@ def load_imagenet(data_dir: str, subset_size: int,
 def main() -> None:
     # Model class must be defined somewhere
     model_path = "../checkpoints/c100_resnet32_base-epoch=156-val_acc=0.64.ckpt"
-    model = torch.load(model_path)
-    model.eval()
+    golden_model = build_model(model="resnet20", inject_p=0)
+    golden_model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
+    golden_model.eval()
     k = 5
     test_loader = load_imagenet(data_dir="../data", subset_size=100, transform=transforms.Compose(
         [transforms.Resize(256), transforms.CenterCrop(224), transforms.ToTensor(),
@@ -31,7 +38,7 @@ def main() -> None:
         for i, (image, label) in enumerate(test_loader):
             # Golden execution
             model_time = time.time()
-            gold_output = model(image)
+            gold_output = golden_model(image)
             model_time = time.time() - model_time
 
             gold_top_k_labels = torch.topk(gold_output, k=k).indices.squeeze(0)
