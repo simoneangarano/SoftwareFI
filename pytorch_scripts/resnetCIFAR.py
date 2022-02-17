@@ -1,5 +1,5 @@
 ###########################################################################
-# ## ADAPTED FROM: https://github.com/akamaster/pytorch_resnet_cifar10 ####
+#### ADAPTED FROM: https://github.com/akamaster/pytorch_resnet_cifar10 ####
 ###########################################################################
 """
 Properly implemented ResNet-s for CIFAR10 as described in paper [1].
@@ -52,7 +52,8 @@ class LambdaLayer(nn.Module):
 class BasicBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, in_planes, planes, stride=1, option='B',  order='relu-bn', activation='relu', affine=True):
+    def __init__(self, in_planes, planes, stride=1, option='B',  order='relu-bn', activation='relu', affine=True,
+                 injection=False, inject_p=0.01, inject_epoch=0):
         super(BasicBlock, self).__init__()
         self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes, affine=affine)
@@ -64,55 +65,67 @@ class BasicBlock(nn.Module):
             self.relu = nn.ReLU6()
         self.order = order
 
+        self.noise_injector = False
+        if injection:
+            self.noise_injector = HansGruberNI(p=inject_p, inject_epoch=inject_epoch)
+
         self.shortcut = nn.Sequential()
         if stride != 1 or in_planes != planes:
-            if option == 'A':
-                """
-                For CIFAR10 ResNet paper uses option A.
-                """
-                # This layer throws error in multi_gpu setting, set to B
-                self.shortcut = LambdaLayer(lambda x:
-                                            F.pad(x[:, :, ::2, ::2], (0, 0, 0, 0, planes // 4, planes // 4), "constant",
-                                                  0))
-            elif option == 'B':
-                self.shortcut = nn.Sequential(
-                    nn.Conv2d(in_planes, self.expansion * planes, kernel_size=1, stride=stride, bias=False),
-                    nn.BatchNorm2d(self.expansion * planes, affine=affine)
-                )
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_planes, self.expansion * planes, kernel_size=1, stride=stride, bias=False),
+                nn.BatchNorm2d(self.expansion * planes, affine=affine))
 
-    def forward(self, x):
+    def forward(self, x, inject=True, current_epoch=0):
+        out = self.conv1(x)
+        if self.noise_injector:
+            out = self.noise_injector(out, inject, current_epoch)
         if self.order == 'relu-bn':
-            out = self.bn1(self.relu(self.conv1(x)))
+            out = self.bn1(self.relu(out))
         elif self.order == 'bn-relu':
-            out = self.relu(self.bn1(self.conv1(x)))
+            out = self.relu(self.bn1(out))
         out = self.bn2(self.conv2(out))
         out += self.shortcut(x)
         out = self.relu(out)
         return out
 
 
+# This class is just a fake nn.Sequential but allows us to pass
+# 'inject' and 'current_epoch' when we perform a forward pass.
+class BlockGroup(nn.Module):
+    def __init__(self, layers):
+        super(BlockGroup, self).__init__()
+        self.layers = nn.ModuleList(layers)
+
+    def forward(self, x, inject=True, current_epoch=0):
+
+        for layer in self.layers:
+            x = layer(x, inject, current_epoch)
+        return x
+
+
 class ResNet(nn.Module):
     def __init__(self, block, num_blocks, num_classes=10, inject_p=0.1, inject_epoch=0,
                  order='relu-bn', activation='relu', affine=True):
-        """ Class that represents the ResNet orderl """
+        """ Class that represents the ResNet order """
         super(ResNet, self).__init__()
-        self.in_planes = 16
+        self.order = order
+        self.affine = affine
+        self.inject_p = inject_p
+        self.inject_epoch = inject_epoch
 
+        self.in_planes = 16
         self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(16, affine=affine)
 
         self.layer1 = self._make_layer(block, 16, num_blocks[0], stride=1, order=order, activation=activation, affine=affine)
-        self.layer2 = self._make_layer(block, 32, num_blocks[1], stride=2, order=order, activation=activation, affine=affine)
+        self.layer2 = self._make_layer(block, 32, num_blocks[1], stride=2, order=order, activation=activation, affine=affine, injection=True)
         self.layer3 = self._make_layer(block, 64, num_blocks[2], stride=2, order=order, activation=activation, affine=affine)
         self.linear = nn.Linear(64, num_classes)
         if activation == 'relu':
             self.relu = nn.ReLU()
         elif activation == 'relu6':
             self.relu = nn.ReLU6()
-        self.order = order
-        self.affine = affine
 
-        self.noise_injector = HansGruberNI(p=inject_p, inject_epoch=inject_epoch)
         self.apply(_weights_init)
 
     def load_noise_file(self, noise_file_path):
@@ -120,24 +133,28 @@ class ResNet(nn.Module):
             noise_data = list(csv.DictReader(fp))
         self.noise_injector.set_noise_data(noise_data)
 
-    def _make_layer(self, block, planes, num_blocks, stride, order, activation, affine):
+    def _make_layer(self, block, planes, num_blocks, stride, order, activation, affine, injection=False):
         strides = [stride] + [1] * (num_blocks - 1)
         layers = []
-        for stride in strides:
-            layers.append(block(self.in_planes, planes, stride, order=order, activation=activation, affine=affine))
-            self.in_planes = planes * block.expansion
+        for idx, stride in enumerate(strides):
+            if idx == 0 and injection:
+                layers.append(block(self.in_planes, planes, stride, order=order, activation=activation, affine=affine,
+                                    injection=True, inject_p=self.inject_p, inject_epoch=self.inject_epoch))
+                self.in_planes = planes * block.expansion
+            else:
+                layers.append(block(self.in_planes, planes, stride, order=order, activation=activation, affine=affine))
+                self.in_planes = planes * block.expansion
 
-        return nn.Sequential(*layers)
+        return BlockGroup(layers)
 
     def forward(self, x, inject=True, current_epoch=0):
         if self.order == 'relu-bn':
             out = self.bn1(self.relu(self.conv1(x)))
         elif self.order == 'bn-relu':
             out = self.relu(self.bn1(self.conv1(x)))
-        out = self.layer1(out)
-        out = self.noise_injector(out, inject, current_epoch)
-        out = self.layer2(out)
-        out = self.layer3(out)
+        out = self.layer1(out, inject, current_epoch)
+        out = self.layer2(out, inject, current_epoch)
+        out = self.layer3(out, inject, current_epoch)
         out = F.avg_pool2d(out, out.size()[3])
         out = out.view(out.size(0), -1)
         out = self.linear(out)

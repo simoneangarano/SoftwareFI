@@ -18,7 +18,7 @@ def build_model(model='resnet20', n_classes=10, optim_params={}, loss='bce', inj
         model = 'resnet20'
         net = resnet20(n_classes, inject_p, inject_epoch, order, activation, affine)
 
-    print(f'\n    {model} built.')
+    print(f'\n==> {model} built.')
     return ModelWrapper(net, n_classes, optim_params, loss)
 
 

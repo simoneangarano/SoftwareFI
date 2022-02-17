@@ -8,8 +8,8 @@ from pytorch_lightning.loggers import WandbLogger
 from pytorch_scripts.utils import *
 from pytorch_scripts.cifar_data_module import CifarDataModule
 
-
-warnings.filterwarnings("ignore")  # Suppress the annoying warning for non-empty checkpoint directory
+# Suppress the annoying warning for non-empty checkpoint directory
+warnings.filterwarnings("ignore")
 
 config_parser = parser = argparse.ArgumentParser(description='Configuration', add_help=False)
 parser.add_argument('-c', '--config', default='', type=str, metavar='FILE',

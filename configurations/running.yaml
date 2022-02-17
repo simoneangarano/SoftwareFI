@@ -1,4 +1,4 @@
-name: c100_resnet44_uniform_train_noise_test4
+name: c100_resnet44_injection_after_conv
 mode: train
 ckpt: null
 dataset: cifar100
@@ -18,4 +18,4 @@ optimizer: adamw
 seed: 0
 inject_p: !!float 0.01
 inject_epoch: 0
-comment: At training time the error is sampled from a uniform [0, epoch).
+comment: Injection performed after the first convolution of the first ResBlock of the 2nd BlockGroup.
