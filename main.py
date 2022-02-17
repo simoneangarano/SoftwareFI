@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-
 import argparse
 import warnings
 import pytorch_lightning as pl
@@ -7,8 +5,9 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 
 # DieHardNET packages
-from pytorch_scripts.utils import build_model, parse_args
+from pytorch_scripts.utils import *
 from pytorch_scripts.cifar_data_module import CifarDataModule
+
 
 warnings.filterwarnings("ignore")  # Suppress the annoying warning for non-empty checkpoint directory
 
@@ -27,7 +26,9 @@ parser.add_argument('--num_gpus', default=1, help='Number of GPUs used.')
 parser.add_argument('--model', default='resnet20', help='Network name. Resnets only for now.')
 parser.add_argument('--loss', default='bce', help='Loss: bce, ce or sce.')
 parser.add_argument('--clip', default=None, help='Gradient clipping value.')
-parser.add_argument('--norm', default='batch', help='Normalization layer: batch or group.')
+parser.add_argument('--order', default='bn-relu', help='Order of activation and normalization: bn-relu or relu-bn.')
+parser.add_argument('--affine', default=True, help='Whether to use Affine transform after normalization or not.')
+parser.add_argument('--activation', default='relu', help='Non-linear activation: relu or relu6.')
 parser.add_argument('--epochs', default=160, help='Number of epochs.')
 parser.add_argument('--batch_size', default=128, help='Batch Size')
 parser.add_argument('--lr', default=1e-1, help='Learning rate.')
@@ -52,7 +53,8 @@ def main():
     # Build model (Resnet only up to now)
     optim_params = {'optimizer': args.optimizer, 'epochs': args.epochs, 'lr': args.lr, 'wd': args.wd}
     n_classes = 10 if args.dataset == 'cifar10' else 100
-    net = build_model(args.model, n_classes, optim_params, args.loss, args.inject_p, args.inject_epoch, args.norm)
+    net = build_model(args.model, n_classes, optim_params, args.loss, args.inject_p,
+                      args.inject_epoch, args.order, args.activation, args.affine)
 
     # W&B logger
     wandb_logger = WandbLogger(project="NeutronRobustness", name=args.name, id=args.name, entity="neutronstrikesback")

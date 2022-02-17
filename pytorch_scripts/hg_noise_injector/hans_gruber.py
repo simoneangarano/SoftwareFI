@@ -5,6 +5,7 @@ in the training process
 import random
 
 import torch
+import torch.nn as nn
 
 LINE, SQUARE, RANDOM, ALL = "LINE", "SQUARE", "RANDOM", "ALL"
 
@@ -17,6 +18,7 @@ class HansGruberNI(torch.nn.Module):
         self.noise_data = list()
         self.p = p  # fraction of the samples which the injection is applied to
         self.inject_epoch = inject_epoch  # how many epochs before starting the injection
+        self.dummy_param = nn.Parameter(torch.empty(0))  # just to get the device
 
     def set_noise_data(self, noise_data: list = None) -> None:
         r"""Set the noise data that we extract and parse from radiation experiments
@@ -54,7 +56,11 @@ class HansGruberNI(torch.nn.Module):
         return relative_error
         # return 27.119592052269397
 
-    def inject(self, forward_input: torch.Tensor, p: float) -> torch.Tensor:
+    def training_error(self, epoch):
+        error = torch.rand(size=(1,), device=self.dummy_param.device) * max(epoch-self.inject_epoch, 1)
+        return error + 1e-6
+
+    def inject(self, forward_input: torch.Tensor, p: float, current_epoch: int = 0) -> torch.Tensor:
         # We can inject the relative errors using only Torch built-in functions
         # Otherwise it is necessary to use AutoGrads
         output = forward_input.clone()
@@ -63,15 +69,18 @@ class HansGruberNI(torch.nn.Module):
         sampled_indexes = torch.bernoulli(torch.ones(b) * p)
         sampled_indexes = sampled_indexes > 0
 
+        if self.training:
+            error = self.training_error(current_epoch)
+        else:
+            error = self.random_relative_error
+
         if self.error_model == LINE:
             # select the row
             rand_row = torch.randint(h, size=(1,))
             if torch.bernoulli(torch.ones(1) * 0.5):
-                output[sampled_indexes, :, :, rand_row] = output[sampled_indexes, :, :, rand_row].mul_(
-                    self.random_relative_error)
+                output[sampled_indexes, :, :, rand_row] = output[sampled_indexes, :, :, rand_row].mul_(error)
             else:
-                output[sampled_indexes, :, rand_row, :] = output[sampled_indexes, :, rand_row, :].mul_(
-                    self.random_relative_error)
+                output[sampled_indexes, :, rand_row, :] = output[sampled_indexes, :, rand_row, :].mul_(error)
 
         elif self.error_model == SQUARE:
             raise NotImplementedError("Implement SQUARE error model first")
