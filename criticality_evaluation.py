@@ -3,6 +3,9 @@ import time
 
 import torch
 import torchvision
+from pytorchfi import core as pfi_core
+from pytorchfi import neuron_error_models as pfi_neuron_error_models
+from pytorchfi import weight_error_models as pfi_weight_error_models
 
 
 def load_imagenet(data_dir: str, subset_size: int,
@@ -40,6 +43,16 @@ def main() -> None:
                                     torchvision.transforms.ToTensor(),
                                     torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                                                      std=[0.229, 0.224, 0.225])]))
+
+    # Testing PytorchFI
+    pfi_model = pfi_core.fault_injection(golden_model, 1, input_shape=[3, 32, 32],
+                                         layer_types=[torch.nn.Conv1d, torch.nn.Conv2d, torch.nn.Conv3d,
+                                                      torch.nn.BatchNorm1d, torch.nn.BatchNorm2d,
+                                                      torch.nn.BatchNorm3d, torch.nn.Linear],
+                                         use_cuda=True)
+    pfi_model.print_pytorchfi_layer_summary()
+    inj_site = "neuron"
+    min_val, max_val = -10, 10
     with torch.no_grad():
         for i, (image, label) in enumerate(test_loader):
             image_gpu = image.to("cuda")
@@ -53,9 +66,21 @@ def main() -> None:
             gold_probabilities = torch.tensor(
                 [torch.softmax(gold_output_cpu, dim=1)[0, idx].item() for idx in gold_top_k_labels])
 
-            # Print gold
-            print(gold_top_k_labels)
-            print(gold_probabilities)
+            if inj_site == "neuron":
+                inj = pfi_neuron_error_models.random_neuron_inj(pfi_model, min_val=min_val, max_val=max_val)
+            elif inj_site == "weight":
+                inj = pfi_weight_error_models.random_weight_inj(pfi_model, min_val=min_val, max_val=max_val)
+            else:
+                raise NotImplementedError("Only neuron and weight are supported as error models")
+
+            inj = inj.eval()
+            injection_time = time.time()
+            inj_output = inj(image)
+            inj_output_cpu = inj_output.to("cpu")
+            injection_time = time.time() - injection_time
+            inj_top_k_labels = torch.topk(inj_output_cpu, k=k).indices.squeeze(0)
+            inj_probabilities = torch.tensor(
+                [torch.softmax(inj_output_cpu, dim=1)[0, idx].item() for idx in gold_top_k_labels])
 
 
 if __name__ == '__main__':
