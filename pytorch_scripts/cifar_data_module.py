@@ -6,6 +6,7 @@ from torchvision.datasets import CIFAR10, CIFAR100
 
 class CifarDataModule(pytorch_lightning.LightningDataModule):
     def __init__(self, dataset='cifar10', data_dir='data', batch_size=128, num_gpus=1):
+        print(f'==> Loading {dataset} dataset..')
         self.dataset = dataset
         self.data_dir = data_dir
         self.batch_size = batch_size

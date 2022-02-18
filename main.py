@@ -47,7 +47,6 @@ def main():
     # Set random seed
     pl.seed_everything(args.seed, workers=True)
 
-    print('==> Loading dataset..')
     cifar = CifarDataModule(args.dataset, args.data_dir, args.batch_size, args.num_gpus)
 
     # Build model (Resnet only up to now)
