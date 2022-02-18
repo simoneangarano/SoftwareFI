@@ -75,7 +75,7 @@ def main() -> None:
 
             inj = inj.eval()
             injection_time = time.time()
-            inj_output = inj(image)
+            inj_output = inj(image_gpu)
             inj_output_cpu = inj_output.to("cpu")
             injection_time = time.time() - injection_time
             inj_top_k_labels = torch.topk(inj_output_cpu, k=k).indices.squeeze(0)
