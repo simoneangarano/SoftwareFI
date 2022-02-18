@@ -41,7 +41,8 @@ def main():
     model_path = f"checkpoints/{checkpoint_base_name}.ckpt"
     serialized_model = f"data/{checkpoint_base_name}.ts"
     print(serialized_model)
-    ptl_model.load_state_dict(torch.load(model_path))
+    ptl_model.load_from_checkpoint(checkpoint_path=model_path, model=args.model, n_classes=n_classes,
+                                   optim=optim_params, loss=args.loss)
     print(ptl_model)
     script = ptl_model.to_torchscript()
     torch.jit.save(script, serialized_model)
