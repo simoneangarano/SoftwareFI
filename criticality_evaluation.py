@@ -32,12 +32,6 @@ def load_cifar100(data_dir: str, subset_size: int,
     return test_loader
 
 
-def main() -> None:
-    # Model class must be defined somewhere
-    model_path = "data/c10_resnet20_base_adamw_2-epoch=159-val_acc=0.90.ts"
-    perform_fault_injection_for_a_model(model_path)
-
-
 def perform_fault_injection_for_a_model(model_path):
     golden_model = torch.load(model_path)
     golden_model.eval()
@@ -65,7 +59,7 @@ def perform_fault_injection_for_a_model(model_path):
             image_gpu = image.to("cuda")
             # Golden execution
             model_time = time.time()
-            gold_output = golden_model(image_gpu)
+            gold_output = golden_model(image_gpu, inject=False)
             model_time = time.time() - model_time
 
             gold_output_cpu = gold_output.to("cpu")
@@ -82,7 +76,7 @@ def perform_fault_injection_for_a_model(model_path):
 
             inj = inj.eval()
             injection_time = time.time()
-            inj_output = inj(image_gpu)
+            inj_output = inj(image_gpu, inject=False)
             inj_output_cpu = inj_output.to("cpu")
             injection_time = time.time() - injection_time
             inj_top_k_labels = torch.topk(inj_output_cpu, k=k).indices.squeeze(0)
@@ -103,6 +97,12 @@ def perform_fault_injection_for_a_model(model_path):
     injection_df = pd.DataFrame(injection_data)
     print(f"Injected faults {injected_faults} - SDC {sdc_counter} - Critical {critical_sdc}")
     print(injection_df)
+
+
+def main() -> None:
+    # Model class must be defined somewhere
+    model_path = "data/c10_resnet20_base_adamw_2-epoch=159-val_acc=0.90.ts"
+    perform_fault_injection_for_a_model(model_path)
 
 
 if __name__ == '__main__':
