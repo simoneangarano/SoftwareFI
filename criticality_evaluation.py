@@ -99,7 +99,7 @@ def main() -> None:
                          gold_labels=gold_top_k_labels.tolist(), inj_labels=inj_top_k_labels.tolist()))
 
     injection_df = pd.DataFrame(injection_data)
-    print(f"Injected faults {injected_faults} - SDC {sdc} - Critical {critical_sdc}")
+    print(f"Injected faults {injected_faults} - SDC {sdc_counter} - Critical {critical_sdc}")
     print(injection_df)
 
 
