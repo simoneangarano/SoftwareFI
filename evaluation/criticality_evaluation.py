@@ -1,16 +1,9 @@
 #!/usr/bin/python3
 
-import os
-import sys
 import time
 
 import torch
 import torchvision
-from torchvision import transforms
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-from pytorch_scripts.utils import build_model
 
 
 def load_imagenet(data_dir: str, subset_size: int,
@@ -26,14 +19,15 @@ def load_imagenet(data_dir: str, subset_size: int,
 
 def main() -> None:
     # Model class must be defined somewhere
-    model_path = "../checkpoints/c100_resnet32_base-epoch=156-val_acc=0.64.ckpt"
-    golden_model = build_model(model="resnet20", inject_p=0)
-    golden_model.load_state_dict(torch.load(model_path))
-    golden_model.eval()
+    model_path = "../data/c10_resnet20_base_adamw_2-epoch=159-val_acc=0.90.ts"
+    golden_model = torch.jit.load(model_path)
     k = 5
-    test_loader = load_imagenet(data_dir="../data", subset_size=100, transform=transforms.Compose(
-        [transforms.Resize(256), transforms.CenterCrop(224), transforms.ToTensor(),
-         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])]))
+    test_loader = load_imagenet(data_dir="../data", subset_size=100,
+                                transform=torchvision.transforms.Compose([
+                                    torchvision.transforms.Resize(256), torchvision.transforms.CenterCrop(224),
+                                    torchvision.transforms.ToTensor(),
+                                    torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                                                     std=[0.229, 0.224, 0.225])]))
     with torch.no_grad():
         for i, (image, label) in enumerate(test_loader):
             # Golden execution
