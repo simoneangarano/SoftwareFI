@@ -80,7 +80,7 @@ def main() -> None:
             injection_time = time.time() - injection_time
             inj_top_k_labels = torch.topk(inj_output_cpu, k=k).indices.squeeze(0)
             inj_probabilities = torch.tensor(
-                [torch.softmax(inj_output_cpu, dim=1)[0, idx].item() for idx in gold_top_k_labels])
+                [torch.softmax(inj_output_cpu, dim=1)[0, idx].item() for idx in inj_top_k_labels])
 
 
 if __name__ == '__main__':
