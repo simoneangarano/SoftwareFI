@@ -1,11 +1,8 @@
 import argparse
 import os
 import re
-import sys
 
 import torch
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from pytorch_scripts.utils import build_model, parse_args
 
@@ -43,7 +40,7 @@ def main():
     print(serialized_model)
     ptl_model.load_from_checkpoint(checkpoint_path=model_path, strict=False, model=args.model, n_classes=n_classes,
                                    optim=optim_params, loss=args.loss)
-    print(ptl_model)
+    # print(ptl_model)
     torch.save(ptl_model, serialized_model)
 
 

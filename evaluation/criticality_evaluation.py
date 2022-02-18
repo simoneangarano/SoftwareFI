@@ -1,5 +1,4 @@
 #!/usr/bin/python3
-
 import time
 
 import torch
@@ -19,7 +18,7 @@ def load_imagenet(data_dir: str, subset_size: int,
 
 def main() -> None:
     # Model class must be defined somewhere
-    model_path = "../data/c10_resnet20_base_adamw_2-epoch=159-val_acc=0.90.ts"
+    model_path = "data/c10_resnet20_base_adamw_2-epoch=159-val_acc=0.90.ts"
     golden_model = torch.load(model_path)
     golden_model.eval()
     k = 5
