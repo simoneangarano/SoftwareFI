@@ -20,7 +20,8 @@ def load_imagenet(data_dir: str, subset_size: int,
 def main() -> None:
     # Model class must be defined somewhere
     model_path = "../data/c10_resnet20_base_adamw_2-epoch=159-val_acc=0.90.ts"
-    golden_model = torch.jit.load(model_path)
+    golden_model = torch.load(model_path)
+    golden_model.eval()
     k = 5
     test_loader = load_imagenet(data_dir="../data", subset_size=100,
                                 transform=torchvision.transforms.Compose([
