@@ -33,8 +33,7 @@ def main():
         ptl_model = build_model(args.model, n_classes, optim_params, args.loss, args.inject_p,
                                 args.order, args.activation, args.affine)
     except AttributeError:
-        ptl_model = build_model(args.model, n_classes, optim_params, args.loss, args.inject_p, args.activation,
-                                args.affine)
+        ptl_model = build_model(args.model, n_classes, optim_params, args.loss, args.inject_p)
 
     #  filename=args.name + '-{epoch:02d}-{val_acc:.2f}'
     max_epoch, max_val_acc = get_max_values(name=args.name)
