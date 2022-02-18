@@ -35,6 +35,10 @@ def load_cifar100(data_dir: str, subset_size: int,
 def main() -> None:
     # Model class must be defined somewhere
     model_path = "data/c10_resnet20_base_adamw_2-epoch=159-val_acc=0.90.ts"
+    perform_fault_injection_for_a_model(model_path)
+
+
+def perform_fault_injection_for_a_model(model_path):
     golden_model = torch.load(model_path)
     golden_model.eval()
     golden_model = golden_model.to("cuda")
@@ -44,7 +48,6 @@ def main() -> None:
                                     torchvision.transforms.ToTensor(),
                                     torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                                                      std=[0.229, 0.224, 0.225])]))
-
     # Testing PytorchFI
     pfi_model = pfi_core.fault_injection(golden_model, 1, input_shape=[3, 32, 32],
                                          layer_types=[torch.nn.Conv1d, torch.nn.Conv2d, torch.nn.Conv3d,
@@ -97,7 +100,6 @@ def main() -> None:
                     dict(SDC=sdc, critical_SDCs=critical_sdc,
                          gold_probs=gold_probabilities.tolist(), inj_probs=inj_probabilities.tolist(),
                          gold_labels=gold_top_k_labels.tolist(), inj_labels=inj_top_k_labels.tolist()))
-
     injection_df = pd.DataFrame(injection_data)
     print(f"Injected faults {injected_faults} - SDC {sdc_counter} - Critical {critical_sdc}")
     print(injection_df)

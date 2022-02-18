@@ -29,8 +29,12 @@ def main():
     optim_params = {'optimizer': args.optimizer, 'epochs': args.epochs, 'lr': args.lr, 'wd': args.wd}
     n_classes = 10 if args.dataset == 'cifar10' else 100
 
-    ptl_model = build_model(args.model, n_classes, optim_params, args.loss, args.inject_p,
-                            args.inject_epoch, args.order, args.activation, args.affine)
+    try:
+        ptl_model = build_model(args.model, n_classes, optim_params, args.loss, args.inject_p,
+                                args.order, args.activation, args.affine)
+    except AttributeError:
+        ptl_model = build_model(args.model, n_classes, optim_params, args.loss, args.inject_p, args.activation,
+                                args.affine)
 
     #  filename=args.name + '-{epoch:02d}-{val_acc:.2f}'
     max_epoch, max_val_acc = get_max_values(name=args.name)
