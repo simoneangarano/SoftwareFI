@@ -10,7 +10,19 @@ def load_imagenet(data_dir: str, subset_size: int,
     """Load imagenet from the folder <data_dir>/imagenet """
     # Get a dataset
     test_set = torchvision.datasets.imagenet.ImageNet(root=data_dir + "/imagenet", split="val", transform=transform)
-    # test_set = torchvision.datasets.voc.VOCDetection(root=data_dir, download=True, transform=transform)
+
+    subset = torch.utils.data.Subset(test_set, range(subset_size))
+    test_loader = torch.utils.data.DataLoader(subset, batch_size=1, shuffle=False)
+    return test_loader
+
+
+def load_cifar100(data_dir: str, subset_size: int,
+                  transform: torchvision.transforms.Compose) -> torch.utils.data.DataLoader:
+    """Load imagenet from the folder <data_dir>/imagenet """
+    # Get a dataset
+    test_set = torchvision.datasets.cifar.CIFAR100(root=data_dir, download=True, train=False,
+                                                   transform=transform)
+
     subset = torch.utils.data.Subset(test_set, range(subset_size))
     test_loader = torch.utils.data.DataLoader(subset, batch_size=1, shuffle=False)
     return test_loader
@@ -22,9 +34,8 @@ def main() -> None:
     golden_model = torch.load(model_path)
     golden_model.eval()
     k = 5
-    test_loader = load_imagenet(data_dir="../data", subset_size=100,
+    test_loader = load_imagenet(data_dir="data", subset_size=100,
                                 transform=torchvision.transforms.Compose([
-                                    torchvision.transforms.Resize(256), torchvision.transforms.CenterCrop(224),
                                     torchvision.transforms.ToTensor(),
                                     torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                                                      std=[0.229, 0.224, 0.225])]))
