@@ -86,7 +86,7 @@ def main() -> None:
             inj_probabilities = torch.tensor(
                 [torch.softmax(inj_output_cpu, dim=1)[0, idx].item() for idx in inj_top_k_labels])
 
-            if i % 10:
+            if i % 10 == 0:
                 print(f"Time to gold {model_time} - Time to inject {injection_time}")
             injected_faults += 1
             if torch.any(torch.not_equal(gold_probabilities, inj_probabilities)):
