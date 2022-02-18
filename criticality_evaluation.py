@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import time
 
+import pandas as pd
 import torch
 import torchvision
 from pytorchfi import core as pfi_core
@@ -53,6 +54,9 @@ def main() -> None:
     pfi_model.print_pytorchfi_layer_summary()
     inj_site = "neuron"
     min_val, max_val = -10, 10
+    sdc_counter, critical_sdc_counter = 0, 0
+    injection_data = list()
+    injected_faults = 0
     with torch.no_grad():
         for i, (image, label) in enumerate(test_loader):
             image_gpu = image.to("cuda")
@@ -81,6 +85,22 @@ def main() -> None:
             inj_top_k_labels = torch.topk(inj_output_cpu, k=k).indices.squeeze(0)
             inj_probabilities = torch.tensor(
                 [torch.softmax(inj_output_cpu, dim=1)[0, idx].item() for idx in inj_top_k_labels])
+
+            if i % 10:
+                print(f"Time to gold {model_time} - Time to inject {injection_time}")
+            injected_faults += 1
+            if torch.any(torch.not_equal(gold_probabilities, inj_probabilities)):
+                sdc, critical_sdc = 1, int(torch.any(torch.not_equal(gold_top_k_labels, inj_top_k_labels)))
+                sdc_counter += sdc
+                critical_sdc_counter += critical_sdc
+                injection_data.append(
+                    dict(SDC=sdc, critical_SDCs=critical_sdc,
+                         gold_probs=gold_probabilities.tolist(), inj_probs=inj_probabilities.tolist(),
+                         gold_labels=gold_top_k_labels.tolist(), inj_labels=inj_top_k_labels.tolist()))
+
+    injection_df = pd.DataFrame(injection_data)
+    print(f"Injected faults {injected_faults} - SDC {sdc} - Critical {critical_sdc}")
+    print(injection_df)
 
 
 if __name__ == '__main__':
