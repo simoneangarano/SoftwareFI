@@ -40,19 +40,10 @@ def _weights_init(m):
         init.kaiming_normal_(m.weight)
 
 
-class LambdaLayer(nn.Module):
-    def __init__(self, lambd):
-        super(LambdaLayer, self).__init__()
-        self.lambd = lambd
-
-    def forward(self, x):
-        return self.lambd(x)
-
-
 class BasicBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, in_planes, planes, stride=1, option='B',  order='relu-bn', activation='relu', affine=True,
+    def __init__(self, in_planes, planes, stride=1, order='relu-bn', activation='relu', affine=True,
                  injection=False, inject_p=0.01, inject_epoch=0):
         super(BasicBlock, self).__init__()
         self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
