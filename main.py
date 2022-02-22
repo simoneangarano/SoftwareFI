@@ -42,7 +42,7 @@ parser.add_argument('--comment', default='ResNet trained with original settings 
 
 
 def main():
-    args, args_text = parse_args(parser, config_parser)
+    args = parse_args(parser, config_parser)
 
     # Set random seed
     pl.seed_everything(args.seed, workers=True)

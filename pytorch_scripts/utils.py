@@ -2,6 +2,7 @@ import yaml
 
 from .LightningModelWrapper import ModelWrapper
 from .resnetCIFAR import *
+from .hard_resnet import *
 
 
 def build_model(model='resnet20', n_classes=10, optim_params={}, loss='bce', inject_p=0.1, inject_epoch=0,
@@ -14,6 +15,12 @@ def build_model(model='resnet20', n_classes=10, optim_params={}, loss='bce', inj
         net = resnet44(n_classes, inject_p, inject_epoch, order, activation, affine)
     elif model == 'resnet56':
         net = resnet56(n_classes, inject_p, inject_epoch, order, activation, affine)
+    elif model == 'hard_resnet20':
+        net = hard_resnet20(n_classes, inject_p, inject_epoch, order, activation, affine)
+    elif model == 'hard_resnet32':
+        net = hard_resnet32(n_classes, inject_p, inject_epoch, order, activation, affine)
+    elif model == 'hard_resnet44':
+        net = hard_resnet44(n_classes, inject_p, inject_epoch, order, activation, affine)
     else:
         model = 'resnet20'
         net = resnet20(n_classes, inject_p, inject_epoch, order, activation, affine)
@@ -34,6 +41,4 @@ def parse_args(parser, config_parser):
     # defaults will have been overridden if config file specified.
     args = parser.parse_args(remaining)
 
-    # Cache the args as a text string to save them in the output dir later
-    args_text = yaml.safe_dump(args.__dict__, default_flow_style=False)
-    return args, args_text
+    return args

@@ -68,13 +68,16 @@ class BasicBlock(nn.Module):
 
     def forward(self, x, inject=True, current_epoch=0):
         out = self.conv1(x)
-        if self.noise_injector:
-            out = self.noise_injector(out, inject, current_epoch)
+        #if self.noise_injector:
+        #    out = self.noise_injector(out, inject, current_epoch)
         if self.order == 'relu-bn':
             out = self.bn1(self.relu(out))
         elif self.order == 'bn-relu':
             out = self.relu(self.bn1(out))
-        out = self.bn2(self.conv2(out))
+        out = self.conv2(out)
+        if self.noise_injector:
+            out = self.noise_injector(out, inject, current_epoch)
+        out = self.bn2(out)
         out += self.shortcut(x)
         out = self.relu(out)
         return out
