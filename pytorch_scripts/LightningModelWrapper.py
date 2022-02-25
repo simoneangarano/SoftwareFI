@@ -50,25 +50,39 @@ class ModelWrapper(pl.LightningModule):
             # ce
             loss = self.criterion(outputs, y)
         # accuracy
-        _, preds = torch.max(outputs, 1)
+        probs, preds = torch.max(outputs, 1)
         acc = torch.sum(preds == y) / x.shape[0]
-        return loss, acc
+        return loss, acc, (probs, preds)
 
     def training_step(self, train_batch, batch_idx):
-        loss, acc = self.get_metrics(train_batch)
+        loss, acc, _ = self.get_metrics(train_batch)
 
         self.epoch_log('train_loss', loss)
         self.epoch_log('train_acc', acc)
         return loss
 
-    def validation_step(self, val_batch, batch_idx):
-        loss, acc = self.get_metrics(val_batch, False)
-        noisy_loss, noisy_acc = self.get_metrics(val_batch)
+    def check_criticality(self, gold: tuple, faulty: tuple):
+        gold_vals, gold_preds = gold
+        fault_vals, fault_preds = faulty
+        # Magic number to define whats is an zero
+        err_lambda = 1e-4
+        # Check if the sum of diffs are
+        value_diff_pct = torch.sum(torch.abs(gold_vals - fault_vals) > err_lambda) / gold_vals.shape[0]
+        preds_diff_pct = torch.sum(gold_preds == fault_preds) / gold_vals.shape[0]
+        self.epoch_log('value_diff_pct', value_diff_pct)
+        self.epoch_log('preds_diff_pct', preds_diff_pct)
 
+    def validation_step(self, val_batch, batch_idx, check_criticality=True):
+        loss, acc, clean_vals = self.get_metrics(val_batch, False)
+        noisy_loss, noisy_acc, noisy_vals = self.get_metrics(val_batch)
+
+        # Test the accuracy
         self.epoch_log('val_loss', loss)
         self.epoch_log('val_acc', acc)
         self.epoch_log('noisy_val_loss', noisy_loss)
         self.epoch_log('noisy_val_acc', noisy_acc)
+        if check_criticality:
+            self.check_criticality(gold=clean_vals, faulty=noisy_vals)
         return noisy_loss
 
     def on_train_epoch_start(self):
