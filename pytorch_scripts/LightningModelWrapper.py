@@ -68,7 +68,7 @@ class ModelWrapper(pl.LightningModule):
         err_lambda = 1e-4
         # Check if the sum of diffs are
         value_diff_pct = torch.sum(torch.abs(gold_vals - fault_vals) > err_lambda) / gold_vals.shape[0]
-        preds_diff_pct = torch.sum(gold_preds == fault_preds) / gold_vals.shape[0]
+        preds_diff_pct = torch.sum(gold_preds != fault_preds) / gold_vals.shape[0]
         self.epoch_log('value_diff_pct', value_diff_pct)
         self.epoch_log('preds_diff_pct', preds_diff_pct)
 
