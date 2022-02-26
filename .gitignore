@@ -38,3 +38,4 @@
 data/
 .idea/
 wandb/
+checkpoints/*.ckpt

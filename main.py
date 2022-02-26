@@ -73,7 +73,7 @@ def main():
                          gradient_clip_val=args.clip)
 
     if args.ckpt:
-        args.ckpt = 'checkpoints/' + args.ckpt
+        args.ckpt = '~/Dropbox/DieHardNet/Checkpoints/' + args.ckpt
     if args.mode == 'train' or args.mode == 'training':
         trainer.fit(net, cifar, ckpt_path=args.ckpt)
     elif args.mode == 'validation' or args.mode == 'validate':
