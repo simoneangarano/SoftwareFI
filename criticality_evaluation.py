@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+import sys
 import time
 
 import pandas as pd
@@ -50,7 +51,7 @@ def perform_fault_injection_for_a_model(model_path):
                                          use_cuda=True)
     pfi_model.print_pytorchfi_layer_summary()
     inj_site = "neuron"
-    min_val, max_val = -10, 10
+    min_val, max_val = -100, 100
     sdc_counter, critical_sdc_counter = 0, 0
     injection_data = list()
     injected_faults = 0
@@ -100,8 +101,10 @@ def perform_fault_injection_for_a_model(model_path):
 
 
 def main() -> None:
+    assert len(sys.argv) == 2, f"usage: {sys.argv[0]} <path to checkpoint>"
     # Model class must be defined somewhere
-    model_path = "data/c10_resnet20_base_adamw_2-epoch=159-val_acc=0.90.ts"
+    path = sys.argv[1]
+    model_path = path.replace(".ckpt", ".ts")
     perform_fault_injection_for_a_model(model_path)
 
 
