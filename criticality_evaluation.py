@@ -28,7 +28,7 @@ def load_cifar100(data_dir: str, transform: torchvision.transforms.Compose) -> t
     # Get a dataset
     test_set = torchvision.datasets.cifar.CIFAR100(root=data_dir, download=True, train=False,
                                                    transform=transform)
-    test_loader = torch.utils.data.DataLoader(torch.utils.data.Sampler(test_set), batch_size=1, shuffle=False)
+    test_loader = torch.utils.data.DataLoader(test_set, batch_size=1, shuffle=False)
     return test_loader
 
 
