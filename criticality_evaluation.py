@@ -99,7 +99,7 @@ def perform_fault_injection_for_a_model(model_path):
                          gold_probs=gold_probabilities.tolist(), inj_probs=inj_probabilities.tolist(),
                          gold_labels=gold_top_k_labels.tolist(), inj_labels=inj_top_k_labels.tolist()))
     injection_df = pd.DataFrame(injection_data)
-    print(f"Injected faults {injected_faults} - SDC {sdc_counter} - Critical {critical_sdc}")
+    print(f"Injected faults {injected_faults} - SDC {sdc_counter} - Critical {critical_sdc_counter}")
     print(injection_df)
 
 
