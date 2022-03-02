@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-import sys
+import argparse
 import time
 
 import pandas as pd
@@ -8,6 +8,8 @@ import torchvision
 from pytorchfi import core as pfi_core
 from pytorchfi import neuron_error_models as pfi_neuron_error_models
 from pytorchfi import weight_error_models as pfi_weight_error_models
+
+from pytorch_scripts.utils import parse_args
 
 
 def load_imagenet(data_dir: str, subset_size: int,
@@ -78,8 +80,9 @@ def perform_fault_injection_for_a_model(model_path):
             inj = inj.eval()
             injection_time = time.time()
             inj_output = inj(image_gpu, inject=False)
-            inj_output_cpu = inj_output.to("cpu")
             injection_time = time.time() - injection_time
+
+            inj_output_cpu = inj_output.to("cpu")
             inj_top_k_labels = torch.topk(inj_output_cpu, k=k).indices.squeeze(0)
             inj_probabilities = torch.tensor(
                 [torch.softmax(inj_output_cpu, dim=1)[0, idx].item() for idx in inj_top_k_labels])
@@ -101,10 +104,12 @@ def perform_fault_injection_for_a_model(model_path):
 
 
 def main() -> None:
-    assert len(sys.argv) == 2, f"usage: {sys.argv[0]} <path to checkpoint>"
-    # Model class must be defined somewhere
-    path = sys.argv[1]
-    model_path = path.replace(".ckpt", ".ts")
+    config_parser = parser = argparse.ArgumentParser(description='Criticality eval', add_help=False)
+    parser.add_argument('-c', '--config', default='', type=str, metavar='FILE',
+                        help='YAML config file specifying default arguments.')
+
+    args = parse_args(parser, config_parser)
+    model_path = "checkpoints/" + args.ckpt.replace("ckpt", "ts")
     perform_fault_injection_for_a_model(model_path)
 
 
