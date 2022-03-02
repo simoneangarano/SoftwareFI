@@ -16,8 +16,9 @@ def main():
     optim_params = {'optimizer': args.optimizer, 'epochs': args.epochs, 'lr': args.lr, 'wd': args.wd}
     n_classes = 10 if args.dataset == 'cifar10' else 100
 
-    ptl_model = build_model(args.model, n_classes, optim_params, args.loss, args.inject_p,
-                            args.order, args.activation, args.affine)
+    ptl_model = build_model(model=args.model, n_classes=n_classes, optim_params=optim_params,
+                            loss=args.loss, inject_p=args.inject_p,
+                            order=args.order, activation=args.activation, affine=args.affine)
 
     model_path = "checkpoints/" + args.ckpt
     serialized_model = "checkpoints/" + args.ckpt.replace("ckpt", "ts")
