@@ -4,7 +4,7 @@ ckpt: c100_resnet44_injection_after_conv-epoch=130-val_acc=0.63.ckpt
 dataset: cifar100
 data_dir: ./data
 num_gpus: 1
-model: resnet44
+model: hard_resnet44
 loss: bce
 clip: !!float 0.05
 order: relu-bn
