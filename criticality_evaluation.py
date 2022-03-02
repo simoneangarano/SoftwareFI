@@ -87,7 +87,7 @@ def perform_fault_injection_for_a_model(args):
             inj_probabilities = torch.tensor(
                 [torch.softmax(inj_output_cpu, dim=1)[0, idx].item() for idx in inj_top_k_labels])
 
-            if i % 10 == 0:
+            if i % 100 == 0:
                 print(f"Time to gold {model_time} - Time to inject {injection_time}")
             injected_faults += 1
             if torch.any(torch.not_equal(gold_probabilities, inj_probabilities)):
@@ -110,13 +110,14 @@ def perform_fault_injection_for_a_model(args):
 
 
 def main() -> None:
-    config_parser = parser = argparse.ArgumentParser(description='Criticality eval', add_help=False)
-    parser.add_argument('-c', '--config', default='', type=str, metavar='FILE',
+    parser = config_parser = argparse.ArgumentParser(description='Criticality eval', add_help=False)
+    parser.add_argument('--config', default='', type=str, metavar='FILE',
                         help='YAML config file specifying default arguments.')
     parser.add_argument('--randrange', default=100.0, type=float,
                         help="When injecting random values defines the range of the random values."
                              " [min_value=-randrange max_value=randrange]")
-    parser.add_argument('--csv', default=None, help="If this flag is enabled it will create a csv file --csv <path>")
+    parser.add_argument('--csv', default=None, type=str,
+                        help="If this flag is enabled it will create a csv file --csv <path>")
     parser.add_argument('--injsite', default="neuron", help="Injection site, if pytorchfi can be neuron and weight")
     args = parse_args(parser, config_parser)
     perform_fault_injection_for_a_model(args)
