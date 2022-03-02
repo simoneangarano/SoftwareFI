@@ -1,10 +1,10 @@
-name: c100_resnet44_base_full_injection_crit
+name: c100_resnet44_base_crit
 mode: validate
-ckpt: c100_resnet44_base_full_injection-epoch=141-val_acc=0.65.ckpt
+ckpt: c100_resnet44_base_adamw_2-epoch=154-val_acc=0.65.ckpt
 dataset: cifar100
 data_dir: ./data
 num_gpus: 1
-model: hard_resnet44
+model: resnet44
 loss: bce
 clip: null
 order: bn-relu
