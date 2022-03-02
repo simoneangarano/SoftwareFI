@@ -99,8 +99,8 @@ def perform_fault_injection_for_a_model(args):
                          gold_probs=gold_probabilities.tolist(), inj_probs=inj_probabilities.tolist(),
                          gold_labels=gold_top_k_labels.tolist(), inj_labels=inj_top_k_labels.tolist()))
 
-            if i == 100:
-                break
+            # if i == 100:
+            #     break
     injection_df = pd.DataFrame(injection_data)
     print(f"Injected faults {injected_faults} - SDC {sdc_counter} - Critical {critical_sdc_counter}")
     if csv_file:
@@ -113,12 +113,12 @@ def main() -> None:
     parser = config_parser = argparse.ArgumentParser(description='Criticality eval', add_help=False)
     parser.add_argument('--config', default='', type=str, metavar='FILE',
                         help='YAML config file specifying default arguments.')
-    parser.add_argument('--randrange', default=100.0, type=float,
-                        help="When injecting random values defines the range of the random values."
-                             " [min_value=-randrange max_value=randrange]")
-    parser.add_argument('--csv', default=None, type=str,
-                        help="If this flag is enabled it will create a csv file --csv <path>")
-    parser.add_argument('--injsite', default="neuron", help="Injection site, if pytorchfi can be neuron and weight")
+    # parser.add_argument('--randrange', default=100.0, type=float,
+    #                     help="When injecting random values defines the range of the random values."
+    #                          " [min_value=-randrange max_value=randrange]")
+    # parser.add_argument('--csv', default=None, type=str,
+    #                     help="If this flag is enabled it will create a csv file --csv <path>")
+    # parser.add_argument('--injsite', default="neuron", help="Injection site, if pytorchfi can be neuron and weight")
     args = parse_args(parser, config_parser)
     perform_fault_injection_for_a_model(args)
 
