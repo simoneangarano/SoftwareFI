@@ -19,3 +19,8 @@ seed: 0
 inject_p: !!float 0.01
 inject_epoch: 0
 comment: Testing the float differences.
+
+# Criticality analysis
+randrange: 1000
+csv: c100_resnet44_after_conv_rand_1000_neuron.csv
+injsite: neuron

@@ -19,3 +19,8 @@ seed: 0
 inject_p: !!float 0.00
 inject_epoch: 0
 comment: Injection at test time in each convolution.
+
+# Criticality analysis
+randrange: 1000
+csv: c100_resnet44_base_rand_1000_neuron.csv
+injsite: neuron

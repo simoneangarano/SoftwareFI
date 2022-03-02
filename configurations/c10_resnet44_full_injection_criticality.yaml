@@ -19,3 +19,8 @@ seed: 0
 inject_p: !!float 0.01
 inject_epoch: 0
 comment: Uniform noise [0, epoch). Injection at each convolution.
+
+# Criticality analysis
+randrange: 1000
+csv: c10_resnet44_full_rand_1000_neuron.csv
+injsite: neuron
