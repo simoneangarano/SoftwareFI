@@ -51,10 +51,15 @@ def perform_fault_injection_for_a_model(args):
     golden_model = torch.load(model_path)
     golden_model.eval()
     golden_model = golden_model.to("cuda")
-    test_loader = load_cifar10(data_dir="data", transform=torchvision.transforms.Compose([
-        torchvision.transforms.ToTensor(),
-        torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                         std=[0.229, 0.224, 0.225])]))
+    load_data = load_cifar100
+    if args.dataset == "cifar10":
+        load_data = load_cifar10
+
+    test_loader = load_data(data_dir="data",
+                            transform=torchvision.transforms.Compose([torchvision.transforms.ToTensor(),
+                                                                      torchvision.transforms.Normalize(
+                                                                          mean=[0.485, 0.456, 0.406],
+                                                                          std=[0.229, 0.224, 0.225])]))
     # Testing PytorchFI
     pfi_model = pfi_core.fault_injection(golden_model, 1, input_shape=[3, 32, 32],
                                          layer_types=[
