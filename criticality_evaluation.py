@@ -113,7 +113,8 @@ def perform_fault_injection_for_a_model(args):
                     SDC=sdc, critical_SDCs=critical_sdc,
                     gold_probs=gold_probabilities.tolist(), inj_probs=inj_probabilities.tolist(),
                     gold_labels=gold_top_k_labels.tolist(), inj_labels=inj_top_k_labels.tolist(),
-                    ground_truth_label=label
+                    ground_truth_label=label,
+                    gold_argmax=torch.max(gold_output_cpu, 1), inj_argmax=torch.max(inj_output_cpu, 1)
                 ))
 
             if i == 1000:
