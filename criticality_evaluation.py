@@ -34,7 +34,7 @@ def load_cifar100(data_dir: str, transform: torchvision.transforms.Compose) -> t
 
 def perform_fault_injection_for_a_model(args):
     model_path = "checkpoints/" + args.ckpt.replace("ckpt", "ts")
-    min_val, max_val = -args.randrange, args.randrange
+    min_val, max_val = 0, args.randrange
     inj_site = args.injsite
     csv_file = args.csv
     k = 5
