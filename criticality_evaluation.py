@@ -95,13 +95,15 @@ def perform_fault_injection_for_a_model(args):
                 sdc, critical_sdc = 1, int(torch.any(torch.not_equal(gold_top_k_labels, inj_top_k_labels)))
                 sdc_counter += sdc
                 critical_sdc_counter += critical_sdc
-                injection_data.append(
-                    dict(SDC=sdc, critical_SDCs=critical_sdc,
-                         gold_probs=gold_probabilities.tolist(), inj_probs=inj_probabilities.tolist(),
-                         gold_labels=gold_top_k_labels.tolist(), inj_labels=inj_top_k_labels.tolist()))
+                injection_data.append(dict(
+                    SDC=sdc, critical_SDCs=critical_sdc,
+                    gold_probs=gold_probabilities.tolist(), inj_probs=inj_probabilities.tolist(),
+                    gold_labels=gold_top_k_labels.tolist(), inj_labels=inj_top_k_labels.tolist(),
+                    ground_truth_label=label
+                ))
 
-            # if i == 100:
-            #     break
+            if i == 1000:
+                break
     injection_df = pd.DataFrame(injection_data)
     print(f"Injected faults {injected_faults} - SDC {sdc_counter} - Critical {critical_sdc_counter}")
     total_time = time.time() - total_time
@@ -124,6 +126,7 @@ def main() -> None:
     #                     help="If this flag is enabled it will create a csv file --csv <path>")
     # parser.add_argument('--injsite', default="neuron", help="Injection site, if pytorchfi can be neuron and weight")
     args = parse_args(parser, config_parser)
+
     perform_fault_injection_for_a_model(args)
 
 

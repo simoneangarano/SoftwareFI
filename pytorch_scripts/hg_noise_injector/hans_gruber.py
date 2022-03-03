@@ -7,7 +7,9 @@ import random
 import torch
 import torch.nn as nn
 
-LINE, SQUARE, RANDOM, ALL = "LINE", "SQUARE", "RANDOM", "ALL"
+# Use int instead strings
+# "SINGLE", "LINE", "SQUARE", "RANDOM", "ALL"
+SINGLE, LINE, SQUARE, RANDOM, ALL = range(5)
 
 
 class HansGruberNI(torch.nn.Module):
@@ -57,7 +59,7 @@ class HansGruberNI(torch.nn.Module):
         # return 27.119592052269397
 
     def training_error(self, epoch):
-        error = torch.rand(size=(1,), device=self.dummy_param.device) * max(epoch-self.inject_epoch, 1)
+        error = torch.rand(size=(1,), device=self.dummy_param.device) * max(epoch - self.inject_epoch, 1)
         return error + 1e-6
 
     def inject(self, forward_input: torch.Tensor, p: float, current_epoch: int = 0) -> torch.Tensor:
@@ -74,7 +76,11 @@ class HansGruberNI(torch.nn.Module):
         else:
             error = self.random_relative_error
 
-        if self.error_model == LINE:
+        if self.error_model == SINGLE:
+            rand_b, rand_c = random.randint(0, b - 1), random.randint(0, c - 1)
+            rand_h, rand_w = random.randint(0, h - 1), random.randint(0, w - 1)
+            output[rand_b, rand_c, rand_h, rand_w] *= self.random_relative_error
+        elif self.error_model == LINE:
             # select the row
             rand_row = torch.randint(h, size=(1,))
             if torch.bernoulli(torch.ones(1) * 0.5):
