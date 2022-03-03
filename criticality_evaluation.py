@@ -104,6 +104,7 @@ def perform_fault_injection_for_a_model(args):
     injection_df = pd.DataFrame(injection_data)
     print(f"Injected faults {injected_faults} - SDC {sdc_counter} - Critical {critical_sdc_counter}")
     if csv_file:
+        injection_df["injected_faults"] = injected_faults
         injection_df.to_csv(csv_file, index=False)
     else:
         print(injection_df)
