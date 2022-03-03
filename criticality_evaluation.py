@@ -57,6 +57,7 @@ def perform_fault_injection_for_a_model(args):
     sdc_counter, critical_sdc_counter = 0, 0
     injection_data = list()
     injected_faults = 0
+    total_time = time.time()
     with torch.no_grad():
         for i, (image, label) in enumerate(test_loader):
             image_gpu = image.to("cuda")
@@ -103,6 +104,8 @@ def perform_fault_injection_for_a_model(args):
             #     break
     injection_df = pd.DataFrame(injection_data)
     print(f"Injected faults {injected_faults} - SDC {sdc_counter} - Critical {critical_sdc_counter}")
+    total_time = time.time() - total_time
+    print(f"{total_time:.2f}")
     if csv_file:
         injection_df["injected_faults"] = injected_faults
         injection_df.to_csv(csv_file, index=False)
