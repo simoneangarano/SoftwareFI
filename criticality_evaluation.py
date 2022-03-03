@@ -32,6 +32,15 @@ def load_cifar100(data_dir: str, transform: torchvision.transforms.Compose) -> t
     return test_loader
 
 
+def load_cifar10(data_dir: str, transform: torchvision.transforms.Compose) -> torch.utils.data.DataLoader:
+    """Load imagenet from the folder <data_dir>/imagenet """
+    # Get a dataset
+    test_set = torchvision.datasets.cifar.CIFAR10(root=data_dir, download=True, train=False,
+                                                  transform=transform)
+    test_loader = torch.utils.data.DataLoader(test_set, batch_size=1, shuffle=False)
+    return test_loader
+
+
 def perform_fault_injection_for_a_model(args):
     model_path = "checkpoints/" + args.ckpt.replace("ckpt", "ts")
     min_val, max_val = 0, args.randrange
@@ -42,7 +51,7 @@ def perform_fault_injection_for_a_model(args):
     golden_model = torch.load(model_path)
     golden_model.eval()
     golden_model = golden_model.to("cuda")
-    test_loader = load_cifar100(data_dir="data", transform=torchvision.transforms.Compose([
+    test_loader = load_cifar10(data_dir="data", transform=torchvision.transforms.Compose([
         torchvision.transforms.ToTensor(),
         torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                          std=[0.229, 0.224, 0.225])]))
