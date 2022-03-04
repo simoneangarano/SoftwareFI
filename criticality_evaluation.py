@@ -7,9 +7,8 @@ import torch
 import torchvision
 from pytorchfi import core as pfi_core
 from pytorchfi import neuron_error_models as pfi_neuron_error_models
-from pytorchfi import weight_error_models as pfi_weight_error_models
 
-from pytorch_scripts.utils import parse_args
+from pytorch_scripts.utils import build_model, parse_args
 
 
 def load_imagenet(data_dir: str, subset_size: int,
@@ -41,6 +40,29 @@ def load_cifar10(data_dir: str, transform: torchvision.transforms.Compose) -> to
     return test_loader
 
 
+# single random neuron error in single batch element
+def random_neuron_inj(pfi, min_val=-1, max_val=1):
+    b = pfi_neuron_error_models.random_batch_element(pfi)
+    (layer, C, H, W) = pfi_neuron_error_models.random_neuron_location(pfi)
+    err_val = pfi_neuron_error_models.random_value(min_val=min_val, max_val=max_val)
+    config = dict(layer=layer, chanel=C, height=H, width=W)
+    pfi_obj = pfi.declare_neuron_fi(
+        batch=[b], layer_num=[layer], dim1=[C], dim2=[H], dim3=[W], value=[err_val]
+    )
+    return pfi_obj, config
+
+
+def load_ptl_model(args):
+    # Build model (Resnet only up to now)
+    optim_params = {'optimizer': args.optimizer, 'epochs': args.epochs, 'lr': args.lr, 'wd': args.wd}
+    n_classes = 10 if args.dataset == 'cifar10' else 100
+
+    ptl_model = build_model(model=args.model, n_classes=n_classes, optim_params=optim_params,
+                            loss=args.loss, inject_p=args.inject_p,
+                            order=args.order, activation=args.activation, affine=args.affine)
+    return ptl_model
+
+
 def perform_fault_injection_for_a_model(args):
     model_path = "checkpoints/" + args.ckpt.replace("ckpt", "ts")
     min_val, max_val = 0, args.randrange
@@ -48,7 +70,8 @@ def perform_fault_injection_for_a_model(args):
     csv_file = args.csv
     k = 5
 
-    golden_model = torch.load(model_path)
+    # golden_model = torch.load(model_path)
+    golden_model = load_ptl_model(args=args)
     golden_model.eval()
     golden_model = golden_model.to("cuda")
     load_data = load_cifar100
@@ -86,9 +109,7 @@ def perform_fault_injection_for_a_model(args):
                 [torch.softmax(gold_output_cpu, dim=1)[0, idx].item() for idx in gold_top_k_labels])
 
             if inj_site == "neuron":
-                inj = pfi_neuron_error_models.random_neuron_inj(pfi_model, min_val=min_val, max_val=max_val)
-            elif inj_site == "weight":
-                inj = pfi_weight_error_models.random_weight_inj(pfi_model, min_val=min_val, max_val=max_val)
+                inj, config_dict = random_neuron_inj(pfi_model, min_val=min_val, max_val=max_val)
             else:
                 raise NotImplementedError("Only neuron and weight are supported as error models")
 
@@ -114,6 +135,7 @@ def perform_fault_injection_for_a_model(args):
                     gold_probs=gold_probabilities.tolist(), inj_probs=inj_probabilities.tolist(),
                     gold_labels=gold_top_k_labels.tolist(), inj_labels=inj_top_k_labels.tolist(),
                     ground_truth_label=label,
+                    **config_dict
                     # gold_argmax=torch.max(gold_output_cpu, 1), inj_argmax=torch.max(inj_output_cpu, 1)
                 ))
 
