@@ -60,11 +60,13 @@ def load_ptl_model(args):
     ptl_model = build_model(model=args.model, n_classes=n_classes, optim_params=optim_params,
                             loss=args.loss, inject_p=args.inject_p,
                             order=args.order, activation=args.activation, affine=args.affine)
+
+    ptl_model.load_from_checkpoint(checkpoint_path=args.ckpt, strict=False, model=args.model, n_classes=n_classes,
+                                   optim=optim_params, loss=args.loss)
     return ptl_model
 
 
 def perform_fault_injection_for_a_model(args):
-    model_path = "checkpoints/" + args.ckpt.replace("ckpt", "ts")
     min_val, max_val = 0, args.randrange
     inj_site = args.injsite
     csv_file = args.csv
@@ -113,7 +115,7 @@ def perform_fault_injection_for_a_model(args):
             else:
                 raise NotImplementedError("Only neuron and weight are supported as error models")
 
-            inj = inj.eval()
+            inj.eval()
             injection_time = time.time()
             inj_output = inj(image_gpu, inject=False)
             injection_time = time.time() - injection_time
