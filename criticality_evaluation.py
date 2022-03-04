@@ -104,7 +104,7 @@ def perform_fault_injection_for_a_model(args):
             model_time = time.time() - model_time
 
             gold_output_cpu = gold_output.to("cpu")
-            gold_top_k_labels = torch.topk(gold_output_cpu, k=k, dim=1).indices.squeeze(0)
+            gold_top_k_labels = torch.topk(gold_output_cpu, k=k).indices.squeeze(0)
             gold_probabilities = torch.tensor(
                 [torch.softmax(gold_output_cpu, dim=1)[0, idx].item() for idx in gold_top_k_labels])
 
@@ -119,9 +119,14 @@ def perform_fault_injection_for_a_model(args):
             injection_time = time.time() - injection_time
 
             inj_output_cpu = inj_output.to("cpu")
-            inj_top_k_labels = torch.topk(inj_output_cpu, k=k, dim=1).indices.squeeze(0)
+            inj_top_k_labels = torch.topk(inj_output_cpu, k=k).indices.squeeze(0)
             inj_probabilities = torch.tensor(
                 [torch.softmax(inj_output_cpu, dim=1)[0, idx].item() for idx in inj_top_k_labels])
+
+            print(gold_top_k_labels)
+            print(inj_top_k_labels)
+            print(label)
+            exit()
 
             if i % 100 == 0:
                 print(f"Time to gold {model_time} - Time to inject {injection_time}")
