@@ -16,6 +16,6 @@ for yaml_file in "${YAML_FILES[@]}"
 do
   printf "%s\n" "$yaml_file"
   yaml_file_path="$CFG_PATH"/"$yaml_file"
-  python3 ptl_to_torch.py -c "$yaml_file_path"
+#  python3 ptl_to_torch.py -c "$yaml_file_path"
   python3 criticality_evaluation.py --config "$yaml_file_path"
 done
