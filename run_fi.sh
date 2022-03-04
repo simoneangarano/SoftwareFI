@@ -4,9 +4,7 @@ set -x
 set -e
 CFG_PATH=configurations
 
-YAML_FILES=(  c100_resnet44_base_criticality.yaml
-              c100_resnet44_injection_after_conv_criticality.yaml
-              c10_resnet44_base_criticality.yaml
+YAML_FILES=(  c10_resnet44_base_criticality.yaml
               c10_resnet44_full_injection_criticality.yaml )
 
 DATA=data/reliability_evaluation
