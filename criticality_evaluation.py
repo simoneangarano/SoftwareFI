@@ -124,10 +124,6 @@ def perform_fault_injection_for_a_model(args):
             inj_probabilities = torch.tensor(
                 [torch.softmax(inj_output_cpu, dim=1)[0, idx].item() for idx in inj_top_k_labels])
 
-            print(gold_top_k_labels)
-            print(inj_top_k_labels)
-            print(label)
-
             if i % 100 == 0:
                 print(f"Time to gold {model_time} - Time to inject {injection_time}")
             injected_faults += 1
@@ -144,8 +140,8 @@ def perform_fault_injection_for_a_model(args):
                     # gold_argmax=torch.max(gold_output_cpu, 1), inj_argmax=torch.max(inj_output_cpu, 1)
                 ))
 
-            if i == 100:
-                break
+            # if i == 100:
+            #     break
     injection_df = pd.DataFrame(injection_data)
     print(f"Injected faults {injected_faults} - SDC {sdc_counter} - Critical {critical_sdc_counter}")
     total_time = time.time() - total_time
