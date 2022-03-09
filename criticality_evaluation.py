@@ -66,7 +66,7 @@ def load_ptl_model(args):
 
 
 def perform_fault_injection_for_a_model(args):
-    min_val, max_val = 0, args.randrange
+    min_val, max_val = -args.randrange, args.randrange
     inj_site = args.injsite
     csv_file = args.csv
     k = 5
