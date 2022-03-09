@@ -60,9 +60,7 @@ def load_ptl_model(args):
     ptl_model = build_model(model=args.model, n_classes=n_classes, optim_params=optim_params,
                             loss=args.loss, inject_p=args.inject_p,
                             order=args.order, activation=args.activation, affine=args.affine)
-
-    checkpoint = torch.load(args.ckpt, strict=False, model=args.model, n_classes=n_classes,
-                            optim=optim_params, loss=args.loss)
+    checkpoint = torch.load(args.ckpt)
     ptl_model.load_state_dict(checkpoint['state_dict'])
     return ptl_model.model
 
@@ -129,7 +127,6 @@ def perform_fault_injection_for_a_model(args):
             print(gold_top_k_labels)
             print(inj_top_k_labels)
             print(label)
-            exit()
 
             if i % 100 == 0:
                 print(f"Time to gold {model_time} - Time to inject {injection_time}")
@@ -147,7 +144,7 @@ def perform_fault_injection_for_a_model(args):
                     # gold_argmax=torch.max(gold_output_cpu, 1), inj_argmax=torch.max(inj_output_cpu, 1)
                 ))
 
-            if i == 1000:
+            if i == 100:
                 break
     injection_df = pd.DataFrame(injection_data)
     print(f"Injected faults {injected_faults} - SDC {sdc_counter} - Critical {critical_sdc_counter}")
