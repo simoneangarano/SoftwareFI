@@ -127,6 +127,12 @@ def perform_fault_injection_for_a_model(args):
             if i % 100 == 0:
                 print(f"Time to gold {model_time} - Time to inject {injection_time}")
             injected_faults += 1
+
+            gold_top1_label = int(torch.topk(gold_output, k=1).indices.squeeze(0))
+            inj_top1_label = int(torch.topk(inj_output, k=1).indices.squeeze(0))
+            gold_top1_prob = torch.softmax(gold_output, dim=1)[0, gold_top1_label].item()
+            inj_top1_prob = torch.softmax(inj_output, dim=1)[0, inj_top1_label].item()
+
             if torch.any(torch.not_equal(gold_probabilities, inj_probabilities)):
                 sdc, critical_sdc = 1, int(torch.any(torch.not_equal(gold_top_k_labels, inj_top_k_labels)))
                 sdc_counter += sdc
@@ -136,6 +142,8 @@ def perform_fault_injection_for_a_model(args):
                     gold_probs=gold_probabilities.tolist(), inj_probs=inj_probabilities.tolist(),
                     gold_labels=gold_top_k_labels.tolist(), inj_labels=inj_top_k_labels.tolist(),
                     ground_truth_label=label,
+                    gold_top1_label=gold_top1_label, inj_top1_label=inj_top1_label,
+                    gold_top1_prob=gold_top1_prob, inj_top1_prob=inj_top1_prob,
                     **config_dict
                     # gold_argmax=torch.max(gold_output_cpu, 1), inj_argmax=torch.max(inj_output_cpu, 1)
                 ))
