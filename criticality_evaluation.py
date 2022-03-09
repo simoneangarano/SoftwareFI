@@ -23,7 +23,7 @@ def load_imagenet(data_dir: str, subset_size: int,
 
 
 def load_cifar100(data_dir: str, transform: torchvision.transforms.Compose) -> torch.utils.data.DataLoader:
-    """Load imagenet from the folder <data_dir>/imagenet """
+    """Load CIFAR 100 from <data dir>"""
     # Get a dataset
     test_set = torchvision.datasets.cifar.CIFAR100(root=data_dir, download=True, train=False,
                                                    transform=transform)
@@ -32,7 +32,7 @@ def load_cifar100(data_dir: str, transform: torchvision.transforms.Compose) -> t
 
 
 def load_cifar10(data_dir: str, transform: torchvision.transforms.Compose) -> torch.utils.data.DataLoader:
-    """Load imagenet from the folder <data_dir>/imagenet """
+    """Load CIFAR 10 from <data dir>"""
     # Get a dataset
     test_set = torchvision.datasets.cifar.CIFAR10(root=data_dir, download=True, train=False,
                                                   transform=transform)
