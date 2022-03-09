@@ -61,9 +61,10 @@ def load_ptl_model(args):
                             loss=args.loss, inject_p=args.inject_p,
                             order=args.order, activation=args.activation, affine=args.affine)
 
-    ptl_model.load_from_checkpoint(checkpoint_path=args.ckpt, strict=False, model=args.model, n_classes=n_classes,
-                                   optim=optim_params, loss=args.loss)
-    return ptl_model
+    checkpoint = torch.load(args.ckpt, strict=False, model=args.model, n_classes=n_classes,
+                            optim=optim_params, loss=args.loss)
+    ptl_model.load_state_dict(checkpoint['state_dict'])
+    return ptl_model.model
 
 
 def perform_fault_injection_for_a_model(args):
