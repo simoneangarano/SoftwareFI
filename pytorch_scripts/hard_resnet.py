@@ -36,6 +36,19 @@ class ConvInjector(nn.Module):
         return x, counter, inject_index
 
 
+class LinearInjector(nn.Module):
+    def __init__(self, inplanes, n_classes, inject_p=0.01, inject_epoch=0):
+        super(LinearInjector, self).__init__()
+        self.linear = nn.Linear(inplanes, n_classes)
+        self.injector = HansGruberNI(p=inject_p, inject_epoch=inject_epoch)
+
+    def forward(self, x, inject=True, current_epoch=0, counter=0, inject_index=0):
+        x = self.linear(x)
+        if counter == inject_index:
+            x = self.injector(x, inject, current_epoch)
+        return x
+
+
 class Shortcut(nn.Module):
     def __init__(self, inplanes, outplanes, stride, affine, inject_p, inject_epoch):
         super(Shortcut, self).__init__()
@@ -121,7 +134,7 @@ class HardResNet(nn.Module):
                                        activation=activation, affine=affine)
         self.layer3 = self._make_layer(block, 64, num_blocks[2], stride=2, order=order,
                                        activation=activation, affine=affine)
-        self.linear = nn.Linear(64, num_classes)
+        self.linear = LinearInjector(64, n_classes=num_classes, inject_p=inject_p, inject_epoch=inject_epoch)
         if activation == 'relu':
             self.relu = nn.ReLU()
         elif activation == 'relu6':
@@ -155,7 +168,7 @@ class HardResNet(nn.Module):
         out, counter = self.layer3(out, inject, current_epoch, counter, inject_index)
         out = F.avg_pool2d(out, out.size()[3])
         out = out.view(out.size(0), -1)
-        out = self.linear(out)
+        out = self.linear(out, inject, current_epoch, counter, inject_index)
         return out
 
 

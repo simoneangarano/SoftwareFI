@@ -23,6 +23,8 @@ class ModelWrapper(pl.LightningModule):
             self.criterion = SymmetricCELoss()
             self.use_one_hot = True
 
+        self.save_hyperparameters('model', 'n_classes', 'optim', 'loss')
+
     def forward(self, x, inject=True):
         return self.model(x, inject, self.current_epoch)
 
