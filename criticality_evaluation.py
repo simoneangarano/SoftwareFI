@@ -45,10 +45,10 @@ def random_neuron_inj(pfi, min_val=-1, max_val=1):
     b = pfi_neuron_error_models.random_batch_element(pfi)
     (layer, C, H, W) = pfi_neuron_error_models.random_neuron_location(pfi)
     err_val = pfi_neuron_error_models.random_value(min_val=min_val, max_val=max_val)
-    config = dict(layer=layer, chanel=C, height=H, width=W)
     pfi_obj = pfi.declare_neuron_fi(
         batch=[b], layer_num=[layer], dim1=[C], dim2=[H], dim3=[W], value=[err_val]
     )
+    config = dict(layer=layer, chanel=C, height=H, width=W, err_val=err_val)
     return pfi_obj, config
 
 
