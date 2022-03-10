@@ -59,8 +59,10 @@ class HansGruberNI(torch.nn.Module):
         # return 27.119592052269397
 
     def training_error(self, epoch):
-        error = torch.rand(size=(1,), device=self.dummy_param.device) * max(epoch - self.inject_epoch, 1)
-        return error + 1e-6
+        error = torch.rand(size=(1,), device=self.dummy_param.device) * max(epoch - self.inject_epoch, 1) + 1e-6
+        if random.randint(0, 1):
+            return error
+        return - error
 
     def inject(self, forward_input: torch.Tensor, p: float, current_epoch: int = 0) -> torch.Tensor:
         # We can inject the relative errors using only Torch built-in functions
