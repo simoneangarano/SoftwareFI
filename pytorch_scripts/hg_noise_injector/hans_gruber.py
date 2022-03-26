@@ -3,17 +3,93 @@ This file encapsulates the noise injector to be used
 in the training process
 """
 import random
+import numpy as np
 
 import torch
 import torch.nn as nn
 
-# Use int instead strings
-# "SINGLE", "LINE", "SQUARE", "RANDOM", "ALL"
-SINGLE, LINE, SQUARE, RANDOM, ALL = range(5)
+
+def generate_mask(shape, batch_ids=[], channel_ids=[], row_ids=[], column_ids=[]):
+    b, c, w, h = shape
+    batch_ids = [idx for idx in range(b) if batch_ids[idx]]
+    mask = torch.zeros((b, c, w, h))
+    mask_2d = torch.zeros((w, h))
+
+    r, c = len(row_ids), len(column_ids)
+    if r and c:
+        # single or square
+        for row_id in row_ids:
+            for column_id in column_ids:
+                mask_2d[row_id, column_id] = 1
+
+    elif r:
+        # line - rows
+        for row_id in row_ids:
+            mask_2d[row_id, :] = 1
+
+    elif c:
+        # line - columns
+        for column_id in column_ids:
+            mask_2d[:, column_id] = 1
+
+    else:
+        # all
+        mask_2d = torch.ones((w, h))
+
+    for batch_id in batch_ids:
+        for channel_id in channel_ids:
+            mask[batch_id, channel_id] = mask_2d
+
+    return mask > 0
+
+
+def generate_single_masks(shape, sampled_indexes):
+    b, c, w, h = shape
+    # Corrupt single values in multiple channels
+    rand_c = torch.ones(c) > 0  # all channels
+    rand_c = [idx for idx in range(c) if rand_c[idx]]
+    rand_h, rand_w = torch.randint(0, h - 1, size=(1,)), torch.randint(0, w - 1, size=(1,))
+    mask = generate_mask(shape, sampled_indexes, rand_c, rand_w, rand_w)
+    return mask
+
+
+def generate_line_masks(shape, sampled_indexes):
+    b, c, w, h = shape
+    # Corrupt rows or columns in multiple channels
+    rand_line = torch.randint(high=h, size=(1,))
+    rand_c = torch.bernoulli(torch.ones(c) * 0.75) > 0
+    rand_c = [idx for idx in range(c) if rand_c[idx]]
+    if torch.bernoulli(torch.ones(1) * 0.5):
+        mask = generate_mask(shape, sampled_indexes, rand_c, [], rand_line)
+    else:
+        mask = generate_mask(shape, sampled_indexes, rand_c, rand_line, [])
+    return mask
+
+
+def generate_square_masks(shape, sampled_indexes):
+    b, c, w, h = shape
+    # Corrupt squares in multiple channels
+    rand_c = torch.bernoulli(torch.ones(c) * 0.3) > 0
+    h_0 = torch.randint(high=h - 1, size=(1,))
+    h_1 = torch.randint(low=h_0.item(), high=h, size=(1,))
+    w_0 = torch.randint(high=w - 1, size=(1,))
+    w_1 = torch.randint(low=w_0.item(), high=w, size=(1,))
+    rand_h = np.arange(h_0, h_1 + 1)
+    rand_w = np.arange(w_0, w_1 + 1)
+    mask = generate_mask(shape, sampled_indexes, rand_c, rand_w, rand_h)
+    return mask
+
+
+def generate_all_masks(shape, sampled_indexes):
+    b, c, w, h = shape
+    # Corrupt entire channels
+    rand_c = torch.bernoulli(torch.ones(c) * 0.1) > 0
+    mask = generate_mask(shape, sampled_indexes, rand_c)
+    return mask
 
 
 class HansGruberNI(torch.nn.Module):
-    def __init__(self, error_model: str = LINE, p: float = 0.3, inject_epoch: int = 0):
+    def __init__(self, error_model: str = 'random', p: float = 0.3, inject_epoch: int = 0):
         super(HansGruberNI, self).__init__()
         # Error model necessary for the forward
         self.error_model = error_model
@@ -21,6 +97,7 @@ class HansGruberNI(torch.nn.Module):
         self.p = p  # fraction of the samples which the injection is applied to
         self.inject_epoch = inject_epoch  # how many epochs before starting the injection
         self.dummy_param = nn.Parameter(torch.empty(0))  # just to get the device
+        self.mask_generators = [generate_line_masks, generate_square_masks, generate_all_masks]
 
     def set_noise_data(self, noise_data: list = None) -> None:
         r"""Set the noise data that we extract and parse from radiation experiments
@@ -78,24 +155,29 @@ class HansGruberNI(torch.nn.Module):
         else:
             error = self.random_relative_error
 
-        if self.error_model == SINGLE:
-            rand_b, rand_c = random.randint(0, b - 1), random.randint(0, c - 1)
-            rand_h, rand_w = random.randint(0, h - 1), random.randint(0, w - 1)
-            output[rand_b, rand_c, rand_h, rand_w] *= self.random_relative_error
-        elif self.error_model == LINE:
-            # select the row
-            rand_row = torch.randint(h, size=(1,))
-            if torch.bernoulli(torch.ones(1) * 0.5):
-                output[sampled_indexes, :, :, rand_row] = output[sampled_indexes, :, :, rand_row].mul_(error)
-            else:
-                output[sampled_indexes, :, rand_row, :] = output[sampled_indexes, :, rand_row, :].mul_(error)
+        if not self.training:
+            # random
+            f = random.choice(self.mask_generators)
+            mask = f(forward_input.shape, sampled_indexes)
 
-        elif self.error_model == SQUARE:
-            raise NotImplementedError("Implement SQUARE error model first")
-        elif self.error_model == RANDOM:
-            raise NotImplementedError("Implement RANDOM first")
-        elif self.error_model == ALL:
-            raise NotImplementedError("Implement ALL first")
+        else:
+            if self.error_model == 'single':
+                mask = generate_single_masks(forward_input.shape, sampled_indexes)
+
+            elif self.error_model == 'line':
+                mask = generate_line_masks(forward_input.shape, sampled_indexes)
+
+            elif self.error_model == 'square':
+                mask = generate_square_masks(forward_input.shape, sampled_indexes)
+
+            elif self.error_model == 'all':
+                mask = generate_all_masks(forward_input.shape, sampled_indexes)
+
+            elif self.error_model == 'random':
+                f = random.choice(self.mask_generators)
+                mask = f(forward_input.shape, sampled_indexes)
+
+        output[mask] = output[mask].mul_(error)
 
         return output
 

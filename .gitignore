@@ -35,6 +35,9 @@
 *.xml
 *.iml
 
+# Checkpoints
+*.ckpt
+
 data/
 .idea/
 wandb/

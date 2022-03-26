@@ -36,6 +36,7 @@ parser.add_argument('--batch_size', default=128, help='Batch Size')
 parser.add_argument('--lr', default=1e-1, help='Learning rate.')
 parser.add_argument('--wd', default=1e-4, help='Weight Decay.')
 parser.add_argument('--optimizer', default='sgd', help='Optimizer name: adamw or sgd.')
+parser.add_argument('--error_model', default='random', help='Optimizer name: adamw or sgd.')
 parser.add_argument('--inject_p', default=0.1, help='Probability of noise injection at training time.')
 parser.add_argument('--inject_epoch', default=0, help='How many epochs before starting the injection.')
 parser.add_argument('--seed', default=0, help='Random seed for reproducibility.')
@@ -54,7 +55,7 @@ def main():
     # Build model (Resnet only up to now)
     optim_params = {'optimizer': args.optimizer, 'epochs': args.epochs, 'lr': args.lr, 'wd': args.wd}
     n_classes = 10 if args.dataset == 'cifar10' else 100
-    net = build_model(args.model, n_classes, optim_params, args.loss, args.inject_p,
+    net = build_model(args.model, n_classes, optim_params, args.loss, args.error_model, args.inject_p,
                       args.inject_epoch, args.order, args.activation, args.affine)
 
     # W&B logger

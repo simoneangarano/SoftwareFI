@@ -23,10 +23,10 @@ def _weights_init(m):
 
 
 class ConvInjector(nn.Module):
-    def __init__(self, inplanes, outplanes, kernel_size=3, stride=1, padding=0, inject_p=0.01, inject_epoch=0):
+    def __init__(self, inplanes, outplanes, kernel_size=3, stride=1, padding=0, error_model='random', inject_p=0.01, inject_epoch=0):
         super(ConvInjector, self).__init__()
         self.conv = nn.Conv2d(inplanes, outplanes, kernel_size, stride, padding, bias=False)
-        self.injector = HansGruberNI(p=inject_p, inject_epoch=inject_epoch)
+        self.injector = HansGruberNI(error_model, p=inject_p, inject_epoch=inject_epoch)
 
     def forward(self, x, inject=True, current_epoch=0, counter=0, inject_index=0):
         x = self.conv(x)
@@ -37,10 +37,10 @@ class ConvInjector(nn.Module):
 
 
 class LinearInjector(nn.Module):
-    def __init__(self, inplanes, n_classes, inject_p=0.01, inject_epoch=0):
+    def __init__(self, inplanes, n_classes, error_model, inject_p=0.01, inject_epoch=0):
         super(LinearInjector, self).__init__()
         self.linear = nn.Linear(inplanes, n_classes)
-        self.injector = HansGruberNI(p=inject_p, inject_epoch=inject_epoch)
+        self.injector = HansGruberNI(error_model, p=inject_p, inject_epoch=inject_epoch)
 
     def forward(self, x, inject=True, current_epoch=0, counter=0, inject_index=0):
         x = self.linear(x)
@@ -50,9 +50,9 @@ class LinearInjector(nn.Module):
 
 
 class Shortcut(nn.Module):
-    def __init__(self, inplanes, outplanes, stride, affine, inject_p, inject_epoch):
+    def __init__(self, inplanes, outplanes, stride, affine, error_model,  inject_p, inject_epoch):
         super(Shortcut, self).__init__()
-        self.conv = ConvInjector(inplanes, outplanes, kernel_size=1, stride=stride,
+        self.conv = ConvInjector(inplanes, outplanes, kernel_size=1, stride=stride, error_model=error_model,
                                  inject_p=inject_p, inject_epoch=inject_epoch)
         self.bn = nn.BatchNorm2d(outplanes, affine=affine)
 
@@ -79,13 +79,13 @@ class BasicBlock(nn.Module):
     expansion = 1
 
     def __init__(self, in_planes, planes, stride=1, order='relu-bn', activation='relu', affine=True,
-                 inject_p=0.01, inject_epoch=0):
+                 error_model='random', inject_p=0.01, inject_epoch=0):
         super(BasicBlock, self).__init__()
         self.conv1 = ConvInjector(in_planes, planes, kernel_size=3, stride=stride, padding=1,
-                                  inject_p=inject_p, inject_epoch=inject_epoch)
+                                  error_model=error_model, inject_p=inject_p, inject_epoch=inject_epoch)
         self.bn1 = nn.BatchNorm2d(planes, affine=affine)
         self.conv2 = ConvInjector(planes, planes, kernel_size=3, stride=1, padding=1,
-                                  inject_p=inject_p, inject_epoch=inject_epoch)
+                                  error_model=error_model, inject_p=inject_p, inject_epoch=inject_epoch)
         self.bn2 = nn.BatchNorm2d(planes, affine=affine)
         if activation == 'relu':
             self.relu = nn.ReLU()
@@ -95,7 +95,7 @@ class BasicBlock(nn.Module):
 
         self.shortcut = False
         if stride != 1 or in_planes != planes:
-            self.shortcut = Shortcut(in_planes, self.expansion * planes, stride, affine, inject_p, inject_epoch)
+            self.shortcut = Shortcut(in_planes, self.expansion * planes, stride, affine, error_model, inject_p, inject_epoch)
 
     def forward(self, x, inject=True, current_epoch=0, counter=0, inject_index=0):
         shortcut = x
@@ -114,18 +114,19 @@ class BasicBlock(nn.Module):
 
 
 class HardResNet(nn.Module):
-    def __init__(self, block, num_blocks, num_classes=10, inject_p=0.1, inject_epoch=0,
+    def __init__(self, block, num_blocks, num_classes=10, error_model='random', inject_p=0.1, inject_epoch=0,
                  order='relu-bn', activation='relu', affine=True):
         """ Class that represents the ResNet order """
         super(HardResNet, self).__init__()
         self.order = order
         self.affine = affine
+        self.error_model = error_model
         self.inject_p = inject_p
         self.inject_epoch = inject_epoch
 
         self.in_planes = 16
         self.conv1 = ConvInjector(3, 16, kernel_size=3, stride=1, padding=1,
-                                  inject_p=inject_p, inject_epoch=inject_epoch)
+                                  error_model=error_model, inject_p=inject_p, inject_epoch=inject_epoch)
         self.bn1 = nn.BatchNorm2d(16, affine=affine)
 
         self.layer1 = self._make_layer(block, 16, num_blocks[0], stride=1, order=order,
@@ -134,7 +135,8 @@ class HardResNet(nn.Module):
                                        activation=activation, affine=affine)
         self.layer3 = self._make_layer(block, 64, num_blocks[2], stride=2, order=order,
                                        activation=activation, affine=affine)
-        self.linear = LinearInjector(64, n_classes=num_classes, inject_p=inject_p, inject_epoch=inject_epoch)
+        self.linear = LinearInjector(64, n_classes=num_classes, error_model=error_model, inject_p=inject_p,
+                                     inject_epoch=inject_epoch)
         if activation == 'relu':
             self.relu = nn.ReLU()
         elif activation == 'relu6':
@@ -151,7 +153,8 @@ class HardResNet(nn.Module):
         layers = []
         for idx, stride in enumerate(strides):
             layers.append(block(self.in_planes, planes, stride, order=order, activation=activation,
-                                affine=affine, inject_p=self.inject_p, inject_epoch=self.inject_epoch))
+                                affine=affine, error_model=self.error_model, inject_p=self.inject_p,
+                                inject_epoch=self.inject_epoch))
             self.in_planes = planes * block.expansion
 
         return BlockGroup(layers)
@@ -172,13 +175,13 @@ class HardResNet(nn.Module):
         return out
 
 
-def hard_resnet20(n_classes=10, inject_p=0.1, inject_epoch=0, order='relu-bn', activation='relu', affine=True):
-    return HardResNet(BasicBlock, [3, 3, 3], n_classes, inject_p, inject_epoch, order, activation, affine)
+def hard_resnet20(n_classes=10, error_model='random', inject_p=0.1, inject_epoch=0, order='relu-bn', activation='relu', affine=True):
+    return HardResNet(BasicBlock, [3, 3, 3], n_classes, error_model, inject_p, inject_epoch, order, activation, affine)
 
 
-def hard_resnet32(n_classes=10, inject_p=0.1, inject_epoch=0, order='relu-bn', activation='relu', affine=True):
-    return HardResNet(BasicBlock, [5, 5, 5], n_classes, inject_p, inject_epoch, order, activation, affine)
+def hard_resnet32(n_classes=10, error_model='random', inject_p=0.1, inject_epoch=0, order='relu-bn', activation='relu', affine=True):
+    return HardResNet(BasicBlock, [5, 5, 5], n_classes, error_model, inject_p, inject_epoch, order, activation, affine)
 
 
-def hard_resnet44(n_classes=10, inject_p=0.1, inject_epoch=0, order='relu-bn', activation='relu', affine=True):
-    return HardResNet(BasicBlock, [7, 7, 7], n_classes, inject_p, inject_epoch, order, activation, affine)
+def hard_resnet44(n_classes=10, error_model='random', inject_p=0.1, inject_epoch=0, order='relu-bn', activation='relu', affine=True):
+    return HardResNet(BasicBlock, [7, 7, 7], n_classes, error_model, inject_p, inject_epoch, order, activation, affine)
