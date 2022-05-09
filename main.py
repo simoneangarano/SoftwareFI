@@ -64,8 +64,7 @@ def main():
     wandb_logger.watch(net, log_graph=False)
 
     # Callbacks
-    ckpt_callback = ModelCheckpoint('checkpoints/', filename=args.name + '-{epoch:02d}-{val_acc:.2f}',
-                                    mode='max', monitor='val_acc')
+    ckpt_callback = ModelCheckpoint('checkpoints/', filename=args.name + '-{epoch:02d}-{val_acc:.2f}', save_last=True)
     callbacks = [ckpt_callback]
 
     # Pytorch-Lightning Trainer
@@ -74,7 +73,8 @@ def main():
                          gradient_clip_val=args.clip)
 
     if args.ckpt:
-        args.ckpt = '~/Dropbox/DieHardNet/Checkpoints/' + args.ckpt
+        #args.ckpt = '~/Dropbox/DieHardNet/Checkpoints/' + args.ckpt
+        args.ckpt = 'checkpoints/' + args.ckpt
     if args.mode == 'train' or args.mode == 'training':
         trainer.fit(net, cifar, ckpt_path=args.ckpt)
     elif args.mode == 'validation' or args.mode == 'validate':

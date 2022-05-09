@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 
 
-def generate_mask(shape, batch_ids=[], channel_ids=[], row_ids=[], column_ids=[]):
+def generate_4Dmask(shape, batch_ids=[], channel_ids=[], row_ids=[], column_ids=[]):
     b, c, w, h = shape
     batch_ids = [idx for idx in range(b) if batch_ids[idx]]
     mask = torch.zeros((b, c, w, h))
@@ -43,13 +43,29 @@ def generate_mask(shape, batch_ids=[], channel_ids=[], row_ids=[], column_ids=[]
     return mask > 0
 
 
+def generate_2Dmask(shape, batch_ids=[]):
+    b, c = shape
+    batch_ids = [idx for idx in range(b) if batch_ids[idx]]
+
+    rand_c = torch.bernoulli(torch.ones(c) * 0.3) > 0
+    channel_ids = [idx for idx in range(c) if rand_c[idx]]
+
+    mask = torch.zeros((b, c))
+
+    for batch_id in batch_ids:
+        for channel_id in channel_ids:
+            mask[batch_id, channel_id] = 1
+
+    return mask > 0
+
+
 def generate_single_masks(shape, sampled_indexes):
     b, c, w, h = shape
     # Corrupt single values in multiple channels
     rand_c = torch.ones(c) > 0  # all channels
     rand_c = [idx for idx in range(c) if rand_c[idx]]
     rand_h, rand_w = torch.randint(0, h - 1, size=(1,)), torch.randint(0, w - 1, size=(1,))
-    mask = generate_mask(shape, sampled_indexes, rand_c, rand_w, rand_w)
+    mask = generate_4Dmask(shape, sampled_indexes, rand_c, rand_w, rand_w)
     return mask
 
 
@@ -60,9 +76,9 @@ def generate_line_masks(shape, sampled_indexes):
     rand_c = torch.bernoulli(torch.ones(c) * 0.75) > 0
     rand_c = [idx for idx in range(c) if rand_c[idx]]
     if torch.bernoulli(torch.ones(1) * 0.5):
-        mask = generate_mask(shape, sampled_indexes, rand_c, [], rand_line)
+        mask = generate_4Dmask(shape, sampled_indexes, rand_c, [], rand_line)
     else:
-        mask = generate_mask(shape, sampled_indexes, rand_c, rand_line, [])
+        mask = generate_4Dmask(shape, sampled_indexes, rand_c, rand_line, [])
     return mask
 
 
@@ -76,7 +92,7 @@ def generate_square_masks(shape, sampled_indexes):
     w_1 = torch.randint(low=w_0.item(), high=w, size=(1,))
     rand_h = np.arange(h_0, h_1 + 1)
     rand_w = np.arange(w_0, w_1 + 1)
-    mask = generate_mask(shape, sampled_indexes, rand_c, rand_w, rand_h)
+    mask = generate_4Dmask(shape, sampled_indexes, rand_c, rand_w, rand_h)
     return mask
 
 
@@ -84,7 +100,7 @@ def generate_all_masks(shape, sampled_indexes):
     b, c, w, h = shape
     # Corrupt entire channels
     rand_c = torch.bernoulli(torch.ones(c) * 0.1) > 0
-    mask = generate_mask(shape, sampled_indexes, rand_c)
+    mask = generate_4Dmask(shape, sampled_indexes, rand_c)
     return mask
 
 
@@ -135,8 +151,9 @@ class HansGruberNI(torch.nn.Module):
         return relative_error
         # return 27.119592052269397
 
-    def training_error(self, epoch):
-        error = torch.rand(size=(1,), device=self.dummy_param.device) * max(epoch - self.inject_epoch, 1) + 1e-6
+    def training_error(self, epoch=0):
+        error = torch.rand(size=(1,), device=self.dummy_param.device) * max(epoch - self.inject_epoch, 1)
+        #error = torch.rand(size=(1,), device=self.dummy_param.device) * 6 + 1e-6
         if random.randint(0, 1):
             return error
         return - error
@@ -145,7 +162,13 @@ class HansGruberNI(torch.nn.Module):
         # We can inject the relative errors using only Torch built-in functions
         # Otherwise it is necessary to use AutoGrads
         output = forward_input.clone()
-        b, c, h, w = output.shape
+        linear = False
+        try:
+            b, c, h, w = output.shape
+        except:
+            b, c = output.shape
+            linear = True
+
         # select the samples which the injection is applied to with probability p
         sampled_indexes = torch.bernoulli(torch.ones(b) * p)
         sampled_indexes = sampled_indexes > 0
@@ -157,25 +180,33 @@ class HansGruberNI(torch.nn.Module):
 
         if not self.training:
             # random
-            f = random.choice(self.mask_generators)
-            mask = f(forward_input.shape, sampled_indexes)
-
-        else:
-            if self.error_model == 'single':
-                mask = generate_single_masks(forward_input.shape, sampled_indexes)
-
-            elif self.error_model == 'line':
-                mask = generate_line_masks(forward_input.shape, sampled_indexes)
-
-            elif self.error_model == 'square':
-                mask = generate_square_masks(forward_input.shape, sampled_indexes)
-
-            elif self.error_model == 'all':
-                mask = generate_all_masks(forward_input.shape, sampled_indexes)
-
-            elif self.error_model == 'random':
+            if linear:
+                mask = generate_2Dmask((b, c), sampled_indexes)
+                output[mask] = output[mask].mul_(error)
+            else:
                 f = random.choice(self.mask_generators)
                 mask = f(forward_input.shape, sampled_indexes)
+
+        else:
+            if linear:
+                mask = generate_2Dmask((b, c), sampled_indexes)
+                output[mask] = output[mask].mul_(error)
+            else:
+                if self.error_model == 'single':
+                    mask = generate_single_masks(forward_input.shape, sampled_indexes)
+
+                elif self.error_model == 'line':
+                    mask = generate_line_masks(forward_input.shape, sampled_indexes)
+
+                elif self.error_model == 'square':
+                    mask = generate_square_masks(forward_input.shape, sampled_indexes)
+
+                elif self.error_model == 'all':
+                    mask = generate_all_masks(forward_input.shape, sampled_indexes)
+
+                elif self.error_model == 'random':
+                    f = random.choice(self.mask_generators)
+                    mask = f(forward_input.shape, sampled_indexes)
 
         output[mask] = output[mask].mul_(error)
 

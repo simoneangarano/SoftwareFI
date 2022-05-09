@@ -1,10 +1,10 @@
-name: c100_resnet44_full_injection
+name: test_blablablabla
 mode: train
 ckpt: null
-dataset: cifar100
+dataset: cifar10
 data_dir: ./data
 num_gpus: 1
-model: hard_resnet44
+model: resnet44
 loss: bce
 clip: !!float 0.05
 order: relu-bn
@@ -16,6 +16,6 @@ lr: !!float 1e-3
 wd: !!float 1e-3
 optimizer: adamw
 seed: 0
-inject_p: !!float 0.01
+inject_p: !!float 0.02
 inject_epoch: 0
-comment: Uniform noise [0, epoch). Injection at each convolution.
+comment: Uniform noise [0, epoch). Inj each conv and linear layer. SINGLE, LINE, SQUARE, ALL errors.

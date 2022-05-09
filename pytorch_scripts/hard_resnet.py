@@ -145,7 +145,7 @@ class HardResNet(nn.Module):
         self.apply(_weights_init)
         self.n_convs = 0
         for layer in self.modules():
-            if isinstance(layer, nn.Conv2d):
+            if isinstance(layer, nn.Conv2d) or isinstance(layer, nn.Linear):
                 self.n_convs += 1
 
     def _make_layer(self, block, planes, num_blocks, stride, order, activation, affine):
