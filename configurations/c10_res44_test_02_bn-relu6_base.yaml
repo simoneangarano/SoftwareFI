@@ -1,20 +1,20 @@
-name: c100_res44_test_02_bn-relu6_base_
+name: c10_res44_test_02_bn-relu6_base_sgd
 mode: train
 ckpt: null
-dataset: cifar100
+dataset: cifar10
 data_dir: ./data
 num_gpus: 1
 model: hard_resnet44
 loss: bce
-clip: !!float 0.05
+clip: !!float 1.0
 order: bn-relu
 activation: relu6
 affine: true
 epochs: 100
 batch_size: 128
-lr: !!float 1e-3
-wd: !!float 1e-3
-optimizer: adamw
+lr: !!float 2.0
+wd: !!float 1e-5
+optimizer: sgd
 seed: 0
 error_model: square
 inject_p: !!float 0.0
