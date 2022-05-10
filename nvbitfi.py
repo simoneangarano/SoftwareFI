@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 import argparse
 import time
+
+import configparser
 import pandas as pd
 import torch
 import torchvision
@@ -96,13 +98,29 @@ def perform_fault_injection_for_a_model(args):
 
 
 def main() -> None:
-    parser = config_parser = argparse.ArgumentParser(description='Criticality eval', add_help=False)
-    parser.add_argument('--config', default='', type=str, metavar='FILE',
-                        help='YAML config file specifying default arguments.')
+    config_parser = argparse.ArgumentParser(description='Criticality eval', add_help=False)
+    config_parser.add_argument('--config', default='', type=str, metavar='FILE',
+                               help='YAML config file specifying default arguments.')
+    args, remaining_argv = config_parser.parse_known_args()
+
+    defaults = {"option": "default"}
+
+    if args.conf_file:
+        config = configparser.SafeConfigParser()
+        config.read([args.config])
+        defaults.update(dict(config.items("Defaults")))
+
+    # Parse rest of arguments
+    # Don't suppress add_help here so it will handle -h
+    parser = argparse.ArgumentParser(
+        # Inherit options from config_parser
+        parents=[config_parser]
+    )
+    parser.set_defaults(**defaults)
     parser.add_argument('--generate', default=False, action="store_true",
                         help="Set this flag to generate the golds and reprogram the board")
     parser.add_argument('--goldpath', default="gold.pt", help="Gold path to save/load the gold file")
-    args = parse_args(parser, config_parser)
+    args = parser.parse_args(remaining_argv)
     for k, v in vars(args).items():
         print(f"{k}: {v}")
     print()
