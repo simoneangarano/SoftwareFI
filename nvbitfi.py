@@ -99,6 +99,9 @@ def main() -> None:
     parser = config_parser = argparse.ArgumentParser(description='Criticality eval', add_help=False)
     parser.add_argument('--config', default='', type=str, metavar='FILE',
                         help='YAML config file specifying default arguments.')
+    parser.add_argument('--generate', default=False, action="store_true",
+                        help="Set this flag to generate the golds and reprogram the board")
+    parser.add_argument('--goldpath', default="gold.pt", help="Gold path to save/load the gold file")
     args = parse_args(parser, config_parser)
     for k, v in vars(args).items():
         print(f"{k}: {v}")
