@@ -64,7 +64,8 @@ def perform_fault_injection_for_a_model(args):
         images.append((image, label))
         if i > 10:
             break
-    gold_probabilities = gold_top1_label = gold_top1_prob = None
+    gold_top1_label = gold_top1_prob = None
+    gold_probabilities = torch.empty(0)
     if generate is False:
         gold_probabilities = torch.load(gold_path)
         gold_top1_label = int(torch.topk(gold_probabilities, k=1).indices.squeeze(0))
