@@ -13,7 +13,7 @@ DATA_DIR = "/home/carol/git_research/diehardnet/data"
 def load_cifar100(data_dir: str, transform: torchvision.transforms.Compose) -> torch.utils.data.DataLoader:
     """Load CIFAR 100 from <data dir>"""
     # Get a dataset
-    test_set = torchvision.datasets.cifar.CIFAR100(root=data_dir, download=True, train=False,
+    test_set = torchvision.datasets.cifar.CIFAR100(root=data_dir, download=False, train=False,
                                                    transform=transform)
     test_loader = torch.utils.data.DataLoader(test_set, batch_size=1, shuffle=False)
     return test_loader
@@ -22,7 +22,7 @@ def load_cifar100(data_dir: str, transform: torchvision.transforms.Compose) -> t
 def load_cifar10(data_dir: str, transform: torchvision.transforms.Compose) -> torch.utils.data.DataLoader:
     """Load CIFAR 10 from <data dir>"""
     # Get a dataset
-    test_set = torchvision.datasets.cifar.CIFAR10(root=data_dir, download=True, train=False,
+    test_set = torchvision.datasets.cifar.CIFAR10(root=data_dir, download=False, train=False,
                                                   transform=transform)
     test_loader = torch.utils.data.DataLoader(test_set, batch_size=1, shuffle=False)
     return test_loader
