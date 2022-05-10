@@ -105,7 +105,7 @@ def main() -> None:
 
     defaults = {"option": "default"}
 
-    if args.conf_file:
+    if args.config:
         config = configparser.SafeConfigParser()
         config.read([args.config])
         defaults.update(dict(config.items("Defaults")))
