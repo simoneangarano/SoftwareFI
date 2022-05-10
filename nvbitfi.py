@@ -1,14 +1,11 @@
 #!/usr/bin/python3
 import argparse
 import time
-
-import configparser
-import pandas as pd
 import torch
 import torchvision
 import yaml
 
-from pytorch_scripts.utils import build_model, parse_args
+from pytorch_scripts.utils import build_model
 
 
 def load_cifar100(data_dir: str, transform: torchvision.transforms.Compose) -> torch.utils.data.DataLoader:
@@ -44,7 +41,7 @@ def load_ptl_model(args):
 
 def perform_fault_injection_for_a_model(args):
     img_index = 0
-    gold_path = args.goldpath
+    gold_path = str(args.config).replace(".yaml", "_golden.pt")
     generate = args.generate
     model = load_ptl_model(args=args)
     model.eval()
@@ -125,7 +122,7 @@ def main() -> None:
     parser.set_defaults(**defaults)
     parser.add_argument('--generate', default=False, action="store_true",
                         help="Set this flag to generate the golds and reprogram the board")
-    parser.add_argument('--goldpath', default="gold.pt", help="Gold path to save/load the gold file")
+    # parser.add_argument('--goldpath', default="gold.pt", help="Gold path to save/load the gold file")
     args = parser.parse_args(remaining_argv)
     for k, v in vars(args).items():
         print(f"{k}: {v}")
