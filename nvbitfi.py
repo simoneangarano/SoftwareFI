@@ -7,6 +7,8 @@ import yaml
 
 from pytorch_scripts.utils import build_model
 
+DATA_DIR = "/home/carol/git_research/diehardnet/data"
+
 
 def load_cifar100(data_dir: str, transform: torchvision.transforms.Compose) -> torch.utils.data.DataLoader:
     """Load CIFAR 100 from <data dir>"""
@@ -50,7 +52,7 @@ def perform_fault_injection_for_a_model(args, config_file_name):
     if args.dataset == "cifar10":
         load_data = load_cifar10
 
-    test_loader = load_data(data_dir="data",
+    test_loader = load_data(data_dir=DATA_DIR,
                             transform=torchvision.transforms.Compose([torchvision.transforms.ToTensor(),
                                                                       torchvision.transforms.Normalize(
                                                                           mean=[0.485, 0.456, 0.406],
