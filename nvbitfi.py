@@ -83,9 +83,12 @@ def perform_fault_injection_for_a_model(args):
         top1_label = int(torch.topk(probabilities, k=1).indices.squeeze(0))
         top1_prob = torch.softmax(probabilities, dim=1)[0, top1_label].item()
 
-        if generate is False and torch.any(torch.not_equal(gold_probabilities, probabilities)):
+        cmp_gold_prob = torch.flatten(gold_probabilities)
+        cmp_out_prob = torch.flatten(probabilities)
+        # cmp_gold_prob[7] = 333333
+        if generate is False and torch.any(torch.not_equal(cmp_gold_prob, cmp_out_prob)):
             print("SDC detected")
-            for i, (g, f) in enumerate(zip(gold_probabilities, probabilities)):
+            for i, (g, f) in enumerate(zip(cmp_gold_prob, cmp_out_prob)):
                 if g != f:
                     print(f"{i} e:{g} r:{f}")
             if gold_top1_label != top1_label:
