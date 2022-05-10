@@ -39,9 +39,9 @@ def load_ptl_model(args):
     return ptl_model.model
 
 
-def perform_fault_injection_for_a_model(args):
+def perform_fault_injection_for_a_model(args, config_file_name):
     img_index = 0
-    gold_path = str(args.config).replace(".yaml", "_golden.pt")
+    gold_path = str(config_file_name).replace(".yaml", "_golden.pt")
     generate = args.generate
     model = load_ptl_model(args=args)
     model.eval()
@@ -112,7 +112,7 @@ def main() -> None:
         with open(args.config, 'r') as f:
             cfg = yaml.safe_load(f)
         defaults.update(**cfg)
-
+    config_file_name = args.config
     # Parse rest of arguments
     # Don't suppress add_help here so it will handle -h
     parser = argparse.ArgumentParser(
@@ -127,7 +127,7 @@ def main() -> None:
     for k, v in vars(args).items():
         print(f"{k}: {v}")
     print()
-    perform_fault_injection_for_a_model(args)
+    perform_fault_injection_for_a_model(args, config_file_name)
 
 
 if __name__ == '__main__':
