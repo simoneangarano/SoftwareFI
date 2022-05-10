@@ -6,6 +6,8 @@ import configparser
 import pandas as pd
 import torch
 import torchvision
+import yaml
+
 from pytorch_scripts.utils import build_model, parse_args
 
 
@@ -106,9 +108,9 @@ def main() -> None:
     defaults = {"option": "default"}
 
     if args.config:
-        config = configparser.SafeConfigParser()
-        config.read([args.config])
-        defaults.update(dict(config.items("Defaults")))
+        with open(args.config, 'r') as f:
+            cfg = yaml.safe_load(f)
+        defaults.update(**cfg)
 
     # Parse rest of arguments
     # Don't suppress add_help here so it will handle -h
