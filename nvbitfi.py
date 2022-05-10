@@ -94,7 +94,7 @@ def perform_fault_injection_for_a_model(args, config_file_name):
                       f"e_label:{gold_top1_label} r_label:{top1_label} "
                       f"e_prob:{gold_top1_prob} r_prob:{top1_prob}")
     total_time = time.time() - total_time
-    print(f"TOTAL TIME:{total_time:.2f} MODEL TIME:{model_time:.2f}")
+    # print(f"TOTAL TIME:{total_time:.2f} MODEL TIME:{model_time:.2f}")
 
     if generate is True:
         torch.save(probabilities, gold_path)
