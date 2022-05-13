@@ -62,32 +62,33 @@ def perform_fault_injection_for_a_model(args, config_file_name):
     images = list()
     for i, (image, label) in enumerate(test_loader):
         images.append((image, label))
-        if i > 10:
+        if i == img_indexes[-1]:
             break
+
     gold_probabilities_list = list()
     if generate is False:
         gold_probabilities_list = torch.load(gold_path)
 
-    total_time = time.time()
+    # total_time = time.time()
     with torch.no_grad():
         for img_index in img_indexes:
             image, label = images[img_index]
             image_gpu = image.to("cuda")
             # Golden execution
-            model_time = time.time()
+            # model_time = time.time()
             dnn_output = model(image_gpu, inject=False)
-            model_time = time.time() - model_time
+            # model_time = time.time() - model_time
 
             probabilities = dnn_output.to("cpu")
             top1_label = int(torch.topk(probabilities, k=1).indices.squeeze(0))
             top1_prob = torch.softmax(probabilities, dim=1)[0, top1_label].item()
-            gold_probabilities = gold_probabilities_list[img_index]
-            gold_top1_label = int(torch.topk(gold_probabilities, k=1).indices.squeeze(0))
-            gold_top1_prob = torch.softmax(gold_probabilities, dim=1)[0, gold_top1_label].item()
-            cmp_gold_prob = torch.flatten(gold_probabilities)
-            cmp_out_prob = torch.flatten(probabilities)
             # cmp_gold_prob[7] = 333333
             if generate is False:
+                gold_probabilities = gold_probabilities_list[img_index]
+                gold_top1_label = int(torch.topk(gold_probabilities, k=1).indices.squeeze(0))
+                gold_top1_prob = torch.softmax(gold_probabilities, dim=1)[0, gold_top1_label].item()
+                cmp_gold_prob = torch.flatten(gold_probabilities)
+                cmp_out_prob = torch.flatten(probabilities)
                 if torch.any(torch.not_equal(cmp_gold_prob, cmp_out_prob)):
                     print(f"SDC detected. IMG INDEX {img_index}")
                     for i, (g, f) in enumerate(zip(cmp_gold_prob, cmp_out_prob)):
@@ -99,7 +100,7 @@ def perform_fault_injection_for_a_model(args, config_file_name):
                               f"e_prob:{gold_top1_prob} r_prob:{top1_prob}")
             else:
                 gold_probabilities_list.append(probabilities)
-        total_time = time.time() - total_time
+        # total_time = time.time() - total_time
         # print(f"TOTAL TIME:{total_time:.2f} MODEL TIME:{model_time:.2f}")
 
     if generate is True:
