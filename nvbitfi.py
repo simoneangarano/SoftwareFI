@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import argparse
 import time
+
 import torch
 import torchvision
 import yaml
@@ -42,7 +43,7 @@ def load_ptl_model(args):
 
 
 def perform_fault_injection_for_a_model(args, config_file_name):
-    img_index = 0
+    img_indexes = [0, 150]
     gold_path = str(config_file_name).replace(".yaml", "_golden.pt")
     generate = args.generate
     model = load_ptl_model(args=args)
@@ -63,43 +64,47 @@ def perform_fault_injection_for_a_model(args, config_file_name):
         images.append((image, label))
         if i > 10:
             break
-    gold_top1_label = gold_top1_prob = None
-    gold_probabilities = torch.empty(0)
+    gold_probabilities_list = list()
     if generate is False:
-        gold_probabilities = torch.load(gold_path)
-        gold_top1_label = int(torch.topk(gold_probabilities, k=1).indices.squeeze(0))
-        gold_top1_prob = torch.softmax(gold_probabilities, dim=1)[0, gold_top1_label].item()
+        gold_probabilities_list = torch.load(gold_path)
 
     total_time = time.time()
     with torch.no_grad():
-        image, label = images[img_index]
-        image_gpu = image.to("cuda")
-        # Golden execution
-        model_time = time.time()
-        dnn_output = model(image_gpu, inject=False)
-        model_time = time.time() - model_time
+        for img_index in img_indexes:
+            image, label = images[img_index]
+            image_gpu = image.to("cuda")
+            # Golden execution
+            model_time = time.time()
+            dnn_output = model(image_gpu, inject=False)
+            model_time = time.time() - model_time
 
-        probabilities = dnn_output.to("cpu")
-        top1_label = int(torch.topk(probabilities, k=1).indices.squeeze(0))
-        top1_prob = torch.softmax(probabilities, dim=1)[0, top1_label].item()
-
-        cmp_gold_prob = torch.flatten(gold_probabilities)
-        cmp_out_prob = torch.flatten(probabilities)
-        # cmp_gold_prob[7] = 333333
-        if generate is False and torch.any(torch.not_equal(cmp_gold_prob, cmp_out_prob)):
-            print("SDC detected")
-            for i, (g, f) in enumerate(zip(cmp_gold_prob, cmp_out_prob)):
-                if g != f:
-                    print(f"{i} e:{g} r:{f}")
-            if gold_top1_label != top1_label:
-                print("Critical SDC detected. "
-                      f"e_label:{gold_top1_label} r_label:{top1_label} "
-                      f"e_prob:{gold_top1_prob} r_prob:{top1_prob}")
-    total_time = time.time() - total_time
-    # print(f"TOTAL TIME:{total_time:.2f} MODEL TIME:{model_time:.2f}")
+            probabilities = dnn_output.to("cpu")
+            top1_label = int(torch.topk(probabilities, k=1).indices.squeeze(0))
+            top1_prob = torch.softmax(probabilities, dim=1)[0, top1_label].item()
+            gold_probabilities = gold_probabilities_list[img_index]
+            gold_top1_label = int(torch.topk(gold_probabilities, k=1).indices.squeeze(0))
+            gold_top1_prob = torch.softmax(gold_probabilities, dim=1)[0, gold_top1_label].item()
+            cmp_gold_prob = torch.flatten(gold_probabilities)
+            cmp_out_prob = torch.flatten(probabilities)
+            # cmp_gold_prob[7] = 333333
+            if generate is False:
+                if torch.any(torch.not_equal(cmp_gold_prob, cmp_out_prob)):
+                    print(f"SDC detected. IMG INDEX {img_index}")
+                    for i, (g, f) in enumerate(zip(cmp_gold_prob, cmp_out_prob)):
+                        if g != f:
+                            print(f"{i} e:{g} r:{f}")
+                    if gold_top1_label != top1_label:
+                        print(f"Critical SDC detected. "
+                              f"e_label:{gold_top1_label} r_label:{top1_label} "
+                              f"e_prob:{gold_top1_prob} r_prob:{top1_prob}")
+            else:
+                gold_probabilities_list.append(probabilities)
+        total_time = time.time() - total_time
+        # print(f"TOTAL TIME:{total_time:.2f} MODEL TIME:{model_time:.2f}")
 
     if generate is True:
-        torch.save(probabilities, gold_path)
+        torch.save(gold_probabilities_list, gold_path)
+    print("Finish computation.")
 
 
 def main() -> None:
