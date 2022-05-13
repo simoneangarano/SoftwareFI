@@ -71,8 +71,9 @@ def perform_fault_injection_for_a_model(args, config_file_name):
 
     # total_time = time.time()
     with torch.no_grad():
-        for i, (image, label) in enumerate(images):
-            # image, label = images[img_index]
+        for i in range(len(img_indexes)):
+            img_index = img_indexes[i]
+            image, label = images[img_index]
             image_gpu = image.to("cuda")
             # Golden execution
             # model_time = time.time()
@@ -90,7 +91,7 @@ def perform_fault_injection_for_a_model(args, config_file_name):
                 cmp_gold_prob = torch.flatten(gold_probabilities)
                 cmp_out_prob = torch.flatten(probabilities)
                 if torch.any(torch.not_equal(cmp_gold_prob, cmp_out_prob)):
-                    print(f"SDC detected. IMG INDEX {img_indexes[i]}")
+                    print(f"SDC detected. IMG INDEX {img_index}")
                     for i, (g, f) in enumerate(zip(cmp_gold_prob, cmp_out_prob)):
                         if g != f:
                             print(f"{i} e:{g} r:{f}")
