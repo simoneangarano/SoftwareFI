@@ -43,7 +43,7 @@ def load_ptl_model(args):
 
 
 def perform_fault_injection_for_a_model(args, config_file_name):
-    img_indexes = [0, 150]
+    img_indexes = [0, 1, 30, 150, 200, 250, 330, 1000, 1002, 1010]
     gold_path = str(config_file_name).replace(".yaml", "_golden.pt")
     generate = args.generate
     model = load_ptl_model(args=args)
