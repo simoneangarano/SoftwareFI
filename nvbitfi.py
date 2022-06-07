@@ -1,7 +1,5 @@
 #!/usr/bin/python3
 import argparse
-import time
-
 import torch
 import torchvision
 import yaml
@@ -10,6 +8,7 @@ from pytorch_scripts.utils import build_model
 
 DATA_DIR = "/home/carol/git_research/diehardnet/data"
 INTERMEDIATE_LAYERS = dict()
+INTERMEDIATE_LAYERS_OUTPUT_PATH = "/tmp/intermediate_layers_output.pt"
 
 
 def load_cifar100(data_dir: str, transform: torchvision.transforms.Compose) -> torch.utils.data.DataLoader:
@@ -121,8 +120,8 @@ def perform_fault_injection_for_a_model(args, config_file_name):
                         print(f"Critical SDC detected. "
                               f"e_label:{gold_top1_label} r_label:{top1_label} "
                               f"e_prob:{gold_top1_prob} r_prob:{top1_prob}")
-                if save_layers:
-                    torch.save(INTERMEDIATE_LAYERS, "/tmp/test.pt")
+                    if save_layers:
+                        torch.save(INTERMEDIATE_LAYERS, INTERMEDIATE_LAYERS_OUTPUT_PATH)
             else:
                 gold_probabilities_list.append(probabilities)
         # total_time = time.time() - total_time
