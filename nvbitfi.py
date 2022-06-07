@@ -99,7 +99,7 @@ def perform_fault_injection_for_a_model(args, config_file_name):
             injection_counter = int(fp.readline())
     with open(INJECTION_COUNTER_FILE, "w") as fp:
         injection_counter += 1
-        fp.write(injection_counter)
+        fp.write(str(injection_counter))
 
     # total_time = time.time()
     with torch.no_grad():
