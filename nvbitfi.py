@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 import argparse
+import os.path
+
 import torch
 import torchvision
 import yaml
@@ -8,7 +10,8 @@ from pytorch_scripts.utils import build_model
 
 DATA_DIR = "/home/carol/git_research/diehardnet/data"
 INTERMEDIATE_LAYERS = dict()
-INTERMEDIATE_LAYERS_OUTPUT_PATH = "/tmp/intermediate_layers_output.pt"
+INTERMEDIATE_LAYERS_OUTPUT_PATH = "/tmp/intermediate_layers_output"
+INJECTION_COUNTER_FILE = "/tmp/injection_counter.txt"
 
 
 def load_cifar100(data_dir: str, transform: torchvision.transforms.Compose) -> torch.utils.data.DataLoader:
@@ -90,6 +93,14 @@ def perform_fault_injection_for_a_model(args, config_file_name):
     if save_layers:
         get_all_layers(net=model)
 
+    injection_counter = 0
+    if os.path.isfile(INJECTION_COUNTER_FILE):
+        with open(INJECTION_COUNTER_FILE) as fp:
+            injection_counter = int(fp.readline())
+    with open(INJECTION_COUNTER_FILE, "w") as fp:
+        injection_counter += 1
+        fp.write(injection_counter)
+
     # total_time = time.time()
     with torch.no_grad():
         for i in range(len(img_indexes)):
@@ -113,15 +124,15 @@ def perform_fault_injection_for_a_model(args, config_file_name):
                 cmp_out_prob = torch.flatten(probabilities)
                 if torch.any(torch.not_equal(cmp_gold_prob, cmp_out_prob)):
                     print(f"SDC detected. IMG INDEX {img_index}")
-                    for i, (g, f) in enumerate(zip(cmp_gold_prob, cmp_out_prob)):
+                    for it, (g, f) in enumerate(zip(cmp_gold_prob, cmp_out_prob)):
                         if g != f:
-                            print(f"{i} e:{g} r:{f}")
+                            print(f"{it} e:{g} r:{f}")
                     if gold_top1_label != top1_label:
                         print(f"Critical SDC detected. "
                               f"e_label:{gold_top1_label} r_label:{top1_label} "
                               f"e_prob:{gold_top1_prob} r_prob:{top1_prob}")
                     if save_layers:
-                        torch.save(INTERMEDIATE_LAYERS, INTERMEDIATE_LAYERS_OUTPUT_PATH)
+                        torch.save(INTERMEDIATE_LAYERS, f"{INTERMEDIATE_LAYERS_OUTPUT_PATH}_{injection_counter}.pt")
             else:
                 gold_probabilities_list.append(probabilities)
         # total_time = time.time() - total_time
