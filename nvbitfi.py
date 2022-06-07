@@ -94,12 +94,13 @@ def perform_fault_injection_for_a_model(args, config_file_name):
         get_all_layers(net=model)
 
     injection_counter = 0
-    if os.path.isfile(INJECTION_COUNTER_FILE):
-        with open(INJECTION_COUNTER_FILE) as fp:
-            injection_counter = int(fp.readline())
-    with open(INJECTION_COUNTER_FILE, "w") as fp:
-        injection_counter += 1
-        fp.write(str(injection_counter))
+    if save_layers:
+        if os.path.isfile(INJECTION_COUNTER_FILE):
+            with open(INJECTION_COUNTER_FILE) as fp:
+                injection_counter = int(fp.readline())
+        with open(INJECTION_COUNTER_FILE, "w") as fp:
+            injection_counter += 1
+            fp.write(str(injection_counter))
 
     # total_time = time.time()
     with torch.no_grad():
