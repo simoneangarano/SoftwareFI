@@ -9,6 +9,7 @@ import yaml
 from pytorch_scripts.utils import build_model
 
 DATA_DIR = "/home/carol/git_research/diehardnet/data"
+INTERMEDIATE_LAYERS = dict()
 
 
 def load_cifar100(data_dir: str, transform: torchvision.transforms.Compose) -> torch.utils.data.DataLoader:
@@ -42,10 +43,28 @@ def load_ptl_model(args):
     return ptl_model.model
 
 
+def hook_fn(model, hook_input, hook_output):
+    global INTERMEDIATE_LAYERS
+    INTERMEDIATE_LAYERS[model] = hook_output.detach()
+
+
+def get_all_layers(net):
+    for name, layer in net._modules.items():
+        # If it is a sequential, don't register a hook on it
+        # but recursively register hook on all it's module children
+        if isinstance(layer, torch.nn.Sequential):
+            get_all_layers(layer)
+        else:
+            # it's a non-sequential. Register a hook
+            layer.register_forward_hook(hook_fn)
+
+
 def perform_fault_injection_for_a_model(args, config_file_name):
+    global INTERMEDIATE_LAYERS
     img_indexes = [0, 1, 30, 150, 200, 250, 330, 1000, 1002, 1010]
     gold_path = str(config_file_name).replace(".yaml", "_golden.pt")
     generate = args.generate
+    save_layers = args.savelayers
     model = load_ptl_model(args=args)
     model.eval()
     model = model.to("cuda")
@@ -68,6 +87,9 @@ def perform_fault_injection_for_a_model(args, config_file_name):
     gold_probabilities_list = list()
     if generate is False:
         gold_probabilities_list = torch.load(gold_path)
+
+    if save_layers:
+        get_all_layers(net=model)
 
     # total_time = time.time()
     with torch.no_grad():
@@ -99,6 +121,8 @@ def perform_fault_injection_for_a_model(args, config_file_name):
                         print(f"Critical SDC detected. "
                               f"e_label:{gold_top1_label} r_label:{top1_label} "
                               f"e_prob:{gold_top1_prob} r_prob:{top1_prob}")
+                if save_layers:
+                    print(INTERMEDIATE_LAYERS.keys())
             else:
                 gold_probabilities_list.append(probabilities)
         # total_time = time.time() - total_time
@@ -129,9 +153,10 @@ def main() -> None:
         parents=[config_parser]
     )
     parser.set_defaults(**defaults)
-    parser.add_argument('--generate', default=False, action="store_true",
+    parser.add_argument('--generate', default=False, action="store_true", type=bool,
                         help="Set this flag to generate the golds and reprogram the board")
-    # parser.add_argument('--goldpath', default="gold.pt", help="Gold path to save/load the gold file")
+    parser.add_argument('--savelayers', default=False, action="store_true", type=bool,
+                        help="Set this flag to save the intermediate layers of the DNN")
     args = parser.parse_args(remaining_argv)
     for k, v in vars(args).items():
         print(f"{k}: {v}")
