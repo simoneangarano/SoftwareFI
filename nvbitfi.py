@@ -153,9 +153,9 @@ def main() -> None:
         parents=[config_parser]
     )
     parser.set_defaults(**defaults)
-    parser.add_argument('--generate', default=False, action="store_true", type=bool,
+    parser.add_argument('--generate', default=False, action="store_true",
                         help="Set this flag to generate the golds and reprogram the board")
-    parser.add_argument('--savelayers', default=False, action="store_true", type=bool,
+    parser.add_argument('--savelayers', default=False, action="store_true",
                         help="Set this flag to save the intermediate layers of the DNN")
     args = parser.parse_args(remaining_argv)
     for k, v in vars(args).items():
