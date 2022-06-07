@@ -45,7 +45,7 @@ def load_ptl_model(args):
 
 def hook_fn(model, hook_input, hook_output):
     global INTERMEDIATE_LAYERS
-    INTERMEDIATE_LAYERS[model] = hook_output.detach()
+    INTERMEDIATE_LAYERS[model] = hook_output
 
 
 def get_all_layers(net):
@@ -122,7 +122,7 @@ def perform_fault_injection_for_a_model(args, config_file_name):
                               f"e_label:{gold_top1_label} r_label:{top1_label} "
                               f"e_prob:{gold_top1_prob} r_prob:{top1_prob}")
                 if save_layers:
-                    print(INTERMEDIATE_LAYERS.keys())
+                    torch.save(INTERMEDIATE_LAYERS, "/tmp/test.pt")
             else:
                 gold_probabilities_list.append(probabilities)
         # total_time = time.time() - total_time
