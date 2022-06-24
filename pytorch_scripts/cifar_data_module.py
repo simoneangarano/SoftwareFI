@@ -17,6 +17,8 @@ class CifarDataModule(pytorch_lightning.LightningDataModule):
         self.train_data = None
         self.test_data = None
 
+        self.prepare_data_per_node = True
+
     def prepare_data(self):
 
         if self.dataset == 'cifar10':

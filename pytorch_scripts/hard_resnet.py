@@ -22,6 +22,27 @@ def _weights_init(m):
         init.kaiming_normal_(m.weight)
 
 
+def soft(x):
+    return torch.log(1+torch.exp(x))
+
+
+def relu_s(x):
+    #x = torch.clip(x, 0, None)
+    #s = soft(x)
+
+    return 2 * torch.sigmoid(.5 * x) * x
+
+
+class MyActivation(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+        self.gelu = nn.GELU()
+
+    def forward(self, x):
+        return torch.nan_to_num(torch.clip(self.gelu(x), None, 6), 0.0)
+
+
 class ConvInjector(nn.Module):
     def __init__(self, inplanes, outplanes, kernel_size=3, stride=1, padding=0, error_model='random', inject_p=0.01, inject_epoch=0):
         super(ConvInjector, self).__init__()
@@ -87,10 +108,11 @@ class BasicBlock(nn.Module):
         self.conv2 = ConvInjector(planes, planes, kernel_size=3, stride=1, padding=1,
                                   error_model=error_model, inject_p=inject_p, inject_epoch=inject_epoch)
         self.bn2 = nn.BatchNorm2d(planes, affine=affine)
-        if activation == 'relu':
+        '''if activation == 'relu':
             self.relu = nn.ReLU()
         elif activation == 'relu6':
-            self.relu = nn.ReLU6()
+            self.relu = nn.ReLU6()'''
+        self.relu = MyActivation()
         self.order = order
 
         self.shortcut = False
@@ -137,10 +159,11 @@ class HardResNet(nn.Module):
                                        activation=activation, affine=affine)
         self.linear = LinearInjector(64, n_classes=num_classes, error_model=error_model, inject_p=inject_p,
                                      inject_epoch=inject_epoch)
-        if activation == 'relu':
-            self.relu = nn.ReLU()
-        elif activation == 'relu6':
-            self.relu = nn.ReLU6()
+        '''if activation == 'relu':
+                    self.relu = nn.ReLU()
+                elif activation == 'relu6':
+                    self.relu = nn.ReLU6()'''
+        self.relu = MyActivation()
 
         self.apply(_weights_init)
         self.n_convs = 0

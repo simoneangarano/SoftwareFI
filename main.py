@@ -24,7 +24,7 @@ parser.add_argument('--mode', default='train', help='Mode: train/training or val
 parser.add_argument('--ckpt', default=None, help='Pass the name of a checkpoint to resume training.')
 parser.add_argument('--dataset', default='cifar10', help='Dataset name: cifar10 or cifar100.')
 parser.add_argument('--data_dir', default='./data', help='Path to dataset.')
-parser.add_argument('--num_gpus', default=1, help='Number of GPUs used.')
+parser.add_argument('--device', default=1, help='Device number.')
 parser.add_argument('--model', default='resnet20', help='Network name. Resnets only for now.')
 parser.add_argument('--loss', default='bce', help='Loss: bce, ce or sce.')
 parser.add_argument('--clip', default=None, help='Gradient clipping value.')
@@ -50,7 +50,7 @@ def main():
     # Set random seed
     pl.seed_everything(args.seed, workers=True)
 
-    cifar = CifarDataModule(args.dataset, args.data_dir, args.batch_size, args.num_gpus)
+    cifar = CifarDataModule(args.dataset, args.data_dir, args.batch_size, 1)
 
     # Build model (Resnet only up to now)
     optim_params = {'optimizer': args.optimizer, 'epochs': args.epochs, 'lr': args.lr, 'wd': args.wd}
@@ -68,7 +68,7 @@ def main():
     callbacks = [ckpt_callback]
 
     # Pytorch-Lightning Trainer
-    trainer = pl.Trainer(max_epochs=args.epochs, devices=args.num_gpus, callbacks=callbacks, logger=wandb_logger,
+    trainer = pl.Trainer(max_epochs=args.epochs, devices=[int(args.device)], callbacks=callbacks, logger=wandb_logger,
                          deterministic=True, benchmark=True, accelerator='gpu', strategy="dp", sync_batchnorm=True,
                          gradient_clip_val=args.clip)
 
