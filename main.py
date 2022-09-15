@@ -41,6 +41,7 @@ parser.add_argument('--model', default='resnet20', help='Network name. Resnets o
 parser.add_argument('--order', default='bn-relu', help='Order of activation and normalization: bn-relu or relu-bn.')
 parser.add_argument('--affine', default=True, help='Whether to use Affine transform after normalization or not.')
 parser.add_argument('--activation', default='relu', help='Non-linear activation: relu or relu6.')
+parser.add_argument('--nan', default=False, help='Whether to convert NaNs to 0 or not.')
 
 # Injection
 parser.add_argument('--error_model', default='random', help='Optimizer name: adamw or sgd.')
@@ -76,7 +77,7 @@ def main():
     optim_params = {'optimizer': args.optimizer, 'epochs': args.epochs, 'lr': args.lr, 'wd': args.wd}
     n_classes = 10 if args.dataset == 'cifar10' else 100
     net = build_model(args.model, n_classes, optim_params, args.loss, args.error_model, args.inject_p,
-                      args.inject_epoch, args.order, args.activation, args.affine)
+                      args.inject_epoch, args.order, args.activation, args.nan, args.affine)
 
     # W&B logger
     wandb_logger = WandbLogger(project="NeutronRobustness", name=args.name, id=args.name, entity="neutronstrikesback")

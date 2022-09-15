@@ -3,16 +3,16 @@ import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 from torchvision.datasets import CIFAR10, CIFAR100
 
-from utils import get_loader
+from pytorch_scripts.utils import get_loader
 
 
 class CifarDataModule(pytorch_lightning.LightningDataModule):
     def __init__(self, dataset='cifar10', data_dir='data', batch_size=128, num_gpus=1, augs={}):
         print(f'==> Loading {dataset} dataset..')
-        self.save_hyperparameters()
+        #self.save_hyperparameters()
         self.dataset = dataset
         self.data_dir = data_dir
-        self.size = 32 if self.dataset != 'ImageNet' else 256
+        self.size = 32
         self.batch_size = batch_size
         self.num_gpus = num_gpus
         self.n_classes = None
