@@ -34,18 +34,21 @@ def relu_s(x):
 
 
 class MyActivation(nn.Module):
-    def __init__(self, nan=True):
+    def __init__(self, nan=True, act='relu6'):
         super().__init__()
 
-        self.gelu = nn.GELU()
+        if act == 'relu6':
+            self.act = nn.ReLU()
+        elif act == 'gelu6':
+            self.act = nn.GELU()
         self.nan = nan
 
     def forward(self, x):
         x[x > 10] *= 0
         if self.nan:
-            return torch.nan_to_num(torch.clip(self.gelu(x), None, 6), 0.0)
+            return torch.nan_to_num(torch.clip(self.act(x), None, 6), 0.0)
         else:
-            return torch.clip(self.gelu(x), None, 6)
+            return torch.clip(self.act(x), None, 6)
 
 
 class ConvInjector(nn.Module):
@@ -116,8 +119,8 @@ class BasicBlock(nn.Module):
 
         if activation == 'relu':
             self.relu = nn.ReLU()
-        elif activation == 'relu6':
-            self.relu = MyActivation(nan)
+        elif activation in ['relu6', 'gelu6']:
+            self.relu = MyActivation(nan, activation)
         self.order = order
 
         self.shortcut = False
@@ -167,8 +170,8 @@ class HardResNet(nn.Module):
 
         if activation == 'relu':
             self.relu = nn.ReLU()
-        elif activation == 'relu6':
-            self.relu = MyActivation(nan)
+        elif activation in ['relu6', 'gelu6']:
+            self.relu = MyActivation(nan, activation)
 
         self.apply(_weights_init)
         self.n_convs = 0
