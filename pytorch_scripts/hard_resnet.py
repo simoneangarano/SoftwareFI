@@ -44,7 +44,7 @@ class MyActivation(nn.Module):
         self.nan = nan
 
     def forward(self, x):
-        x[x > 10] *= 0
+        #x[x > 10] *= 0
         if self.nan:
             return torch.nan_to_num(torch.clip(self.act(x), None, 6), 0.0)
         else:
