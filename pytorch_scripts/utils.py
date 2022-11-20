@@ -7,18 +7,18 @@ from .hard_densenet import *
 
 
 def build_model(model='hard_resnet20', n_classes=10, optim_params={}, loss='bce', error_model='random', inject_p=0.1, inject_epoch=0,
-                order='relu-bn', activation='relu', affine=True):
+                order='relu-bn', activation='relu', nan=False, affine=True):
     if model == 'hard_resnet20':
-        net = hard_resnet20(n_classes, error_model, inject_p, inject_epoch, order, activation, affine)
+        net = hard_resnet20(n_classes, error_model, inject_p, inject_epoch, order, activation, nan, affine)
     elif model == 'hard_resnet32':
-        net = hard_resnet32(n_classes, error_model, inject_p, inject_epoch, order, activation, affine)
+        net = hard_resnet32(n_classes, error_model, inject_p, inject_epoch, order, activation, nan, affine)
     elif model == 'hard_resnet44':
-        net = hard_resnet44(n_classes, error_model, inject_p, inject_epoch, order, activation, affine)
+        net = hard_resnet44(n_classes, error_model, inject_p, inject_epoch, order, activation, nan, affine)
     elif model == 'densenet100':
         net = densenet100(n_classes)
     else:
         model = 'hard_resnet20'
-        net = hard_resnet20(n_classes, error_model, inject_p, inject_epoch, order, activation, affine)
+        net = hard_resnet20(n_classes, error_model, inject_p, inject_epoch, order, activation, nan, affine)
 
     print(f'\n==> {model} built.')
     return ModelWrapper(net, n_classes, optim_params, loss)

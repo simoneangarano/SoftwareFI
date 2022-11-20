@@ -152,7 +152,7 @@ class HansGruberNI(torch.nn.Module):
         # return 27.119592052269397
 
     def training_error(self, epoch=0):
-        error = torch.rand(size=(1,), device=self.dummy_param.device) * min(1, epoch, 1)
+        error = torch.rand(size=(1,), device=self.dummy_param.device) * max(1, epoch, 1)
         #error = torch.rand(size=(1,), device=self.dummy_param.device) * 6 + 1e-6
         if random.randint(0, 1):
             return error

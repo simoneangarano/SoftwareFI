@@ -37,7 +37,7 @@ class ModelWrapper(pl.LightningModule):
         elif self.optim['optimizer'] == 'adamw':
             optimizer = AdamW(self.parameters(), lr=self.optim['lr'], weight_decay=self.optim['wd'])
 
-        scheduler = CosineAnnealingLR(optimizer, self.optim['epochs'], eta_min=5e-5)
+        scheduler = CosineAnnealingLR(optimizer, self.optim['epochs'], eta_min=1e-4)
         return {'optimizer': optimizer, 'lr_scheduler': scheduler}
 
     def get_metrics(self, batch, inject=True):
@@ -47,15 +47,18 @@ class ModelWrapper(pl.LightningModule):
         outputs = self(x, inject)
 
         # loss
-        if self.use_one_hot:
+        if self.use_one_hot and not self.training:
             # bce or sce
             loss = self.criterion(outputs, get_one_hot(y, self.n_classes))
         else:
             # ce
             loss = self.criterion(outputs, y)
         # accuracy
-        probs, preds = torch.max(outputs, 1)
-        acc = torch.sum(preds == y) / x.shape[0]
+        if not self.training:
+            probs, preds = torch.max(outputs, 1)
+            acc = torch.sum(preds == y) / x.shape[0]
+        else:
+            acc, probs, preds = 0, 0, 0
         return loss, acc, (probs, preds)
 
     def training_step(self, train_batch, batch_idx):
