@@ -47,7 +47,8 @@ $ ./main.py ....
 
 ```bibtex
 @INPROCEEDINGS{diehardnetIOLTS2022,
-  author={Cavagnero, Niccolò and Santos, Fernando Dos and Ciccone, Marco and Averta, Giuseppe and Tommasi, Tatiana and Rech, Paolo},
+  author={Cavagnero, Niccolò and Santos, Fernando Dos and Ciccone, Marco and Averta, 
+          Giuseppe and Tommasi, Tatiana and Rech, Paolo},
   booktitle={2022 IEEE 28th International Symposium on On-Line Testing and Robust System Design (IOLTS)}, 
   title={Transient-Fault-Aware Design and Training to Enhance DNNs Reliability with Zero-Overhead}, 
   year={2022},
