@@ -43,13 +43,18 @@ $ ./main.py ....
 
 # To cite this work
 
+**2022 IEEE 28th International Symposium on On-Line Testing and Robust System Design (IOLTS)**
+
 ```bibtex
-@INPROCEEDINGS{diehardnet,
-    author = {AUTHORS},
-    title = {TITLE},
-    booktitle = {PROCEEDINGS},
-    series = {EVENT},
-    year = {2022},
-    isbn = {ISBN},
-} 
+@INPROCEEDINGS{diehardnetIOLTS2022,
+  author={Cavagnero, Niccolò and Santos, Fernando Dos and Ciccone, Marco and Averta, Giuseppe and Tommasi, Tatiana and Rech, Paolo},
+  booktitle={2022 IEEE 28th International Symposium on On-Line Testing and Robust System Design (IOLTS)}, 
+  title={Transient-Fault-Aware Design and Training to Enhance DNNs Reliability with Zero-Overhead}, 
+  year={2022},
+  volume={},
+  number={},
+  pages={1-7},
+  doi={10.1109/IOLTS56730.2022.9897813}
+}
+
 ```
