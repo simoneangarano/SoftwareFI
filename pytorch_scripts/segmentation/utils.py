@@ -1,4 +1,6 @@
 import yaml
+import torch
+import torch.nn as nn
 from .transforms import ExtCompose, ExtRandomCrop, ExtColorJitter, ExtRandomHorizontalFlip, ExtToTensor, ExtNormalize
 from torch.utils.data import DataLoader
 
@@ -14,6 +16,14 @@ def build_model(model=None, n_classes=10, optim_params={}, loss='bce', error_mod
     elif model == 'deeplab_relumax':
         from .deeplabv3_custom.deeplab_robust import deeplabv3_resnet101
         net = deeplabv3_resnet101(n_classes, pretrained=pretrained, activation=activation)
+
+    # Hook clipping and NaNs
+    for m in net.modules():
+        if isinstance(m, nn.Conv2d):
+            if clip:
+                m.register_forward_hook(lambda module, input, output : torch.clip(output, -6, 6))
+            if nan:
+                m.register_forward_hook(lambda module, input, output : torch.nan_to_num(output, 0.0))
 
     print(f'\n==> {model} built.')
     return ModelWrapper(net, n_classes, optim_params, loss, freeze)
