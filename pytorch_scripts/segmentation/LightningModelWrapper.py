@@ -8,7 +8,7 @@ from pytorch_scripts.segmentation.losses import FocalLoss
 from pytorch_scripts.segmentation.stream_metrics import StreamSegMetrics
 
 class ModelWrapper(pl.LightningModule):
-    def __init__(self, model, n_classes, optim, loss, freeze=False):
+    def __init__(self, model, n_classes, optim, loss, freeze=False, inject_p=0.0):
         super(ModelWrapper, self).__init__()
 
         self.model = model
@@ -16,7 +16,7 @@ class ModelWrapper(pl.LightningModule):
         self.optim = optim
         self.freeze = freeze
 
-        self.real_p = self.model.p
+        self.real_p = inject_p
 
         self.clean_metrics = StreamSegMetrics(self.n_classes)
         self.noisy_metrics = StreamSegMetrics(self.n_classes)

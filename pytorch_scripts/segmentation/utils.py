@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 
 from .LightningModelWrapper import ModelWrapper
 
-def build_model(model=None, n_classes=10, optim_params={}, loss='bce', error_model='random', inject_p=0.1, inject_epoch=0,
+def build_model(model=None, n_classes=10, optim_params={}, loss='bce', error_model='random', inject_p=0.0, inject_epoch=0,
                 clip=False, nan=False, freeze=False, pretrained=False, activation='max'):
 
     if model == 'deeplab':
@@ -26,7 +26,7 @@ def build_model(model=None, n_classes=10, optim_params={}, loss='bce', error_mod
                 m.register_forward_hook(lambda module, input, output : torch.nan_to_num(output, 0.0))
 
     print(f'\n==> {model} built.')
-    return ModelWrapper(net, n_classes, optim_params, loss, freeze)
+    return ModelWrapper(net, n_classes, optim_params, loss, freeze, inject_p)
 
 
 def get_loader(dataset_name, data, batch_size=128, workers=4, n_classes=100, stats=None, mixup_cutmix=True, rand_erasing=0.0,
