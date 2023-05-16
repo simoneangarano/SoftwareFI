@@ -10,11 +10,11 @@ def build_model(model=None, n_classes=10, optim_params={}, loss='bce', error_mod
                 clip=False, nan=False, freeze=False, pretrained=False, activation='max'):
 
     if model == 'deeplab':
-        from .deeplabv3_custom.deeplab import deeplabv3_resnet101
+        from .deeplabv3_custom.models import deeplabv3_resnet101
         net = deeplabv3_resnet101(n_classes, pretrained=pretrained)
     
     elif model == 'deeplab_relumax':
-        from .deeplabv3_custom.deeplab_robust import deeplabv3_resnet101
+        from .deeplabv3_custom.deeplab_relumax import deeplabv3_resnet101
         net = deeplabv3_resnet101(n_classes, pretrained=pretrained, activation=activation)
 
     # Hook clipping and NaNs
