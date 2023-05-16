@@ -21,7 +21,7 @@ class _StreamMetrics(object):
 
     def reset(self):
         """ Overridden by subclasses """
-        raise NotImplementedError()      
+        raise NotImplementedError()
 
 class StreamSegMetrics(_StreamMetrics):
     """
@@ -34,14 +34,14 @@ class StreamSegMetrics(_StreamMetrics):
     def update(self, label_trues, label_preds):
         for lt, lp in zip(label_trues, label_preds):
             self.confusion_matrix += self._fast_hist( lt.flatten(), lp.flatten() )
-    
+
     @staticmethod
     def to_str(results):
         string = "\n"
         for k, v in results.items():
             if k!="Class IoU":
                 string += "%s: %f\n"%(k, v)
-        
+
         #string+='Class IoU:\n'
         #for k, v in results['Class IoU'].items():
         #    string += "\tclass %d: %f\n"%(k, v)
@@ -80,9 +80,12 @@ class StreamSegMetrics(_StreamMetrics):
                 "Mean IoU": mean_iu,
                 "Class IoU": cls_iu,
             }
-        
+
     def reset(self):
         self.confusion_matrix = np.zeros((self.n_classes, self.n_classes))
+
+    def fast_reset(self):
+        self.confusion_matrix.fill(0)
 
 class AverageMeter(object):
     """Computes average values"""
@@ -91,7 +94,7 @@ class AverageMeter(object):
 
     def reset_all(self):
         self.book.clear()
-    
+
     def reset(self, id):
         item = self.book.get(id, None)
         if item is not None:
