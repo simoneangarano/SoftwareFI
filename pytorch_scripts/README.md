@@ -3,7 +3,7 @@
 This repository contains a simple code suite in Pytorch-Lightning to train our models.
 
 main.py is the script used to launch the training phase, accepting different arguments such as dataset (CIFAR10 or
-CIFAR100), network model, optimizer, learning rate, etc..
+CIFAR100), network model, optimizer, learning rate, etc.
 
 utils.py contains utilities for loading the dataset and building the network.
 
