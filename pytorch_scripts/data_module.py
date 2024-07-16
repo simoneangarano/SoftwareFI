@@ -3,6 +3,8 @@ import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 from torchvision.datasets import CIFAR10, CIFAR100
 
+from .tiny_imagenet import TinyImageNet
+
 from pytorch_scripts.utils import get_loader
 
 
@@ -12,7 +14,7 @@ class CifarDataModule(pytorch_lightning.LightningDataModule):
         #self.save_hyperparameters()
         self.dataset = dataset
         self.data_dir = data_dir
-        self.size = 32
+        self.size = 32 if 'cifar' in dataset else 64 # TinyImagenet is 64x64
         self.batch_size = batch_size
         self.num_gpus = num_gpus
         self.n_classes = None
@@ -37,12 +39,17 @@ class CifarDataModule(pytorch_lightning.LightningDataModule):
         elif self.dataset == 'cifar100':
             CIFAR100(root=self.data_dir, train=True, download=True)
             CIFAR100(root=self.data_dir, train=False, download=True)
+        elif self.dataset == 'tinyimagenet':
+            TinyImageNet(root=self.data_dir, split='train', download=True)
+            TinyImageNet(root=self.data_dir, split='val', download=True)
 
     def setup(self, stage=None):
         if self.dataset == 'cifar10':
             self.stats = (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)
         elif self.dataset == 'cifar100':
             self.stats = (0.5070, 0.4865, 0.4409), (0.2673, 0.2564, 0.2761)
+        elif self.dataset == 'tinyimagenet':
+            self.stats = (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
 
         normalize = transforms.Normalize(self.stats[0], self.stats[1])
         self.test_trans = transforms.Compose(
@@ -56,6 +63,10 @@ class CifarDataModule(pytorch_lightning.LightningDataModule):
             self.train_data = CIFAR100(root=self.data_dir, train=True, transform=None, download=False)
             self.test_data = CIFAR100(root=self.data_dir, train=False, transform=self.test_trans, download=False)
             self.n_classes = 100
+        elif self.dataset == 'tinyimagenet':
+            self.train_data = TinyImageNet(root=self.data_dir, split='train', download=False, transform=None)
+            self.test_data = TinyImageNet(root=self.data_dir, split='val', download=False, transform=self.test_trans)
+            self.n_classes = 200
 
     def train_dataloader(self):
         return get_loader(self.train_data, self.batch_size // self.num_gpus, 4 * self.num_gpus, self.n_classes,

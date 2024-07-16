@@ -4,7 +4,7 @@ from timm.data import create_loader, FastCollateMixup
 from .LightningModelWrapper import ModelWrapper
 from .hard_resnet import *
 from .hard_densenet import *
-
+from .hard_convnext import *
 
 def build_model(model='hard_resnet20', n_classes=10, optim_params={}, loss='bce', error_model='random', inject_p=0.1, inject_epoch=0,
                 order='relu-bn', activation='relu', nan=False, affine=True):
@@ -14,8 +14,12 @@ def build_model(model='hard_resnet20', n_classes=10, optim_params={}, loss='bce'
         net = hard_resnet32(n_classes, error_model, inject_p, inject_epoch, order, activation, nan, affine)
     elif model == 'hard_resnet44':
         net = hard_resnet44(n_classes, error_model, inject_p, inject_epoch, order, activation, nan, affine)
+    elif model == 'hard_resnet56':
+        net = hard_resnet56(n_classes, error_model, inject_p, inject_epoch, order, activation, nan, affine)
     elif model == 'densenet100':
         net = densenet100(n_classes)
+    elif model == 'hard_convnext':
+        net = hard_convnext(n_classes, error_model, inject_p, inject_epoch, activation, nan)
     else:
         model = 'hard_resnet20'
         net = hard_resnet20(n_classes, error_model, inject_p, inject_epoch, order, activation, nan, affine)

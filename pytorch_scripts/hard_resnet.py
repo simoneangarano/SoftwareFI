@@ -14,7 +14,7 @@ import torch.nn.init as init
 
 from .hg_noise_injector.hans_gruber import HansGruberNI
 
-__all__ = ['HardResNet', 'hard_resnet20', 'hard_resnet32', 'hard_resnet44']
+__all__ = ['HardResNet', 'hard_resnet20', 'hard_resnet32', 'hard_resnet44', 'hard_resnet56']
 
 
 def _weights_init(m):
@@ -216,3 +216,6 @@ def hard_resnet32(n_classes=10, error_model='random', inject_p=0.1, inject_epoch
 
 def hard_resnet44(n_classes=10, error_model='random', inject_p=0.1, inject_epoch=0, order='relu-bn', activation='relu', nan=False, affine=True):
     return HardResNet(BasicBlock, [7, 7, 7], n_classes, error_model, inject_p, inject_epoch, order, activation, nan, affine)
+
+def hard_resnet56(n_classes=10, error_model='random', inject_p=0.1, inject_epoch=0, order='relu-bn', activation='relu', nan=False, affine=True):
+    return HardResNet(BasicBlock, [9, 9, 9], n_classes, error_model, inject_p, inject_epoch, order, activation, nan, affine)

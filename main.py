@@ -8,7 +8,7 @@ from pytorch_lightning.loggers import WandbLogger
 
 # DieHardNET packages
 from pytorch_scripts.utils import *
-from pytorch_scripts.cifar_data_module import CifarDataModule
+from pytorch_scripts.data_module import CifarDataModule
 
 # Suppress the annoying warning for non-empty checkpoint directory
 warnings.filterwarnings("ignore")
@@ -75,7 +75,8 @@ def main():
 
     # Build model (Resnet only up to now)
     optim_params = {'optimizer': args.optimizer, 'epochs': args.epochs, 'lr': args.lr, 'wd': args.wd}
-    n_classes = 10 if args.dataset == 'cifar10' else 100
+    classes = {'cifar10': 10, 'cifar100': 100, 'tinyimagenet': 200}
+    n_classes = classes[args.dataset]
     net = build_model(args.model, n_classes, optim_params, args.loss, args.error_model, args.inject_p,
                       args.inject_epoch, args.order, args.activation, args.nan, args.affine)
 
