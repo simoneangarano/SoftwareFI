@@ -24,19 +24,18 @@ from torchvision.datasets.utils import verify_str_arg
 from torchvision.datasets.utils import download_and_extract_archive
 
 
-def normalize_tin_val_folder_structure(path,
-                                       images_folder='images',
-                                       annotations_file='val_annotations.txt'):
+def normalize_tin_val_folder_structure(
+    path, images_folder="images", annotations_file="val_annotations.txt"
+):
     # Check if files/annotations are still there to see
     # if we already run reorganize the folder structure.
     images_folder = os.path.join(path, images_folder)
     annotations_file = os.path.join(path, annotations_file)
 
     # Exists
-    if not os.path.exists(images_folder) \
-       and not os.path.exists(annotations_file):
+    if not os.path.exists(images_folder) and not os.path.exists(annotations_file):
         if not os.listdir(path):
-            raise RuntimeError('Validation folder is empty.')
+            raise RuntimeError("Validation folder is empty.")
         return
 
     # Parse the annotations
@@ -62,13 +61,14 @@ def normalize_tin_val_folder_structure(path,
 
 class TinyImageNet(ImageFolder):
     """Dataset for TinyImageNet-200"""
-    base_folder = 'tiny-imagenet-200'
-    zip_md5 = '90528d7ca1a48142e341f4ef8d21d0de'
-    splits = ('train', 'val')
-    filename = 'tiny-imagenet-200.zip'
-    url = 'http://cs231n.stanford.edu/tiny-imagenet-200.zip'
 
-    def __init__(self, root, split='train', download=False, **kwargs):
+    base_folder = "tiny-imagenet-200"
+    zip_md5 = "90528d7ca1a48142e341f4ef8d21d0de"
+    splits = ("train", "val")
+    filename = "tiny-imagenet-200.zip"
+    url = "http://cs231n.stanford.edu/tiny-imagenet-200.zip"
+
+    def __init__(self, root, split="train", download=False, **kwargs):
         self.data_root = os.path.expanduser(root)
         self.split = verify_str_arg(split, "split", self.splits)
 
@@ -76,8 +76,9 @@ class TinyImageNet(ImageFolder):
             self.download()
 
         if not self._check_exists():
-            raise RuntimeError('Dataset not found.' +
-                               ' You can use download=True to download it')
+            raise RuntimeError(
+                "Dataset not found." + " You can use download=True to download it"
+            )
         super().__init__(self.split_folder, **kwargs)
 
     @property
@@ -98,8 +99,11 @@ class TinyImageNet(ImageFolder):
         if self._check_exists():
             return
         download_and_extract_archive(
-            self.url, self.data_root, filename=self.filename,
-            remove_finished=True, md5=self.zip_md5)
-        assert 'val' in self.splits
-        normalize_tin_val_folder_structure(
-            os.path.join(self.dataset_folder, 'val'))
+            self.url,
+            self.data_root,
+            filename=self.filename,
+            remove_finished=True,
+            md5=self.zip_md5,
+        )
+        assert "val" in self.splits
+        normalize_tin_val_folder_structure(os.path.join(self.dataset_folder, "val"))

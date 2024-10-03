@@ -4,9 +4,11 @@ import torch.nn.functional as F
 
 from torchvision.models.segmentation import DeepLabV3_ResNet101_Weights
 
-#from torchvision.models import resnet101
+# from torchvision.models import resnet101
 try:
-    from pytorch_scripts.segmentation.deeplabv3_custom.activations import RobustActivation
+    from pytorch_scripts.segmentation.deeplabv3_custom.activations import (
+        RobustActivation,
+    )
     from pytorch_scripts.segmentation.deeplabv3_custom.resnet_relumax import resnet101
 except ModuleNotFoundError:
     from activations import RobustActivation
@@ -15,6 +17,7 @@ except ModuleNotFoundError:
 from typing import Dict, List
 from torch import Tensor
 from collections import OrderedDict
+
 
 class IntermediateLayerGetter(nn.ModuleDict):
     """
@@ -52,7 +55,9 @@ class IntermediateLayerGetter(nn.ModuleDict):
     __annotations__ = {"return_layers"}
 
     def __init__(self, model: nn.Module, return_layers: Dict[str, str]) -> None:
-        if not set(return_layers).issubset([name for name, _ in model.named_children()]):
+        if not set(return_layers).issubset(
+            [name for name, _ in model.named_children()]
+        ):
             raise ValueError("return_layers are not present in model")
         orig_return_layers = return_layers
         return_layers = {str(k): str(v) for k, v in return_layers.items()}
@@ -76,32 +81,52 @@ class IntermediateLayerGetter(nn.ModuleDict):
                 out[out_name] = x
         return out
 
+
 class DeepLabHead(nn.Sequential):
-    def __init__(self, in_channels: int, num_classes: int, activation: str = 'max') -> None:
+    def __init__(
+        self, in_channels: int, num_classes: int, activation: str = "max"
+    ) -> None:
         super().__init__(
             ASPP(in_channels, [12, 24, 36], activation=activation),
             nn.Conv2d(256, 256, 3, padding=1, bias=False),
             nn.BatchNorm2d(256),
-            RobustActivation(nn.ReLU(), activation), #!
+            RobustActivation(nn.ReLU(), activation),  #!
             nn.Conv2d(256, num_classes, 1),
         )
 
+
 class ASPPConv(nn.Sequential):
-    def __init__(self, in_channels: int, out_channels: int, dilation: int, activation: str = 'max') -> None:
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        dilation: int,
+        activation: str = "max",
+    ) -> None:
         modules = [
-            nn.Conv2d(in_channels, out_channels, 3, padding=dilation, dilation=dilation, bias=False),
+            nn.Conv2d(
+                in_channels,
+                out_channels,
+                3,
+                padding=dilation,
+                dilation=dilation,
+                bias=False,
+            ),
             nn.BatchNorm2d(out_channels),
-            RobustActivation(nn.ReLU(), activation), #!
+            RobustActivation(nn.ReLU(), activation),  #!
         ]
         super().__init__(*modules)
 
+
 class ASPPPooling(nn.Sequential):
-    def __init__(self, in_channels: int, out_channels: int, activation: str = 'max') -> None:
+    def __init__(
+        self, in_channels: int, out_channels: int, activation: str = "max"
+    ) -> None:
         super().__init__(
             nn.AdaptiveAvgPool2d(1),
             nn.Conv2d(in_channels, out_channels, 1, bias=False),
             nn.BatchNorm2d(out_channels),
-            RobustActivation(nn.ReLU(), activation), #!
+            RobustActivation(nn.ReLU(), activation),  #!
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -110,17 +135,30 @@ class ASPPPooling(nn.Sequential):
             x = mod(x)
         return F.interpolate(x, size=size, mode="bilinear", align_corners=False)
 
+
 class ASPP(nn.Module):
-    def __init__(self, in_channels: int, atrous_rates: List[int], out_channels: int = 256, activation: str = 'max') -> None:
+    def __init__(
+        self,
+        in_channels: int,
+        atrous_rates: List[int],
+        out_channels: int = 256,
+        activation: str = "max",
+    ) -> None:
         super().__init__()
         modules = []
         modules.append(
-            nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, bias=False), nn.BatchNorm2d(out_channels), RobustActivation(nn.ReLU(), activation)) #!
+            nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, 1, bias=False),
+                nn.BatchNorm2d(out_channels),
+                RobustActivation(nn.ReLU(), activation),
+            )  #!
         )
 
         rates = tuple(atrous_rates)
         for rate in rates:
-            modules.append(ASPPConv(in_channels, out_channels, rate, activation=activation))
+            modules.append(
+                ASPPConv(in_channels, out_channels, rate, activation=activation)
+            )
 
         modules.append(ASPPPooling(in_channels, out_channels, activation=activation))
 
@@ -129,7 +167,7 @@ class ASPP(nn.Module):
         self.project = nn.Sequential(
             nn.Conv2d(len(self.convs) * out_channels, out_channels, 1, bias=False),
             nn.BatchNorm2d(out_channels),
-            RobustActivation(nn.ReLU(), activation), #!
+            RobustActivation(nn.ReLU(), activation),  #!
             nn.Dropout(0.5),
         )
 
@@ -139,6 +177,7 @@ class ASPP(nn.Module):
             _res.append(conv(x))
         res = torch.cat(_res, dim=1)
         return self.project(res)
+
 
 class DeepLabV3(nn.Module):
 
@@ -156,21 +195,30 @@ class DeepLabV3(nn.Module):
         x = features["out"]
         x = self.classifier(x)
         x = F.interpolate(x, size=input_shape, mode="bilinear", align_corners=False)
-        #result["out"] = x
+        # result["out"] = x
         result = x
 
         return result
 
-def deeplabv3_resnet101(num_classes=19, pretrained=True, activation='max'):
-    if pretrained: num_classes = 21
-    
+
+def deeplabv3_resnet101(num_classes=19, pretrained=True, activation="max"):
+    if pretrained:
+        num_classes = 21
+
     return_layers = {"layer4": "out"}
-    backbone = resnet101(replace_stride_with_dilation=[False, True, True], activation=activation)
+    backbone = resnet101(
+        replace_stride_with_dilation=[False, True, True], activation=activation
+    )
     backbone = IntermediateLayerGetter(backbone, return_layers=return_layers)
     classifier = DeepLabHead(2048, num_classes, activation=activation)
     model = DeepLabV3(backbone, classifier)
 
     if pretrained:
-        model.load_state_dict(DeepLabV3_ResNet101_Weights.COCO_WITH_VOC_LABELS_V1.get_state_dict(progress=True), strict=False)
+        model.load_state_dict(
+            DeepLabV3_ResNet101_Weights.COCO_WITH_VOC_LABELS_V1.get_state_dict(
+                progress=True
+            ),
+            strict=False,
+        )
 
     return model

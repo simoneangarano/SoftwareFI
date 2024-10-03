@@ -3,13 +3,22 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 from typing import Optional, Callable, List, Any, Dict
-from torchvision.models.segmentation.deeplabv3 import DeepLabV3_ResNet101_Weights, ResNet101_Weights, WeightsEnum, IntermediateLayerGetter
+from torchvision.models.segmentation.deeplabv3 import (
+    DeepLabV3_ResNet101_Weights,
+    ResNet101_Weights,
+    WeightsEnum,
+    IntermediateLayerGetter,
+)
+
 
 def conv1x1(in_planes: int, out_planes: int, stride: int = 1) -> nn.Conv2d:
     """1x1 convolution"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
 
-def conv3x3(in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1) -> nn.Conv2d:
+
+def conv3x3(
+    in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1
+) -> nn.Conv2d:
     """3x3 convolution with padding"""
     return nn.Conv2d(
         in_planes,
@@ -21,6 +30,7 @@ def conv3x3(in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, d
         bias=False,
         dilation=dilation,
     )
+
 
 class Bottleneck(nn.Module):
     # Bottleneck in torchvision places the stride for downsampling at 3x3 convolution(self.conv2)
@@ -110,14 +120,22 @@ class ResNet(nn.Module):
             )
         self.groups = groups
         self.base_width = width_per_group
-        self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False)
+        self.conv1 = nn.Conv2d(
+            3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
+        )
         self.bn1 = norm_layer(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(block, 64, layers[0])
-        self.layer2 = self._make_layer(block, 128, layers[1], stride=2, dilate=replace_stride_with_dilation[0])
-        self.layer3 = self._make_layer(block, 256, layers[2], stride=2, dilate=replace_stride_with_dilation[1])
-        self.layer4 = self._make_layer(block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2])
+        self.layer2 = self._make_layer(
+            block, 128, layers[1], stride=2, dilate=replace_stride_with_dilation[0]
+        )
+        self.layer3 = self._make_layer(
+            block, 256, layers[2], stride=2, dilate=replace_stride_with_dilation[1]
+        )
+        self.layer4 = self._make_layer(
+            block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2]
+        )
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(512 * block.expansion, num_classes)
 
@@ -159,7 +177,14 @@ class ResNet(nn.Module):
         layers = []
         layers.append(
             block(
-                self.inplanes, planes, stride, downsample, self.groups, self.base_width, previous_dilation, norm_layer
+                self.inplanes,
+                planes,
+                stride,
+                downsample,
+                self.groups,
+                self.base_width,
+                previous_dilation,
+                norm_layer,
             )
         )
         self.inplanes = planes * block.expansion
@@ -198,18 +223,25 @@ class ResNet(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         return self._forward_impl(x)
 
+
 def _ovewrite_named_param(kwargs: Dict[str, Any], param: str, new_value) -> None:
     if param in kwargs:
         if kwargs[param] != new_value:
-            raise ValueError(f"The parameter '{param}' expected value {new_value} but got {kwargs[param]} instead.")
+            raise ValueError(
+                f"The parameter '{param}' expected value {new_value} but got {kwargs[param]} instead."
+            )
     else:
         kwargs[param] = new_value
+
 
 def _ovewrite_value_param(param: str, actual, expected):
     if actual is not None:
         if actual != expected:
-            raise ValueError(f"The parameter '{param}' expected value {expected} but got {actual} instead.")
+            raise ValueError(
+                f"The parameter '{param}' expected value {expected} but got {actual} instead."
+            )
     return expected
+
 
 def _resnet(
     block: Bottleneck,
@@ -228,7 +260,10 @@ def _resnet(
 
     return model
 
-def resnet101(*, weights: Optional[ResNet101_Weights] = None, progress: bool = True, **kwargs: Any) -> ResNet:
+
+def resnet101(
+    *, weights: Optional[ResNet101_Weights] = None, progress: bool = True, **kwargs: Any
+) -> ResNet:
     """ResNet-101 from `Deep Residual Learning for Image Recognition <https://arxiv.org/pdf/1512.03385.pdf>`__.
 
     .. note::
@@ -261,7 +296,12 @@ def resnet101(*, weights: Optional[ResNet101_Weights] = None, progress: bool = T
 class _SimpleSegmentationModel(nn.Module):
     __constants__ = ["aux_classifier"]
 
-    def __init__(self, backbone: nn.Module, classifier: nn.Module, aux_classifier: Optional[nn.Module] = None) -> None:
+    def __init__(
+        self,
+        backbone: nn.Module,
+        classifier: nn.Module,
+        aux_classifier: Optional[nn.Module] = None,
+    ) -> None:
         super().__init__()
         self.backbone = backbone
         self.classifier = classifier
@@ -271,25 +311,26 @@ class _SimpleSegmentationModel(nn.Module):
         input_shape = x.shape[-2:]
         # contract: features is a dict of tensors
         features = self.backbone(x)
-        
-        x = features['out']
+
+        x = features["out"]
         x = self.classifier(x)
         x = F.interpolate(x, size=input_shape, mode="bilinear", align_corners=False)
         result = x
 
-        #result = OrderedDict()
-        #x = features["out"]
-        #x = self.classifier(x)
-        #x = F.interpolate(x, size=input_shape, mode="bilinear", align_corners=False)
-        #result["out"] = x
+        # result = OrderedDict()
+        # x = features["out"]
+        # x = self.classifier(x)
+        # x = F.interpolate(x, size=input_shape, mode="bilinear", align_corners=False)
+        # result["out"] = x
 
-        #if self.aux_classifier is not None:
+        # if self.aux_classifier is not None:
         #    x = features["aux"]
         #    x = self.aux_classifier(x)
         #    x = F.interpolate(x, size=input_shape, mode="bilinear", align_corners=False)
         #    result["aux"] = x
 
         return result
+
 
 class DeepLabV3(_SimpleSegmentationModel):
     """
@@ -324,7 +365,14 @@ class DeepLabHead(nn.Sequential):
 class ASPPConv(nn.Sequential):
     def __init__(self, in_channels: int, out_channels: int, dilation: int) -> None:
         modules = [
-            nn.Conv2d(in_channels, out_channels, 3, padding=dilation, dilation=dilation, bias=False),
+            nn.Conv2d(
+                in_channels,
+                out_channels,
+                3,
+                padding=dilation,
+                dilation=dilation,
+                bias=False,
+            ),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(),
         ]
@@ -348,11 +396,17 @@ class ASPPPooling(nn.Sequential):
 
 
 class ASPP(nn.Module):
-    def __init__(self, in_channels: int, atrous_rates: List[int], out_channels: int = 256) -> None:
+    def __init__(
+        self, in_channels: int, atrous_rates: List[int], out_channels: int = 256
+    ) -> None:
         super().__init__()
         modules = []
         modules.append(
-            nn.Sequential(nn.Conv2d(in_channels, out_channels, 1, bias=False), nn.BatchNorm2d(out_channels), nn.ReLU())
+            nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, 1, bias=False),
+                nn.BatchNorm2d(out_channels),
+                nn.ReLU(),
+            )
         )
 
         rates = tuple(atrous_rates)
@@ -377,6 +431,7 @@ class ASPP(nn.Module):
         res = torch.cat(_res, dim=1)
         return self.project(res)
 
+
 def _deeplabv3_resnet(
     backbone: ResNet,
     num_classes: int,
@@ -387,9 +442,10 @@ def _deeplabv3_resnet(
         return_layers["layer3"] = "aux"
     backbone = IntermediateLayerGetter(backbone, return_layers=return_layers)
 
-    aux_classifier = None #FCNHead(1024, num_classes) if aux else None
+    aux_classifier = None  # FCNHead(1024, num_classes) if aux else None
     classifier = DeepLabHead(2048, num_classes)
     return DeepLabV3(backbone, classifier, aux_classifier)
+
 
 def deeplabv3_resnet101(
     *,
@@ -423,17 +479,21 @@ def deeplabv3_resnet101(
     .. autoclass:: torchvision.models.segmentation.DeepLabV3_ResNet101_Weights
         :members:
     """
-    #weights = DeepLabV3_ResNet101_Weights.verify(weights)
-    #weights_backbone = ResNet101_Weights.verify(weights_backbone)
+    # weights = DeepLabV3_ResNet101_Weights.verify(weights)
+    # weights_backbone = ResNet101_Weights.verify(weights_backbone)
 
     if weights is not None:
         weights_backbone = None
-        num_classes = _ovewrite_value_param("num_classes", num_classes, len(weights.meta["categories"]))
-        aux_loss = False #_ovewrite_value_param("aux_loss", aux_loss, True)
+        num_classes = _ovewrite_value_param(
+            "num_classes", num_classes, len(weights.meta["categories"])
+        )
+        aux_loss = False  # _ovewrite_value_param("aux_loss", aux_loss, True)
     elif num_classes is None:
         num_classes = 21
 
-    backbone = resnet101(weights=weights_backbone, replace_stride_with_dilation=[False, True, True])
+    backbone = resnet101(
+        weights=weights_backbone, replace_stride_with_dilation=[False, True, True]
+    )
     model = _deeplabv3_resnet(backbone, num_classes, aux_loss)
 
     if weights is not None:

@@ -12,7 +12,12 @@ from torch import Tensor
 
 class _DenseLayer(nn.Module):
     def __init__(
-        self, num_input_features: int, growth_rate: int, bn_size: int, drop_rate: float, memory_efficient: bool = True
+        self,
+        num_input_features: int,
+        growth_rate: int,
+        bn_size: int,
+        drop_rate: float,
+        memory_efficient: bool = True,
     ) -> None:
         super().__init__()
         self.norm1: nn.BatchNorm2d
@@ -21,7 +26,14 @@ class _DenseLayer(nn.Module):
         self.add_module("relu1", nn.ReLU6(inplace=True))
         self.conv1: nn.Conv2d
         self.add_module(
-            "conv1", nn.Conv2d(num_input_features, bn_size * growth_rate, kernel_size=1, stride=1, bias=False)
+            "conv1",
+            nn.Conv2d(
+                num_input_features,
+                bn_size * growth_rate,
+                kernel_size=1,
+                stride=1,
+                bias=False,
+            ),
         )
         self.norm2: nn.BatchNorm2d
         self.add_module("norm2", nn.BatchNorm2d(bn_size * growth_rate))
@@ -29,14 +41,24 @@ class _DenseLayer(nn.Module):
         self.add_module("relu2", nn.ReLU6(inplace=True))
         self.conv2: nn.Conv2d
         self.add_module(
-            "conv2", nn.Conv2d(bn_size * growth_rate, growth_rate, kernel_size=3, stride=1, padding=1, bias=False)
+            "conv2",
+            nn.Conv2d(
+                bn_size * growth_rate,
+                growth_rate,
+                kernel_size=3,
+                stride=1,
+                padding=1,
+                bias=False,
+            ),
         )
         self.drop_rate = float(drop_rate)
         self.memory_efficient = memory_efficient
 
     def bn_function(self, inputs: List[Tensor]) -> Tensor:
         concated_features = torch.cat(inputs, 1)
-        bottleneck_output = self.conv1(self.relu1(self.norm1(concated_features)))  # noqa: T484
+        bottleneck_output = self.conv1(
+            self.relu1(self.norm1(concated_features))
+        )  # noqa: T484
         return bottleneck_output
 
     # todo: rewrite when torchscript supports any
@@ -79,7 +101,9 @@ class _DenseLayer(nn.Module):
 
         new_features = self.conv2(self.relu2(self.norm2(bottleneck_output)))
         if self.drop_rate > 0:
-            new_features = F.dropout(new_features, p=self.drop_rate, training=self.training)
+            new_features = F.dropout(
+                new_features, p=self.drop_rate, training=self.training
+            )
         return new_features
 
 
@@ -119,7 +143,16 @@ class _Transition(nn.Sequential):
         super().__init__()
         self.add_module("norm", nn.BatchNorm2d(num_input_features))
         self.add_module("relu", nn.ReLU6(inplace=True))
-        self.add_module("conv", nn.Conv2d(num_input_features, num_output_features, kernel_size=1, stride=1, bias=False))
+        self.add_module(
+            "conv",
+            nn.Conv2d(
+                num_input_features,
+                num_output_features,
+                kernel_size=1,
+                stride=1,
+                bias=False,
+            ),
+        )
         self.add_module("pool", nn.AvgPool2d(kernel_size=2, stride=2))
 
 
@@ -155,10 +188,20 @@ class DenseNet(nn.Module):
         self.features = nn.Sequential(
             OrderedDict(
                 [
-                    ("conv0", nn.Conv2d(3, num_init_features, kernel_size=3, stride=1, padding=1, bias=False)),
+                    (
+                        "conv0",
+                        nn.Conv2d(
+                            3,
+                            num_init_features,
+                            kernel_size=3,
+                            stride=1,
+                            padding=1,
+                            bias=False,
+                        ),
+                    ),
                     ("norm0", nn.BatchNorm2d(num_init_features)),
                     ("relu0", nn.ReLU6(inplace=True)),
-                    #("pool0", nn.MaxPool2d(kernel_size=3, stride=2, padding=1)),
+                    # ("pool0", nn.MaxPool2d(kernel_size=3, stride=2, padding=1)),
                 ]
             )
         )
@@ -177,7 +220,10 @@ class DenseNet(nn.Module):
             self.features.add_module("denseblock%d" % (i + 1), block)
             num_features = num_features + num_layers * growth_rate
             if i != len(block_config) - 1:
-                trans = _Transition(num_input_features=num_features, num_output_features=num_features // 2)
+                trans = _Transition(
+                    num_input_features=num_features,
+                    num_output_features=num_features // 2,
+                )
                 self.features.add_module("transition%d" % (i + 1), trans)
                 num_features = num_features // 2
 
@@ -214,7 +260,9 @@ def _densenet(
     **kwargs: Any,
 ) -> DenseNet:
 
-    model = DenseNet(growth_rate, block_config, num_init_features, num_classes=num_classes, **kwargs)
+    model = DenseNet(
+        growth_rate, block_config, num_init_features, num_classes=num_classes, **kwargs
+    )
 
     return model
 

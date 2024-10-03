@@ -2,6 +2,7 @@
 This file encapsulates the noise injector to be used
 in the training process
 """
+
 import random
 import numpy as np
 
@@ -64,7 +65,9 @@ def generate_single_masks(shape, sampled_indexes):
     # Corrupt single values in multiple channels
     rand_c = torch.ones(c) > 0  # all channels
     rand_c = [idx for idx in range(c) if rand_c[idx]]
-    rand_h, rand_w = torch.randint(0, h - 1, size=(1,)), torch.randint(0, w - 1, size=(1,))
+    rand_h, rand_w = torch.randint(0, h - 1, size=(1,)), torch.randint(
+        0, w - 1, size=(1,)
+    )
     mask = generate_4Dmask(shape, sampled_indexes, rand_c, rand_w, rand_w)
     return mask
 
@@ -105,22 +108,32 @@ def generate_all_masks(shape, sampled_indexes):
 
 
 class HansGruberNI(torch.nn.Module):
-    def __init__(self, error_model: str = 'random', p: float = 0.3, inject_epoch: int = 0):
+    def __init__(
+        self, error_model: str = "random", p: float = 0.3, inject_epoch: int = 0
+    ):
         super(HansGruberNI, self).__init__()
         # Error model necessary for the forward
         self.error_model = error_model
         self.noise_data = list()
         self.p = p  # fraction of the samples which the injection is applied to
-        self.inject_epoch = inject_epoch  # how many epochs before starting the injection
+        self.inject_epoch = (
+            inject_epoch  # how many epochs before starting the injection
+        )
         self.dummy_param = nn.Parameter(torch.empty(0))  # just to get the device
-        self.mask_generators = [generate_line_masks, generate_square_masks, generate_all_masks]
+        self.mask_generators = [
+            generate_line_masks,
+            generate_square_masks,
+            generate_all_masks,
+        ]
 
     def set_noise_data(self, noise_data: list = None) -> None:
         r"""Set the noise data that we extract and parse from radiation experiments
         The noise data is extracted form a CSV file, pass only a numpy array to the function
         """
         # make a subset of the errors
-        self.noise_data = [i for i in noise_data if i["geometry_format"] == self.error_model]
+        self.noise_data = [
+            i for i in noise_data if i["geometry_format"] == self.error_model
+        ]
 
     @property
     def random_relative_error(self) -> float:
@@ -136,12 +149,27 @@ class HansGruberNI(torch.nn.Module):
         # TODO: Generalize the random generation to the values observed on GEMM output
         # Power Law parameters for the Functional Units
         power_law_fus = [
-            (1.0728769e-07, 1.0868737), (2.0230031, 1.0568325), (8.1847715e-08, 1.082071), (136027.72, 27.1194),
-            (3.0, 1.0678725), (0.03517608, 1.189603), (3.4028237e+38, 443107.0), (2.0, 1.4543958),
-            (0.010238367, 1.1181921), (1.396856e-09, 1.0846596), (2.6865074e-10, 1.0769672), (1.3970158e-09, 1.085144),
-            (0.66699225, 23.798765), (0.66699225, 23.798765), (0.66699225, 23.922783), (0.75000001, 121435080.0),
-            (0.61141304, 3.4316596), (0.75000001, 121435080.0), (0.0, 1.08212), (7.0958774e-08, 1.082116),
-            (0.0, 1.08212)
+            (1.0728769e-07, 1.0868737),
+            (2.0230031, 1.0568325),
+            (8.1847715e-08, 1.082071),
+            (136027.72, 27.1194),
+            (3.0, 1.0678725),
+            (0.03517608, 1.189603),
+            (3.4028237e38, 443107.0),
+            (2.0, 1.4543958),
+            (0.010238367, 1.1181921),
+            (1.396856e-09, 1.0846596),
+            (2.6865074e-10, 1.0769672),
+            (1.3970158e-09, 1.085144),
+            (0.66699225, 23.798765),
+            (0.66699225, 23.798765),
+            (0.66699225, 23.922783),
+            (0.75000001, 121435080.0),
+            (0.61141304, 3.4316596),
+            (0.75000001, 121435080.0),
+            (0.0, 1.08212),
+            (7.0958774e-08, 1.082116),
+            (0.0, 1.08212),
         ]
 
         alpha, x_min = random.choice(power_law_fus)
@@ -153,12 +181,14 @@ class HansGruberNI(torch.nn.Module):
 
     def training_error(self, epoch=0):
         error = torch.rand(size=(1,), device=self.dummy_param.device) * max(1, epoch, 1)
-        #error = torch.rand(size=(1,), device=self.dummy_param.device) * 6 + 1e-6
+        # error = torch.rand(size=(1,), device=self.dummy_param.device) * 6 + 1e-6
         if random.randint(0, 1):
             return error
-        return - error
+        return -error
 
-    def inject(self, forward_input: torch.Tensor, p: float, current_epoch: int = 0) -> torch.Tensor:
+    def inject(
+        self, forward_input: torch.Tensor, p: float, current_epoch: int = 0
+    ) -> torch.Tensor:
         # We can inject the relative errors using only Torch built-in functions
         # Otherwise it is necessary to use AutoGrads
         output = forward_input.clone()
@@ -192,19 +222,19 @@ class HansGruberNI(torch.nn.Module):
                 mask = generate_2Dmask((b, c), sampled_indexes)
                 output[mask] = output[mask].mul_(error)
             else:
-                if self.error_model == 'single':
+                if self.error_model == "single":
                     mask = generate_single_masks(forward_input.shape, sampled_indexes)
 
-                elif self.error_model == 'line':
+                elif self.error_model == "line":
                     mask = generate_line_masks(forward_input.shape, sampled_indexes)
 
-                elif self.error_model == 'square':
+                elif self.error_model == "square":
                     mask = generate_square_masks(forward_input.shape, sampled_indexes)
 
-                elif self.error_model == 'all':
+                elif self.error_model == "all":
                     mask = generate_all_masks(forward_input.shape, sampled_indexes)
 
-                elif self.error_model == 'random':
+                elif self.error_model == "random":
                     f = random.choice(self.mask_generators)
                     mask = f(forward_input.shape, sampled_indexes)
 
@@ -212,7 +242,9 @@ class HansGruberNI(torch.nn.Module):
 
         return output
 
-    def forward(self, forward_input: torch.Tensor, inject: bool = True, current_epoch: int = 0) -> torch.Tensor:
+    def forward(
+        self, forward_input: torch.Tensor, inject: bool = True, current_epoch: int = 0
+    ) -> torch.Tensor:
         r"""Perform a 'forward' operation to simulate the error model injection
         in the training process
         :param inject: whether to apply injection or not at test time

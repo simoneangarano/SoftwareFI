@@ -14,31 +14,37 @@ class ModelWrapper(pl.LightningModule):
         self.n_classes = n_classes
         self.optim = optim
 
-        if loss == 'bce':
+        if loss == "bce":
             self.criterion = nn.BCEWithLogitsLoss()
             self.use_one_hot = True
-        elif loss == 'ce':
+        elif loss == "ce":
             self.criterion = nn.CrossEntropyLoss()
             self.use_one_hot = False
-        elif loss == 'sce':
+        elif loss == "sce":
             self.criterion = SymmetricCELoss()
             self.use_one_hot = True
 
-        self.save_hyperparameters('model', 'n_classes', 'optim', 'loss')
+        self.save_hyperparameters("model", "n_classes", "optim", "loss")
 
     def forward(self, x, inject=True):
         return self.model(x, inject, self.current_epoch)
 
     def configure_optimizers(self):
-        if self.optim['optimizer'] == 'sgd':
-            optimizer = SGD(self.parameters(), lr=self.optim['lr'], weight_decay=self.optim['wd'],
-                            momentum=0.9)
+        if self.optim["optimizer"] == "sgd":
+            optimizer = SGD(
+                self.parameters(),
+                lr=self.optim["lr"],
+                weight_decay=self.optim["wd"],
+                momentum=0.9,
+            )
 
-        elif self.optim['optimizer'] == 'adamw':
-            optimizer = AdamW(self.parameters(), lr=self.optim['lr'], weight_decay=self.optim['wd'])
+        elif self.optim["optimizer"] == "adamw":
+            optimizer = AdamW(
+                self.parameters(), lr=self.optim["lr"], weight_decay=self.optim["wd"]
+            )
 
-        scheduler = CosineAnnealingLR(optimizer, self.optim['epochs'], eta_min=1e-4)
-        return {'optimizer': optimizer, 'lr_scheduler': scheduler}
+        scheduler = CosineAnnealingLR(optimizer, self.optim["epochs"], eta_min=1e-4)
+        return {"optimizer": optimizer, "lr_scheduler": scheduler}
 
     def get_metrics(self, batch, inject=True):
         x, y = batch
@@ -64,8 +70,8 @@ class ModelWrapper(pl.LightningModule):
     def training_step(self, train_batch, batch_idx):
         loss, acc, _ = self.get_metrics(train_batch)
 
-        self.epoch_log('train_loss', loss)
-        self.epoch_log('train_acc', acc)
+        self.epoch_log("train_loss", loss)
+        self.epoch_log("train_acc", acc)
         return loss
 
     def check_criticality(self, gold: tuple, faulty: tuple):
@@ -74,35 +80,38 @@ class ModelWrapper(pl.LightningModule):
         # Magic number to define whats is an zero
         err_lambda = 1e-4
         # Check if the sum of diffs are
-        value_diff_pct = torch.sum(torch.abs(gold_vals - fault_vals) > err_lambda) / gold_vals.shape[0]
+        value_diff_pct = (
+            torch.sum(torch.abs(gold_vals - fault_vals) > err_lambda)
+            / gold_vals.shape[0]
+        )
         preds_diff_pct = torch.sum(gold_preds != fault_preds) / gold_vals.shape[0]
-        self.epoch_log('value_diff_pct', value_diff_pct)
-        self.epoch_log('preds_diff_pct', preds_diff_pct)
+        self.epoch_log("value_diff_pct", value_diff_pct)
+        self.epoch_log("preds_diff_pct", preds_diff_pct)
 
     def validation_step(self, val_batch, batch_idx, check_criticality=True):
         loss, acc, clean_vals = self.get_metrics(val_batch, False)
         noisy_loss, noisy_acc, noisy_vals = self.get_metrics(val_batch)
 
         # Test the accuracy
-        self.epoch_log('val_loss', loss)
-        self.epoch_log('val_acc', acc)
-        self.epoch_log('noisy_val_loss', noisy_loss)
-        self.epoch_log('noisy_val_acc', noisy_acc)
+        self.epoch_log("val_loss", loss)
+        self.epoch_log("val_acc", acc)
+        self.epoch_log("noisy_val_loss", noisy_loss)
+        self.epoch_log("noisy_val_acc", noisy_acc)
         if check_criticality:
             self.check_criticality(gold=clean_vals, faulty=noisy_vals)
         return noisy_loss
 
     def on_train_epoch_start(self):
-        lr = self.optimizers().param_groups[0]['lr']
-        self.epoch_log('lr', lr)
+        lr = self.optimizers().param_groups[0]["lr"]
+        self.epoch_log("lr", lr)
 
     def epoch_log(self, name, value, prog_bar=True):
         self.log(name, value, on_step=False, on_epoch=True, prog_bar=prog_bar)
 
 
-def get_one_hot(target, n_classes=10, device='cuda'):
+def get_one_hot(target, n_classes=10, device="cuda"):
     one_hot = torch.zeros(target.shape[0], n_classes, device=device)
-    one_hot = one_hot.scatter(dim=1, index=target.long().view(-1, 1), value=1.)
+    one_hot = one_hot.scatter(dim=1, index=target.long().view(-1, 1), value=1.0)
     return one_hot
 
 
@@ -115,7 +124,7 @@ class SymmetricCELoss(nn.Module):
         self.Softmax = nn.Softmax()
 
     def negative_log_likelihood(self, inputs, targets):
-        return - torch.sum(targets * torch.log(inputs + 1e-6)) / inputs.shape[0]
+        return -torch.sum(targets * torch.log(inputs + 1e-6)) / inputs.shape[0]
 
     def forward(self, inputs, targets):
         inputs = self.Softmax(inputs)

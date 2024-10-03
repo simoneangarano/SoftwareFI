@@ -6,12 +6,18 @@ import torch.nn as nn
 from torch import Tensor
 
 from torchvision.models import ResNet101_Weights
+
 try:
-    from pytorch_scripts.segmentation.deeplabv3_custom.activations import RobustActivation
+    from pytorch_scripts.segmentation.deeplabv3_custom.activations import (
+        RobustActivation,
+    )
 except ModuleNotFoundError:
     from activations import RobustActivation
 
-def conv3x3(in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1) -> nn.Conv2d:
+
+def conv3x3(
+    in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1
+) -> nn.Conv2d:
     """3x3 convolution with padding"""
     return nn.Conv2d(
         in_planes,
@@ -24,9 +30,11 @@ def conv3x3(in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, d
         dilation=dilation,
     )
 
+
 def conv1x1(in_planes: int, out_planes: int, stride: int = 1) -> nn.Conv2d:
     """1x1 convolution"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
+
 
 class Bottleneck(nn.Module):
     # Bottleneck in torchvision places the stride for downsampling at 3x3 convolution(self.conv2)
@@ -47,7 +55,7 @@ class Bottleneck(nn.Module):
         base_width: int = 64,
         dilation: int = 1,
         norm_layer: Optional[Callable[..., nn.Module]] = None,
-        activation: str = 'max'
+        activation: str = "max",
     ) -> None:
         super().__init__()
         if norm_layer is None:
@@ -61,11 +69,11 @@ class Bottleneck(nn.Module):
         self.conv3 = conv1x1(width, planes * self.expansion)
         self.bn3 = norm_layer(planes * self.expansion)
 
-        #self.relu = nn.ReLU(inplace=True)
-        self.relumax1 = RobustActivation(nn.ReLU(inplace=True), activation) #!
-        self.relumax2 = RobustActivation(nn.ReLU(inplace=True), activation) #!
-        self.relumax3 = RobustActivation(nn.ReLU(inplace=True), activation) #!
-        
+        # self.relu = nn.ReLU(inplace=True)
+        self.relumax1 = RobustActivation(nn.ReLU(inplace=True), activation)  #!
+        self.relumax2 = RobustActivation(nn.ReLU(inplace=True), activation)  #!
+        self.relumax3 = RobustActivation(nn.ReLU(inplace=True), activation)  #!
+
         self.downsample = downsample
         self.stride = stride
 
@@ -74,12 +82,12 @@ class Bottleneck(nn.Module):
 
         out = self.conv1(x)
         out = self.bn1(out)
-        #out = self.relu(out)
+        # out = self.relu(out)
         out = self.relumax1(out)
 
         out = self.conv2(out)
         out = self.bn2(out)
-        #out = self.relu(out)
+        # out = self.relu(out)
         out = self.relumax2(out)
 
         out = self.conv3(out)
@@ -89,10 +97,11 @@ class Bottleneck(nn.Module):
             identity = self.downsample(x)
 
         out += identity
-        #out = self.relu(out)
+        # out = self.relu(out)
         out = self.relumax3(out)
 
         return out
+
 
 class ResNet(nn.Module):
     def __init__(
@@ -105,7 +114,7 @@ class ResNet(nn.Module):
         width_per_group: int = 64,
         replace_stride_with_dilation: Optional[List[bool]] = None,
         norm_layer: Optional[Callable[..., nn.Module]] = None,
-        activation: str = 'max'
+        activation: str = "max",
     ) -> None:
         super().__init__()
         if norm_layer is None:
@@ -125,14 +134,37 @@ class ResNet(nn.Module):
             )
         self.groups = groups
         self.base_width = width_per_group
-        self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False)
+        self.conv1 = nn.Conv2d(
+            3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
+        )
         self.bn1 = norm_layer(self.inplanes)
-        self.relu = RobustActivation(nn.ReLU(inplace=True), activation) #!
+        self.relu = RobustActivation(nn.ReLU(inplace=True), activation)  #!
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(block, 64, layers[0], activation=activation)
-        self.layer2 = self._make_layer(block, 128, layers[1], stride=2, dilate=replace_stride_with_dilation[0], activation=activation)
-        self.layer3 = self._make_layer(block, 256, layers[2], stride=2, dilate=replace_stride_with_dilation[1], activation=activation)
-        self.layer4 = self._make_layer(block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2], activation=activation)
+        self.layer2 = self._make_layer(
+            block,
+            128,
+            layers[1],
+            stride=2,
+            dilate=replace_stride_with_dilation[0],
+            activation=activation,
+        )
+        self.layer3 = self._make_layer(
+            block,
+            256,
+            layers[2],
+            stride=2,
+            dilate=replace_stride_with_dilation[1],
+            activation=activation,
+        )
+        self.layer4 = self._make_layer(
+            block,
+            512,
+            layers[3],
+            stride=2,
+            dilate=replace_stride_with_dilation[2],
+            activation=activation,
+        )
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(512 * block.expansion, num_classes)
 
@@ -158,7 +190,7 @@ class ResNet(nn.Module):
         blocks: int,
         stride: int = 1,
         dilate: bool = False,
-        activation: str = 'max'
+        activation: str = "max",
     ) -> nn.Sequential:
         norm_layer = self._norm_layer
         downsample = None
@@ -175,7 +207,15 @@ class ResNet(nn.Module):
         layers = []
         layers.append(
             block(
-                self.inplanes, planes, stride, downsample, self.groups, self.base_width, previous_dilation, norm_layer, activation
+                self.inplanes,
+                planes,
+                stride,
+                downsample,
+                self.groups,
+                self.base_width,
+                previous_dilation,
+                norm_layer,
+                activation,
             )
         )
         self.inplanes = planes * block.expansion
@@ -188,7 +228,7 @@ class ResNet(nn.Module):
                     base_width=self.base_width,
                     dilation=self.dilation,
                     norm_layer=norm_layer,
-                    activation=activation
+                    activation=activation,
                 )
             )
 
@@ -215,18 +255,25 @@ class ResNet(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         return self._forward_impl(x)
 
+
 def _ovewrite_named_param(kwargs, param: str, new_value) -> None:
     if param in kwargs:
         if kwargs[param] != new_value:
-            raise ValueError(f"The parameter '{param}' expected value {new_value} but got {kwargs[param]} instead.")
+            raise ValueError(
+                f"The parameter '{param}' expected value {new_value} but got {kwargs[param]} instead."
+            )
     else:
         kwargs[param] = new_value
+
 
 def _ovewrite_value_param(param: str, actual, expected):
     if actual is not None:
         if actual != expected:
-            raise ValueError(f"The parameter '{param}' expected value {expected} but got {actual} instead.")
+            raise ValueError(
+                f"The parameter '{param}' expected value {expected} but got {actual} instead."
+            )
     return expected
+
 
 def _resnet(
     block: Type[Bottleneck],
@@ -244,6 +291,7 @@ def _resnet(
         model.load_state_dict(weights.get_state_dict(progress=progress))
 
     return model
+
 
 def resnet101(*, weights=None, progress: bool = True, **kwargs: Any) -> ResNet:
     """ResNet-101 from `Deep Residual Learning for Image Recognition <https://arxiv.org/pdf/1512.03385.pdf>`__.

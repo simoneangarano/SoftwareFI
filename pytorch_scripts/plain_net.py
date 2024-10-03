@@ -5,6 +5,7 @@ import os
 from PIL import Image
 import torchvision.transforms as transforms
 
+
 class ClientModel(nn.Module):
     def __init__(self, lr, num_classes, device):
         super(ClientModel, self).__init__()
@@ -15,21 +16,21 @@ class ClientModel(nn.Module):
         self.layer1 = nn.Sequential(
             nn.Conv2d(in_channels=3, out_channels=64, kernel_size=5),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2)
+            nn.MaxPool2d(kernel_size=2),
         )
 
         self.layer2 = nn.Sequential(
             nn.Conv2d(in_channels=64, out_channels=64, kernel_size=5),
             nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2)
+            nn.MaxPool2d(kernel_size=2),
         )
 
         self.classifier = nn.Sequential(
-            nn.Linear(64*5*5, 384),
+            nn.Linear(64 * 5 * 5, 384),
             nn.ReLU(),
             nn.Linear(384, 192),
             nn.ReLU(),
-            nn.Linear(192, self.num_classes)
+            nn.Linear(192, self.num_classes),
         )
 
         self.size = self.model_size()
