@@ -43,3 +43,7 @@ data/
 wandb/
 checkpoints/*.ckpt
 __pycache__
+
+# Custom
+.vscode/
+lightning_logs/

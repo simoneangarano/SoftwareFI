@@ -24,9 +24,9 @@ parser = argparse.ArgumentParser(description='PyTorch Training')
 parser.add_argument('--name', default='test', help='Experiment name.')
 parser.add_argument('--mode', default='train', help='Mode: train/training or validation/validate.')
 parser.add_argument('--ckpt', default=None, help='Pass the name of a checkpoint to resume training.')
-parser.add_argument('--dataset', default='cifar10', help='Dataset name: cifar10 or cifar100.')
+parser.add_argument('--dataset', default='tinyimagenet', help='Dataset name: cifar10 or cifar100.')
 parser.add_argument('--data_dir', default='./data', help='Path to dataset.')
-parser.add_argument('--device', default=1, help='Device number.')
+parser.add_argument('--device', default=0, help='Device number.')
 
 # Optimization
 parser.add_argument('--loss', default='bce', help='Loss: bce, ce or sce.')
@@ -37,7 +37,7 @@ parser.add_argument('--lr', default=1e-1, help='Learning rate.')
 parser.add_argument('--optimizer', default='sgd', help='Optimizer name: adamw or sgd.')
 
 # Model
-parser.add_argument('--model', default='resnet20', help='Network name. Resnets only for now.')
+parser.add_argument('--model', default='ghostnetv2', help='Network name. Resnets only for now.')
 parser.add_argument('--order', default='bn-relu', help='Order of activation and normalization: bn-relu or relu-bn.')
 parser.add_argument('--affine', default=True, help='Whether to use Affine transform after normalization or not.')
 parser.add_argument('--activation', default='relu', help='Non-linear activation: relu or relu6.')
@@ -81,7 +81,8 @@ def main():
                       args.inject_epoch, args.order, args.activation, args.nan, args.affine)
 
     # W&B logger
-    wandb_logger = WandbLogger(project="NeutronRobustness", name=args.name, id=args.name, entity="neutronstrikesback")
+    # wandb_logger = None
+    wandb_logger = WandbLogger(project="asi", name=args.name, id=args.name)
     wandb_logger.log_hyperparams(args)
     wandb_logger.watch(net, log_graph=False)
 
@@ -91,7 +92,7 @@ def main():
 
     # Pytorch-Lightning Trainer
     trainer = pl.Trainer(max_epochs=args.epochs, devices=[int(args.device)], callbacks=callbacks, logger=wandb_logger,
-                         deterministic=True, benchmark=True, accelerator='gpu', strategy="dp", sync_batchnorm=True,
+                         deterministic=True, benchmark=True, accelerator='gpu', strategy="auto", sync_batchnorm=True,
                          gradient_clip_val=args.clip)
 
     if args.ckpt:
