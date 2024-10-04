@@ -15,7 +15,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from pytorch_scripts.hg_noise_injector.hans_gruber import HansGruberNI
+from utils.hg_noise_injector.hans_gruber import HansGruberNI
 
 __all__ = ["ghostnetv2"]
 

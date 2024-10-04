@@ -3,11 +3,29 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 
-from pytorch_scripts.hg_noise_injector.hans_gruber import HansGruberNI
+from utils.hg_noise_injector.hans_gruber import HansGruberNI
+
 
 ###############
 # GhostNetV2  #
 ###############
+
+
+class NaNReLU(nn.Module):
+    def __init__(self, nan=True, act="relu", inplace=False):
+        super().__init__()
+
+        if act == "relu":
+            self.act = nn.ReLU(inplace=inplace)
+        elif act == "relu6":
+            self.act = F.relu6
+        self.nan = nan
+
+    def forward(self, x):
+        if self.nan:
+            return torch.nan_to_num(self.act(x), 0.0)
+        else:
+            return self.act(x)
 
 
 class ConvInjector(nn.Module):
@@ -97,7 +115,7 @@ def hard_sigmoid(x, inplace: bool = False):
     if inplace:
         return x.add_(3.0).clamp_(0.0, 6.0).div_(6.0)
     else:
-        return F.relu6(x + 3.0) / 6.0
+        return NaNReLU()(x + 3.0) / 6.0
 
 
 class SqueezeExcite(nn.Module):
@@ -106,7 +124,7 @@ class SqueezeExcite(nn.Module):
         in_chs,
         se_ratio=0.25,
         reduced_base_chs=None,
-        act_layer=nn.ReLU,
+        act_layer=NaNReLU,
         gate_fn=hard_sigmoid,
         divisor=4,
         error_model="random",
@@ -158,7 +176,7 @@ class ConvBnAct(nn.Module):
         out_chs,
         kernel_size,
         stride=1,
-        act_layer=nn.ReLU,
+        act_layer=NaNReLU,
         error_model="random",
         inject_p=0.01,
         inject_epoch=0,
@@ -226,7 +244,7 @@ class GhostModuleV2(nn.Module):
                     inject_epoch=inject_epoch,
                 ),
                 nn.BatchNorm2d(init_channels),
-                nn.ReLU(inplace=True) if relu else SequentialInjector(),
+                NaNReLU(inplace=True) if relu else SequentialInjector(),
             )
             self.cheap_operation = SequentialInjector(
                 ConvInjector(
@@ -242,7 +260,7 @@ class GhostModuleV2(nn.Module):
                     inject_epoch=inject_epoch,
                 ),
                 nn.BatchNorm2d(new_channels),
-                nn.ReLU(inplace=True) if relu else SequentialInjector(),
+                NaNReLU(inplace=True) if relu else SequentialInjector(),
             )
         elif self.mode in ["attn"]:
             self.oup = oup
@@ -261,7 +279,7 @@ class GhostModuleV2(nn.Module):
                     inject_epoch=inject_epoch,
                 ),
                 nn.BatchNorm2d(init_channels),
-                nn.ReLU(inplace=True) if relu else SequentialInjector(),
+                NaNReLU(inplace=True) if relu else SequentialInjector(),
             )
             self.cheap_operation = SequentialInjector(
                 ConvInjector(
@@ -277,7 +295,7 @@ class GhostModuleV2(nn.Module):
                     inject_epoch=inject_epoch,
                 ),
                 nn.BatchNorm2d(new_channels),
-                nn.ReLU(inplace=True) if relu else SequentialInjector(),
+                NaNReLU(inplace=True) if relu else SequentialInjector(),
             )
             self.short_conv = SequentialInjector(
                 ConvInjector(
@@ -366,7 +384,7 @@ class GhostBottleneckV2(nn.Module):
         out_chs,
         dw_kernel_size=3,
         stride=1,
-        act_layer=nn.ReLU,
+        act_layer=NaNReLU,
         se_ratio=0.0,
         layer_id=None,
         args=None,
@@ -542,7 +560,7 @@ class GhostNetV2(nn.Module):
             inject_epoch=inject_epoch,
         )
         self.bn1 = nn.BatchNorm2d(output_channel)
-        self.act1 = nn.ReLU(inplace=True)
+        self.act1 = NaNReLU(inplace=True)
         input_channel = output_channel
 
         # building inverted residual blocks
@@ -605,7 +623,7 @@ class GhostNetV2(nn.Module):
             inject_p=inject_p,
             inject_epoch=inject_epoch,
         )
-        self.act2 = nn.ReLU(inplace=True)
+        self.act2 = NaNReLU(inplace=True)
         self.classifier = LinearInjector(
             output_channel,
             num_classes,

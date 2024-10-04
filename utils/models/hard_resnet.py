@@ -12,7 +12,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.init as init
 
-from .hg_noise_injector.hans_gruber import HansGruberNI
+from ..hg_noise_injector.hans_gruber import HansGruberNI
 
 __all__ = [
     "HardResNet",

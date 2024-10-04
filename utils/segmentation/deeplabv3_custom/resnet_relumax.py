@@ -8,7 +8,7 @@ from torch import Tensor
 from torchvision.models import ResNet101_Weights
 
 try:
-    from pytorch_scripts.segmentation.deeplabv3_custom.activations import (
+    from utils.segmentation.deeplabv3_custom.activations import (
         RobustActivation,
     )
 except ModuleNotFoundError:

@@ -7,8 +7,8 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 
 # DieHardNET packages
-from pytorch_scripts.utils import *
-from pytorch_scripts.data_module import CifarDataModule
+from utils.utils import *
+from utils.data.data_module import CifarDataModule
 
 # Suppress the annoying warning for non-empty checkpoint directory
 warnings.filterwarnings("ignore")

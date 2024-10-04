@@ -8,45 +8,8 @@ import torchvision
 from pytorchfi import core as pfi_core
 from pytorchfi import neuron_error_models as pfi_neuron_error_models
 
-from pytorch_scripts.utils import build_model, parse_args
-
-
-def load_imagenet(
-    data_dir: str, subset_size: int, transform: torchvision.transforms.Compose
-) -> torch.utils.data.DataLoader:
-    """Load imagenet from the folder <data_dir>/imagenet"""
-    # Get a dataset
-    test_set = torchvision.datasets.imagenet.ImageNet(
-        root=data_dir + "/imagenet", split="val", transform=transform
-    )
-
-    subset = torch.utils.data.Subset(test_set, range(subset_size))
-    test_loader = torch.utils.data.DataLoader(subset, batch_size=1, shuffle=False)
-    return test_loader
-
-
-def load_cifar100(
-    data_dir: str, transform: torchvision.transforms.Compose
-) -> torch.utils.data.DataLoader:
-    """Load CIFAR 100 from <data dir>"""
-    # Get a dataset
-    test_set = torchvision.datasets.cifar.CIFAR100(
-        root=data_dir, download=True, train=False, transform=transform
-    )
-    test_loader = torch.utils.data.DataLoader(test_set, batch_size=1, shuffle=False)
-    return test_loader
-
-
-def load_cifar10(
-    data_dir: str, transform: torchvision.transforms.Compose
-) -> torch.utils.data.DataLoader:
-    """Load CIFAR 10 from <data dir>"""
-    # Get a dataset
-    test_set = torchvision.datasets.cifar.CIFAR10(
-        root=data_dir, download=True, train=False, transform=transform
-    )
-    test_loader = torch.utils.data.DataLoader(test_set, batch_size=1, shuffle=False)
-    return test_loader
+from utils.utils import build_model, parse_args
+from utils.test_utils import CoreDataModule
 
 
 # single random neuron error in single batch element
@@ -57,7 +20,7 @@ def random_neuron_inj(pfi, min_val=-1, max_val=1):
     pfi_obj = pfi.declare_neuron_fi(
         batch=[b], layer_num=[layer], dim1=[C], dim2=[H], dim3=[W], value=[err_val]
     )
-    config = dict(layer=layer, chanel=C, height=H, width=W, err_val=err_val)
+    config = dict(layer=layer, channel=C, height=H, width=W, err_val=err_val)
     return pfi_obj, config
 
 
@@ -69,7 +32,7 @@ def load_ptl_model(args):
         "lr": args.lr,
         "wd": args.wd,
     }
-    n_classes = 10 if args.dataset == "cifar10" else 100
+    n_classes = 1000
 
     ptl_model = build_model(
         model=args.model,
@@ -81,8 +44,10 @@ def load_ptl_model(args):
         activation=args.activation,
         affine=args.affine,
     )
-    checkpoint = torch.load(args.ckpt)
-    ptl_model.load_state_dict(checkpoint["state_dict"])
+
+    if args.ckpt:
+        checkpoint = torch.load(args.ckpt, weights_only=True)
+        ptl_model.load_state_dict(checkpoint["state_dict"])
     return ptl_model.model
 
 
@@ -96,26 +61,16 @@ def perform_fault_injection_for_a_model(args):
     golden_model = load_ptl_model(args=args)
     golden_model.eval()
     golden_model = golden_model.to("cuda")
-    load_data = load_cifar100
-    if args.dataset == "cifar10":
-        load_data = load_cifar10
 
-    test_loader = load_data(
-        data_dir="data",
-        transform=torchvision.transforms.Compose(
-            [
-                torchvision.transforms.ToTensor(),
-                torchvision.transforms.Normalize(
-                    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
-                ),
-            ]
-        ),
-    )
+    # Load the dataset
+    datamodule = CoreDataModule(batch_size=128)
+    test_loader = datamodule.test_dataloader()
+
     # Testing PytorchFI
     pfi_model = pfi_core.fault_injection(
         golden_model,
         1,
-        input_shape=[3, 32, 32],
+        input_shape=[5, 512, 512],
         layer_types=[
             torch.nn.Conv1d,
             torch.nn.Conv2d,
@@ -135,17 +90,17 @@ def perform_fault_injection_for_a_model(args):
             image_gpu = image.to("cuda")
             # Golden execution
             model_time = time.time()
-            gold_output = golden_model(image_gpu, inject=False)
+            out, intermediates = golden_model(image_gpu, inject=False)
             model_time = time.time() - model_time
-
+            gold_output = intermediates[-1]
             gold_output_cpu = gold_output.to("cpu")
-            gold_top_k_labels = torch.topk(gold_output_cpu, k=k).indices.squeeze(0)
-            gold_probabilities = torch.tensor(
-                [
-                    torch.softmax(gold_output_cpu, dim=1)[0, idx].item()
-                    for idx in gold_top_k_labels
-                ]
-            )
+            # gold_top_k_labels = torch.topk(gold_output_cpu, k=k).indices.squeeze(0)
+            # gold_probabilities = torch.tensor(
+            #     [
+            #         torch.softmax(gold_output_cpu, dim=1)[0, idx].item()
+            #         for idx in gold_top_k_labels
+            #     ]
+            # )
 
             if inj_site == "neuron":
                 inj, config_dict = random_neuron_inj(
@@ -158,52 +113,54 @@ def perform_fault_injection_for_a_model(args):
 
             inj.eval()
             injection_time = time.time()
-            inj_output = inj(image_gpu, inject=False)
+            out, intermediates = inj(image_gpu, inject=False)
             injection_time = time.time() - injection_time
-
+            inj_output = intermediates[-1]
             inj_output_cpu = inj_output.to("cpu")
-            inj_top_k_labels = torch.topk(inj_output_cpu, k=k).indices.squeeze(0)
-            inj_probabilities = torch.tensor(
-                [
-                    torch.softmax(inj_output_cpu, dim=1)[0, idx].item()
-                    for idx in inj_top_k_labels
-                ]
-            )
+            # inj_top_k_labels = torch.topk(inj_output_cpu, k=k).indices.squeeze(0)
+            # inj_probabilities = torch.tensor(
+            #     [
+            #         torch.softmax(inj_output_cpu, dim=1)[0, idx].item()
+            #         for idx in inj_top_k_labels
+            #     ]
+            # )
 
             if i % 100 == 0:
                 print(f"Time to gold {model_time} - Time to inject {injection_time}")
             injected_faults += 1
 
-            gold_top1_label = int(torch.topk(gold_output, k=1).indices.squeeze(0))
-            inj_top1_label = int(torch.topk(inj_output, k=1).indices.squeeze(0))
-            gold_top1_prob = torch.softmax(gold_output, dim=1)[
-                0, gold_top1_label
-            ].item()
-            inj_top1_prob = torch.softmax(inj_output, dim=1)[0, inj_top1_label].item()
+            # gold_top1_label = int(torch.topk(gold_output, k=1).indices.squeeze(0))
+            # inj_top1_label = int(torch.topk(inj_output, k=1).indices.squeeze(0))
+            # gold_top1_prob = torch.softmax(gold_output, dim=1)[
+            #     0, gold_top1_label
+            # ].item()
+            # inj_top1_prob = torch.softmax(inj_output, dim=1)[0, inj_top1_label].item()
 
-            if torch.any(torch.not_equal(gold_probabilities, inj_probabilities)):
-                sdc, critical_sdc = 1, int(
-                    torch.any(torch.not_equal(gold_top_k_labels, inj_top_k_labels))
+            # if torch.any(torch.not_equal(gold_probabilities, inj_probabilities)):
+            #     sdc, critical_sdc = 1, int(
+            #         torch.any(torch.not_equal(gold_top_k_labels, inj_top_k_labels))
+            #     )
+            #     sdc_counter += sdc
+            #     critical_sdc_counter += critical_sdc
+            injection_data.append(
+                dict(
+                    mse=torch.nn.functional.mse_loss(gold_output, inj_output).item(),
+                    mae=torch.nn.functional.l1_loss(gold_output, inj_output).item(),
+                    # SDC=sdc,
+                    # critical_SDCs=critical_sdc,
+                    # gold_probs=gold_probabilities.tolist(),
+                    # inj_probs=inj_probabilities.tolist(),
+                    # gold_labels=gold_top_k_labels.tolist(),
+                    # inj_labels=inj_top_k_labels.tolist(),
+                    # ground_truth_label=label,
+                    # gold_top1_label=gold_top1_label,
+                    # inj_top1_label=inj_top1_label,
+                    # gold_top1_prob=gold_top1_prob,
+                    # inj_top1_prob=inj_top1_prob,
+                    **config_dict,
+                    # gold_argmax=torch.max(gold_output_cpu, 1), inj_argmax=torch.max(inj_output_cpu, 1)
                 )
-                sdc_counter += sdc
-                critical_sdc_counter += critical_sdc
-                injection_data.append(
-                    dict(
-                        SDC=sdc,
-                        critical_SDCs=critical_sdc,
-                        gold_probs=gold_probabilities.tolist(),
-                        inj_probs=inj_probabilities.tolist(),
-                        gold_labels=gold_top_k_labels.tolist(),
-                        inj_labels=inj_top_k_labels.tolist(),
-                        ground_truth_label=label,
-                        gold_top1_label=gold_top1_label,
-                        inj_top1_label=inj_top1_label,
-                        gold_top1_prob=gold_top1_prob,
-                        inj_top1_prob=inj_top1_prob,
-                        **config_dict,
-                        # gold_argmax=torch.max(gold_output_cpu, 1), inj_argmax=torch.max(inj_output_cpu, 1)
-                    )
-                )
+            )
 
             # if i == 100:
             #     break
@@ -226,7 +183,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--config",
-        default="",
+        default="configurations/ghostnetv2.yaml",
         type=str,
         metavar="FILE",
         help="YAML config file specifying default arguments.",

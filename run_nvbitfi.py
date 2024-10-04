@@ -6,7 +6,7 @@ import torch
 import torchvision
 import yaml
 
-from pytorch_scripts.utils import build_model
+from utils.utils import build_model
 
 DATA_DIR = "/home/carol/git_research/diehardnet/data"
 INTERMEDIATE_LAYERS = dict()

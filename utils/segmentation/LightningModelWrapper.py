@@ -4,8 +4,8 @@ import torch
 import torch.nn as nn
 from torch.optim import SGD
 from torch.optim.lr_scheduler import PolynomialLR, StepLR
-from pytorch_scripts.segmentation.losses import FocalLoss
-from pytorch_scripts.segmentation.stream_metrics import StreamSegMetrics
+from utils.segmentation.losses import FocalLoss
+from utils.segmentation.stream_metrics import StreamSegMetrics
 
 
 class ModelWrapper(pl.LightningModule):

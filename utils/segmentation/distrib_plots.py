@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import torch
-from pytorch_scripts.utils import build_model
+from utils.utils import build_model
 
 sns.set_theme(style="whitegrid")
 

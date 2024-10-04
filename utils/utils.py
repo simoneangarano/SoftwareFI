@@ -1,10 +1,11 @@
 import yaml
 from timm.data import create_loader, FastCollateMixup
 
-from .LightningModelWrapper import ModelWrapper
-from .hard_resnet import *
-from .hard_densenet import *
-from .ghostnetv2 import ghostnetv2
+from .models.LightningModelWrapper import ModelWrapper
+from .models.hard_resnet import *
+from .models.hard_densenet import *
+from .models.ghostnetv2 import ghostnetv2
+from utils.test_utils import load_fi_weights
 
 
 def build_model(
@@ -73,6 +74,7 @@ def build_model(
             inject_p=inject_p,
             inject_epoch=inject_epoch,
         )
+        net = load_fi_weights(net, "weights/GN_SSL_280.pt")
     else:
         model = "hard_resnet20"
         net = hard_resnet20(
@@ -94,7 +96,7 @@ def get_loader(
     data,
     batch_size=128,
     workers=4,
-    n_classes=100,
+    n_classes=1000,
     stats=None,
     mixup_cutmix=True,
     rand_erasing=0.0,

@@ -6,10 +6,10 @@ from torchvision.models.segmentation import DeepLabV3_ResNet101_Weights
 
 # from torchvision.models import resnet101
 try:
-    from pytorch_scripts.segmentation.deeplabv3_custom.activations import (
+    from utils.segmentation.deeplabv3_custom.activations import (
         RobustActivation,
     )
-    from pytorch_scripts.segmentation.deeplabv3_custom.resnet_relumax import resnet101
+    from utils.segmentation.deeplabv3_custom.resnet_relumax import resnet101
 except ModuleNotFoundError:
     from activations import RobustActivation
     from resnet_relumax import resnet101
