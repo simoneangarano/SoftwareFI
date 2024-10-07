@@ -2,109 +2,21 @@
 
 import argparse
 import warnings
+
+import torch
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 
 # DieHardNET packages
-from utils.utils import *
-from utils.data.data_module import CifarDataModule
+from utils.utils import get_parser, parse_args, build_model
+from utils.data.data_module import CifarDataModule, CoreDataModule
 
 # Suppress the annoying warning for non-empty checkpoint directory
 warnings.filterwarnings("ignore")
+torch.set_float32_matmul_precision("high")
 
-config_parser = parser = argparse.ArgumentParser(
-    description="Configuration", add_help=False
-)
-parser.add_argument(
-    "-c",
-    "--config",
-    default="",
-    type=str,
-    metavar="FILE",
-    help="YAML config file specifying default arguments.",
-)
-
-parser = argparse.ArgumentParser(description="PyTorch Training")
-
-
-# General
-parser.add_argument("--name", default="test", help="Experiment name.")
-parser.add_argument(
-    "--mode", default="train", help="Mode: train/training or validation/validate."
-)
-parser.add_argument(
-    "--ckpt", default=None, help="Pass the name of a checkpoint to resume training."
-)
-parser.add_argument(
-    "--dataset", default="tinyimagenet", help="Dataset name: cifar10 or cifar100."
-)
-parser.add_argument("--data_dir", default="./data", help="Path to dataset.")
-parser.add_argument("--device", default=0, help="Device number.")
-
-# Optimization
-parser.add_argument("--loss", default="bce", help="Loss: bce, ce or sce.")
-parser.add_argument("--clip", default=None, help="Gradient clipping value.")
-parser.add_argument("--epochs", default=150, help="Number of epochs.")
-parser.add_argument("--batch_size", default=128, help="Batch Size")
-parser.add_argument("--lr", default=1e-1, help="Learning rate.")
-parser.add_argument("--optimizer", default="sgd", help="Optimizer name: adamw or sgd.")
-
-# Model
-parser.add_argument(
-    "--model", default="ghostnetv2", help="Network name. Resnets only for now."
-)
-parser.add_argument(
-    "--order",
-    default="bn-relu",
-    help="Order of activation and normalization: bn-relu or relu-bn.",
-)
-parser.add_argument(
-    "--affine",
-    default=True,
-    help="Whether to use Affine transform after normalization or not.",
-)
-parser.add_argument(
-    "--activation", default="relu", help="Non-linear activation: relu or relu6."
-)
-parser.add_argument("--nan", default=False, help="Whether to convert NaNs to 0 or not.")
-
-# Injection
-parser.add_argument(
-    "--error_model", default="random", help="Optimizer name: adamw or sgd."
-)
-parser.add_argument(
-    "--inject_p", default=0.1, help="Probability of noise injection at training time."
-)
-parser.add_argument(
-    "--inject_epoch", default=0, help="How many epochs before starting the injection."
-)
-
-# Augmentations and Regularisations
-parser.add_argument("--wd", default=1e-4, help="Weight Decay.")
-parser.add_argument(
-    "--rand_aug", type=str, default=None, help="RandAugment magnitude and std."
-)
-parser.add_argument(
-    "--rand_erasing", type=float, default=0.0, help="Random Erasing propability."
-)
-parser.add_argument(
-    "--mixup_cutmix",
-    type=bool,
-    default=False,
-    help="Whether to use mixup/cutmix or not.",
-)
-parser.add_argument("--jitter", type=float, default=0.0, help="Color jitter.")
-parser.add_argument("--label_smooth", type=float, default=0.0, help="Label Smoothing.")
-
-
-# Others
-parser.add_argument("--seed", default=0, help="Random seed for reproducibility.")
-parser.add_argument(
-    "--comment",
-    default="ResNet trained with original settings but the scheduler.",
-    help="Optional comment.",
-)
+parser, config_parser = get_parser()
 
 
 def main():
@@ -120,7 +32,12 @@ def main():
         "jitter": args.jitter,
         "label_smooth": args.label_smooth,
     }
-    cifar = CifarDataModule(args.dataset, args.data_dir, args.batch_size, 1, augs)
+    if args.dataset == "cifar10" or args.dataset == "cifar100":
+        datamodule = CifarDataModule(
+            args.dataset, args.data_dir, args.batch_size, 1, augs
+        )
+    elif args.dataset == "sentinel":
+        datamodule = CoreDataModule(args, batch_size=128)
 
     # Build model (Resnet only up to now)
     optim_params = {
@@ -129,11 +46,10 @@ def main():
         "lr": args.lr,
         "wd": args.wd,
     }
-    classes = {"cifar10": 10, "cifar100": 100, "tinyimagenet": 200}
-    n_classes = classes[args.dataset]
+
     net = build_model(
         args.model,
-        n_classes,
+        args.num_classes,
         optim_params,
         args.loss,
         args.error_model,
@@ -143,6 +59,7 @@ def main():
         args.activation,
         args.nan,
         args.affine,
+        ckpt=args.ckpt,
     )
 
     # W&B logger
@@ -173,13 +90,13 @@ def main():
         gradient_clip_val=args.clip,
     )
 
-    if args.ckpt:
-        # args.ckpt = '~/Dropbox/DieHardNet/Checkpoints/' + args.ckpt
-        args.ckpt = "checkpoints/" + args.ckpt
+    # if args.ckpt:
+    #     args.ckpt = "checkpoints/" + args.ckpt
+    #     net = load_fi_weights(net, args.ckpt)
     if args.mode == "train" or args.mode == "training":
-        trainer.fit(net, cifar, ckpt_path=args.ckpt)
+        trainer.fit(net, datamodule, ckpt_path=args.ckpt)
     elif args.mode == "validation" or args.mode == "validate":
-        trainer.validate(net, cifar, ckpt_path=args.ckpt)
+        trainer.validate(net, datamodule, ckpt_path=None)
     else:
         print(
             'ERROR: select a suitable mode "train/training" or "validation/validate".'

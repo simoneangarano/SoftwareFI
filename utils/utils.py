@@ -1,11 +1,10 @@
-import yaml
+import yaml, argparse
 from timm.data import create_loader, FastCollateMixup
 
 from .models.LightningModelWrapper import ModelWrapper
 from .models.hard_resnet import *
 from .models.hard_densenet import *
 from .models.ghostnetv2 import ghostnetv2
-from utils.test_utils import load_fi_weights
 
 
 def build_model(
@@ -20,6 +19,7 @@ def build_model(
     activation="relu",
     nan=False,
     affine=True,
+    ckpt=None,
 ):
     if model == "hard_resnet20":
         net = hard_resnet20(
@@ -73,8 +73,8 @@ def build_model(
             error_model=error_model,
             inject_p=inject_p,
             inject_epoch=inject_epoch,
+            ckpt=ckpt,
         )
-        net = load_fi_weights(net, "weights/GN_SSL_280.pt")
     else:
         model = "hard_resnet20"
         net = hard_resnet20(
@@ -157,7 +157,7 @@ def get_loader(
 
 def parse_args(parser, config_parser):
     # Do we have a config file to parse?
-    args_config, remaining = config_parser.parse_known_args()
+    args_config, remaining = config_parser.parse_known_args("")
     if args_config.config:
         with open(args_config.config, "r") as f:
             cfg = yaml.safe_load(f)
@@ -168,3 +168,111 @@ def parse_args(parser, config_parser):
     args = parser.parse_args(remaining)
 
     return args
+
+
+def get_parser():
+    config_parser = parser = argparse.ArgumentParser(
+        description="Configuration", add_help=False
+    )
+    parser.add_argument(
+        "-c",
+        "--config",
+        default="",
+        type=str,
+        metavar="FILE",
+        help="YAML config file specifying default arguments.",
+    )
+
+    parser = argparse.ArgumentParser(description="PyTorch Training")
+
+    # General
+    parser.add_argument("--name", default="test", help="Experiment name.")
+    parser.add_argument(
+        "--mode",
+        default="validation",
+        help="Mode: train/training or validation/validate.",
+    )
+    parser.add_argument(
+        "--ckpt",
+        default="checkpoints/GN_SSL_280.pt",
+        help="Pass the name of a checkpoint to resume training.",
+    )
+    parser.add_argument(
+        "--dataset", default="sentinel", help="Dataset name: cifar10 or cifar100."
+    )
+    parser.add_argument("--num_classes", default=0, help="Number of classes.")
+    parser.add_argument("--data_dir", default="./data", help="Path to dataset.")
+    parser.add_argument("--device", default=0, help="Device number.")
+
+    # Optimization
+    parser.add_argument("--loss", default="mse", help="Loss: bce, ce or sce.")
+    parser.add_argument("--clip", default=None, help="Gradient clipping value.")
+    parser.add_argument("--epochs", default=150, help="Number of epochs.")
+    parser.add_argument("--batch_size", default=128, help="Batch Size")
+    parser.add_argument("--lr", default=1e-1, help="Learning rate.")
+    parser.add_argument(
+        "--optimizer", default="sgd", help="Optimizer name: adamw or sgd."
+    )
+
+    # Model
+    parser.add_argument("--model", default="ghostnetv2", help="Network name.")
+    parser.add_argument(
+        "--order",
+        default="bn-relu",
+        help="Order of activation and normalization: bn-relu or relu-bn.",
+    )
+    parser.add_argument(
+        "--affine",
+        default=True,
+        help="Whether to use Affine transform after normalization or not.",
+    )
+    parser.add_argument(
+        "--activation", default="relu", help="Non-linear activation: relu or relu6."
+    )
+    parser.add_argument(
+        "--nan", default=False, help="Whether to convert NaNs to 0 or not."
+    )
+
+    # Injection
+    parser.add_argument(
+        "--error_model", default="random", help="Optimizer name: adamw or sgd."
+    )
+    parser.add_argument(
+        "--inject_p",
+        default=0.001,
+        help="Probability of noise injection at training time.",
+    )
+    parser.add_argument(
+        "--inject_epoch",
+        default=0,
+        help="How many epochs before starting the injection.",
+    )
+
+    # Augmentations and Regularisations
+    parser.add_argument("--wd", default=1e-4, help="Weight Decay.")
+    parser.add_argument(
+        "--rand_aug", type=str, default=None, help="RandAugment magnitude and std."
+    )
+    parser.add_argument(
+        "--rand_erasing", type=float, default=0.0, help="Random Erasing propability."
+    )
+    parser.add_argument(
+        "--mixup_cutmix",
+        type=bool,
+        default=False,
+        help="Whether to use mixup/cutmix or not.",
+    )
+    parser.add_argument("--jitter", type=float, default=0.0, help="Color jitter.")
+    parser.add_argument(
+        "--label_smooth", type=float, default=0.0, help="Label Smoothing."
+    )
+
+    # Others
+    parser.add_argument("--seed", default=0, help="Random seed for reproducibility.")
+    parser.add_argument(
+        "--comment",
+        default="ResNet trained with original settings but the scheduler.",
+        help="Optional comment.",
+    )
+
+    return parser, config_parser

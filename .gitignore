@@ -38,7 +38,7 @@
 # Checkpoints
 *.ckpt
 
-data/
+/data/
 .idea/
 wandb/
 checkpoints/*.ckpt
@@ -48,3 +48,4 @@ __pycache__
 .vscode/
 lightning_logs/
 checkpoints/
+*.pyc

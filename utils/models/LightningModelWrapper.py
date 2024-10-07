@@ -7,7 +7,7 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 
 
 class ModelWrapper(pl.LightningModule):
-    def __init__(self, model, n_classes, optim, loss):
+    def __init__(self, model, n_classes=0, optim=None, loss="mse"):
         super(ModelWrapper, self).__init__()
 
         self.model = model
@@ -23,8 +23,11 @@ class ModelWrapper(pl.LightningModule):
         elif loss == "sce":
             self.criterion = SymmetricCELoss()
             self.use_one_hot = True
+        elif loss == "mse":
+            self.criterion = nn.MSELoss()
+            self.use_one_hot = False
 
-        self.save_hyperparameters("model", "n_classes", "optim", "loss")
+        # self.save_hyperparameters("model", "n_classes", "optim", "loss")
 
     def forward(self, x, inject=True):
         return self.model(x, inject, self.current_epoch)
@@ -50,7 +53,7 @@ class ModelWrapper(pl.LightningModule):
         x, y = batch
 
         # forward
-        outputs = self(x, inject)
+        outputs, intermediates = self(x, inject)
 
         # loss
         if self.use_one_hot and not self.training:
@@ -60,7 +63,7 @@ class ModelWrapper(pl.LightningModule):
             # ce
             loss = self.criterion(outputs, y)
         # accuracy
-        if not self.training:
+        if not self.training and self.n_classes > 0:
             probs, preds = torch.max(outputs, 1)
             acc = torch.sum(preds == y) / x.shape[0]
         else:
@@ -97,7 +100,7 @@ class ModelWrapper(pl.LightningModule):
         self.epoch_log("val_acc", acc)
         self.epoch_log("noisy_val_loss", noisy_loss)
         self.epoch_log("noisy_val_acc", noisy_acc)
-        if check_criticality:
+        if check_criticality and self.n_classes > 0:
             self.check_criticality(gold=clean_vals, faulty=noisy_vals)
         return noisy_loss
 

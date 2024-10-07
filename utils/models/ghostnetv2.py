@@ -5,7 +5,6 @@ import math
 
 from utils.hg_noise_injector.hans_gruber import HansGruberNI
 
-
 ###############
 # GhostNetV2  #
 ###############
@@ -40,7 +39,7 @@ class ConvInjector(nn.Module):
         inject_p=0.01,
         inject_epoch=0,
         bias=False,
-        **kwargs
+        **kwargs,
     ):
         super(ConvInjector, self).__init__()
         self.conv = nn.Conv2d(
@@ -64,15 +63,19 @@ class LinearInjector(nn.Module):
         error_model,
         inject_p=0.01,
         inject_epoch=0,
-        **kwargs
+        **kwargs,
     ):
         super(LinearInjector, self).__init__()
-        self.linear = nn.Linear(in_channels, out_channels, **kwargs)
+        self.linear = (
+            nn.Linear(in_channels, out_channels, **kwargs)
+            if out_channels > 0
+            else nn.Identity()
+        )
         self.injector = HansGruberNI(error_model, p=inject_p, inject_epoch=inject_epoch)
 
     def forward(self, x, inject=True, current_epoch=0, counter=0, inject_index=0):
         x = self.linear(x)
-        if counter == inject_index:
+        if counter == inject_index and isinstance(self.linear, nn.Linear):
             x = self.injector(x, inject, current_epoch)
         return x
 
@@ -88,7 +91,7 @@ class SequentialInjector(nn.Module):
                 x, counter, inject_index = layer(
                     x, inject, current_epoch, counter, inject_index
                 )
-            elif isinstance(layer, LinearInjector):
+            elif any(isinstance(layer, t) for t in [LinearInjector]):
                 x = layer(x, inject, current_epoch, counter, inject_index)
             else:
                 x = layer(x)
@@ -130,7 +133,7 @@ class SqueezeExcite(nn.Module):
         error_model="random",
         inject_p=0.01,
         inject_epoch=0,
-        **_
+        **_,
     ):
         super(SqueezeExcite, self).__init__()
         self.gate_fn = gate_fn
@@ -691,10 +694,15 @@ def cfgs_standard():
 
 
 def ghostnetv2(
-    width=1.6, num_classes=1000, error_model="random", inject_p=0.01, inject_epoch=0
+    width=1.6,
+    num_classes=1000,
+    error_model="random",
+    inject_p=0.01,
+    inject_epoch=0,
+    ckpt=None,
 ):
     cfgs = cfgs_standard()
-    return GhostNetV2(
+    model = GhostNetV2(
         cfgs,
         num_classes=num_classes,
         width=width,
@@ -702,6 +710,41 @@ def ghostnetv2(
         inject_p=inject_p,
         inject_epoch=inject_epoch,
     )
+    if ckpt is not None:
+        model = load_fi_weights(model, ckpt)
+    return model
+
+
+def load_fi_weights(model, filename, verbose=False):
+    count = 0
+    new_dict = {}
+    weights = torch.load(filename, weights_only=True)
+    state_dict = model.state_dict()
+    for name, param in state_dict.items():
+        if verbose:
+            print(name, param.data.shape)
+        if "dummy" in name:
+            if verbose:
+                print("-\n")
+            continue
+        new_name = name.replace("conv.weight", "weight").replace("conv.bias", "bias")
+        new_name = new_name.replace("linear.weight", "weight").replace(
+            "linear.bias", "bias"
+        )
+        new_name = new_name.replace(".layers", "")
+        new_weights = weights[new_name]
+        if verbose:
+            print(new_name, new_weights.shape, "\n")
+        count += 1
+        if param.data.shape != new_weights.shape:
+            raise ValueError(
+                f"Shape mismatch: {param.data.shape} != {new_weights.shape}"
+            )
+        new_dict[name] = new_weights
+
+    print(f"Loaded {count} weights")
+    model.load_state_dict(new_dict, strict=False)
+    return model
 
 
 ###############
