@@ -1,12 +1,13 @@
 name: ghostnetv2
 mode: validation
-ckpt: null
-dataset: tinyimagenet
+ckpt: "ckpt/GN_SSL_280.pt"
+dataset: sentinel
+num_classes: 0
 data_dir: ./data
 num_gpus: 0
 model: ghostnetv2
-loss: bce
-clip: !!float 0.05
+loss: mse
+clip: !!float 0 #0.05
 order: relu-bn
 activation: relu
 affine: false

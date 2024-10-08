@@ -12,5 +12,5 @@ resnetCIFAR.py contains the ResNets architectures designed for the CIFAR dataset
 LightningModelWrapper.py contains a class which wraps a Pytorch model handling the training and validation loops and the
 logging to wandb.
 
-By default, logs are written to "wandb" directory, checkpoints to "checkpoints" directory and the datasets are
+By default, logs are written to "wandb" directory, checkpoints to "ckpt" directory and the datasets are
 downloaded to "data" directory.

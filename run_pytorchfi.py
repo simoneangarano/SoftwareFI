@@ -75,7 +75,7 @@ def perform_fault_injection_for_a_model(args):
             torch.nn.Conv1d,
             torch.nn.Conv2d,
             torch.nn.Conv3d,
-            # torch.nn.BatchNorm1d, torch.nn.BatchNorm2d, torch.nn.BatchNorm3d,
+            torch.nn.BatchNorm1d, torch.nn.BatchNorm2d, torch.nn.BatchNorm3d,
             torch.nn.Linear,
         ],
         use_cuda=True,
@@ -183,7 +183,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--config",
-        default="configurations/ghostnetv2.yaml",
+        default="cfg/ghostnetv2.yaml",
         type=str,
         metavar="FILE",
         help="YAML config file specifying default arguments.",

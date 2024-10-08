@@ -55,6 +55,27 @@ class ConvInjector(nn.Module):
         return x, counter, inject_index
 
 
+class BNInjector(nn.Module):
+    def __init__(
+        self,
+        out_channels,
+        error_model="random",
+        inject_p=0.01,
+        inject_epoch=0,
+        **kwargs,
+    ):
+        super(BNInjector, self).__init__()
+        self.bn = nn.BatchNorm2d(out_channels)
+        self.injector = HansGruberNI(error_model, p=inject_p, inject_epoch=inject_epoch)
+
+    def forward(self, x, inject=True, current_epoch=0, counter=0, inject_index=0):
+        x = self.bn(x)
+        if counter == inject_index:
+            x = self.injector(x, inject, current_epoch)
+        counter += 1
+        return x, counter, inject_index
+    
+
 class LinearInjector(nn.Module):
     def __init__(
         self,
@@ -196,7 +217,7 @@ class ConvBnAct(nn.Module):
             inject_p=inject_p,
             inject_epoch=inject_epoch,
         )
-        self.bn1 = nn.BatchNorm2d(out_chs)
+        self.bn1 = BNInjector(out_chs, error_model="random", inject_p=0.01, inject_epoch=0)
         self.act1 = act_layer(inplace=True)
 
     def forward(self, x, inject=True, current_epoch=0, counter=0, inject_index=0):
@@ -204,7 +225,7 @@ class ConvBnAct(nn.Module):
         x, counter, inject_index = self.conv(
             x, inject, current_epoch, counter, inject_index
         )
-        x = self.bn1(x)
+        x, counter, inject_index = self.bn1(x, inject, current_epoch, counter, inject_index)
         x = self.act1(x)
 
         return x, counter, inject_index
@@ -246,7 +267,7 @@ class GhostModuleV2(nn.Module):
                     inject_p=inject_p,
                     inject_epoch=inject_epoch,
                 ),
-                nn.BatchNorm2d(init_channels),
+                BNInjector(init_channels, error_model="random", inject_p=0.01, inject_epoch=0),
                 NaNReLU(inplace=True) if relu else SequentialInjector(),
             )
             self.cheap_operation = SequentialInjector(
@@ -262,7 +283,7 @@ class GhostModuleV2(nn.Module):
                     inject_p=inject_p,
                     inject_epoch=inject_epoch,
                 ),
-                nn.BatchNorm2d(new_channels),
+                BNInjector(new_channels, error_model="random", inject_p=0.01, inject_epoch=0),
                 NaNReLU(inplace=True) if relu else SequentialInjector(),
             )
         elif self.mode in ["attn"]:
@@ -281,7 +302,7 @@ class GhostModuleV2(nn.Module):
                     inject_p=inject_p,
                     inject_epoch=inject_epoch,
                 ),
-                nn.BatchNorm2d(init_channels),
+                BNInjector(init_channels, error_model="random", inject_p=0.01, inject_epoch=0),
                 NaNReLU(inplace=True) if relu else SequentialInjector(),
             )
             self.cheap_operation = SequentialInjector(
@@ -297,7 +318,7 @@ class GhostModuleV2(nn.Module):
                     inject_p=inject_p,
                     inject_epoch=inject_epoch,
                 ),
-                nn.BatchNorm2d(new_channels),
+                BNInjector(new_channels, error_model="random", inject_p=0.01, inject_epoch=0),
                 NaNReLU(inplace=True) if relu else SequentialInjector(),
             )
             self.short_conv = SequentialInjector(
@@ -312,7 +333,7 @@ class GhostModuleV2(nn.Module):
                     inject_p=inject_p,
                     inject_epoch=inject_epoch,
                 ),
-                nn.BatchNorm2d(oup),
+                BNInjector(oup, error_model="random", inject_p=0.01, inject_epoch=0),
                 ConvInjector(
                     oup,
                     oup,
@@ -325,7 +346,7 @@ class GhostModuleV2(nn.Module):
                     inject_p=inject_p,
                     inject_epoch=inject_epoch,
                 ),
-                nn.BatchNorm2d(oup),
+                BNInjector(oup, error_model="random", inject_p=0.01, inject_epoch=0),
                 ConvInjector(
                     oup,
                     oup,
@@ -338,7 +359,7 @@ class GhostModuleV2(nn.Module):
                     inject_p=inject_p,
                     inject_epoch=inject_epoch,
                 ),
-                nn.BatchNorm2d(oup),
+                BNInjector(oup, error_model="random", inject_p=0.01, inject_epoch=0),
             )
 
     def forward(self, x, inject=True, current_epoch=0, counter=0, inject_index=0):
@@ -437,7 +458,7 @@ class GhostBottleneckV2(nn.Module):
                 inject_p=inject_p,
                 inject_epoch=inject_epoch,
             )
-            self.bn_dw = nn.BatchNorm2d(mid_chs)
+            self.bn_dw = BNInjector(mid_chs, error_model="random", inject_p=0.01, inject_epoch=0)
 
         # Squeeze-and-excitation
         if has_se:
@@ -479,7 +500,7 @@ class GhostBottleneckV2(nn.Module):
                     inject_p=inject_p,
                     inject_epoch=inject_epoch,
                 ),
-                nn.BatchNorm2d(in_chs),
+                BNInjector(in_chs, error_model="random", inject_p=0.01, inject_epoch=0),
                 ConvInjector(
                     in_chs,
                     out_chs,
@@ -491,7 +512,7 @@ class GhostBottleneckV2(nn.Module):
                     inject_p=inject_p,
                     inject_epoch=inject_epoch,
                 ),
-                nn.BatchNorm2d(out_chs),
+                BNInjector(out_chs, error_model="random", inject_p=0.01, inject_epoch=0),
             )
 
     def forward(self, x, inject=True, current_epoch=0, counter=0, inject_index=0):
@@ -503,7 +524,9 @@ class GhostBottleneckV2(nn.Module):
             x, counter, inject_index = self.conv_dw(
                 x, inject, current_epoch, counter, inject_index
             )
-            x = self.bn_dw(x)
+            x, counter, inject_index = self.bn_dw(
+                x, inject, current_epoch, counter, inject_index
+            )
         if self.se is not None:
             x, counter, inject_index = self.se(
                 x, inject, current_epoch, counter, inject_index
@@ -526,6 +549,7 @@ INJECTION_LAYERS = [
     GhostBottleneckV2,
     SequentialInjector,
     ConvBnAct,
+    BNInjector,
 ]
 
 
@@ -562,7 +586,7 @@ class GhostNetV2(nn.Module):
             inject_p=inject_p,
             inject_epoch=inject_epoch,
         )
-        self.bn1 = nn.BatchNorm2d(output_channel)
+        self.bn1 = BNInjector(output_channel, error_model="random", inject_p=0.01, inject_epoch=0)
         self.act1 = NaNReLU(inplace=True)
         input_channel = output_channel
 
@@ -641,7 +665,9 @@ class GhostNetV2(nn.Module):
         x, counter, inject_index = self.conv_stem(
             x, inject, current_epoch, counter, inject_index
         )
-        x = self.bn1(x)
+        x, counter, inject_index = self.bn1(
+                x, inject, current_epoch, counter, inject_index
+            )
         x = self.act1(x)
 
         for block in self.stages:
@@ -666,7 +692,7 @@ class GhostNetV2(nn.Module):
 
 def cfgs_standard():
 
-    cfgs = [
+    cfgs = [ # Each line is a GhostBottleneckV2 block (16 blocks in total)
         # k, t, c, SE, s
         [[3, 16, 16, 0, 1]],
         [[3, 48, 24, 0, 2]],
@@ -728,6 +754,8 @@ def load_fi_weights(model, filename, verbose=False):
                 print("-\n")
             continue
         new_name = name.replace("conv.weight", "weight").replace("conv.bias", "bias")
+        new_name = new_name.replace("bn.weight", "weight").replace("bn.bias", "bias")
+        new_name = new_name.replace("bn.running_mean", "running_mean").replace("bn.running_var", "running_var").replace("bn.num_batches_tracked", "num_batches_tracked")
         new_name = new_name.replace("linear.weight", "weight").replace(
             "linear.bias", "bias"
         )

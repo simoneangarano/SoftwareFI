@@ -155,21 +155,6 @@ def get_loader(
     )
 
 
-def parse_args(parser, config_parser):
-    # Do we have a config file to parse?
-    args_config, remaining = config_parser.parse_known_args("")
-    if args_config.config:
-        with open(args_config.config, "r") as f:
-            cfg = yaml.safe_load(f)
-            parser.set_defaults(**cfg)
-
-    # The main arg parser parses the rest of the args, the usual
-    # defaults will have been overridden if config file specified.
-    args = parser.parse_args(remaining)
-
-    return args
-
-
 def get_parser():
     config_parser = parser = argparse.ArgumentParser(
         description="Configuration", add_help=False
@@ -177,7 +162,7 @@ def get_parser():
     parser.add_argument(
         "-c",
         "--config",
-        default="",
+        default="cfg/ghostnetv2.yaml",
         type=str,
         metavar="FILE",
         help="YAML config file specifying default arguments.",
@@ -194,7 +179,7 @@ def get_parser():
     )
     parser.add_argument(
         "--ckpt",
-        default="checkpoints/GN_SSL_280.pt",
+        default="ckpt/GN_SSL_280.pt",
         help="Pass the name of a checkpoint to resume training.",
     )
     parser.add_argument(
@@ -276,3 +261,23 @@ def get_parser():
     )
 
     return parser, config_parser
+
+
+def parse_args(parser, config_parser):
+    # Do we have a config file to parse?
+    args_config, remaining = config_parser.parse_known_args("")
+    if args_config.config:
+        with open(args_config.config, "r") as f:
+            cfg = yaml.safe_load(f)
+            parser.set_defaults(**cfg)
+
+    # The main arg parser parses the rest of the args, the usual
+    # defaults will have been overridden if config file specified.
+    args = parser.parse_args(remaining)
+
+    print("\n==> Config parsed:")
+    for k, v in vars(args).items():
+        print(f"{k}: {v}")
+    print()
+    
+    return args

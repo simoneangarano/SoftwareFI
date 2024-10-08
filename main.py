@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 
-import argparse
 import warnings
 
 import torch
@@ -70,7 +69,7 @@ def main():
 
     # Callbacks
     ckpt_callback = ModelCheckpoint(
-        "checkpoints/",
+        "ckpt/",
         filename=args.name + "-{epoch:02d}-{val_acc:.2f}",
         save_last=True,
     )
@@ -91,7 +90,7 @@ def main():
     )
 
     # if args.ckpt:
-    #     args.ckpt = "checkpoints/" + args.ckpt
+    #     args.ckpt = "ckpt/" + args.ckpt
     #     net = load_fi_weights(net, args.ckpt)
     if args.mode == "train" or args.mode == "training":
         trainer.fit(net, datamodule, ckpt_path=args.ckpt)

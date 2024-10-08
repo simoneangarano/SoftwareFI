@@ -41,11 +41,11 @@
 /data/
 .idea/
 wandb/
-checkpoints/*.ckpt
+ckpt/*.ckpt
 __pycache__
 
 # Custom
 .vscode/
 lightning_logs/
-checkpoints/
+ckpt/
 *.pyc

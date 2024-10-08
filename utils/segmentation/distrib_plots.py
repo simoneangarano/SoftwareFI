@@ -67,11 +67,11 @@ def plot(df, idx=0):
     plt.show()
 
 
-ckpt1 = "checkpoints/c10_res44_test_01_bn-relu_base_sgd-epoch=99-val_acc=0.92.ckpt"
-ckpt2 = "checkpoints/c10_res44_test_02_relu6-bn_sgd-epoch=99-val_acc=0.91.ckpt"
+ckpt1 = "ckpt/c10_res44_test_01_bn-relu_base_sgd-epoch=99-val_acc=0.92.ckpt"
+ckpt2 = "ckpt/c10_res44_test_02_relu6-bn_sgd-epoch=99-val_acc=0.91.ckpt"
 """
-ckpt1 = 'checkpoints/c100_res44_test_01_bn-relu_base_sgd_9-epoch=99-val_acc=0.70.ckpt'
-ckpt2 = 'checkpoints/c100_res44_test_02_relu6-bn_sgd-epoch=99-val_acc=0.69.ckpt'
+ckpt1 = 'ckpt/c100_res44_test_01_bn-relu_base_sgd_9-epoch=99-val_acc=0.70.ckpt'
+ckpt2 = 'ckpt/c100_res44_test_02_relu6-bn_sgd-epoch=99-val_acc=0.69.ckpt'
 """
 
 args = {
