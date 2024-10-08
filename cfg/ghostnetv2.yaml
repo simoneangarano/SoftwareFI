@@ -7,7 +7,7 @@ data_dir: ./data
 num_gpus: 0
 model: ghostnetv2
 loss: mse
-clip: !!float 0 #0.05
+clip: !!float 0.05
 order: relu-bn
 activation: relu
 affine: false
@@ -20,6 +20,7 @@ seed: 0
 error_model: random
 inject_p: !!float 0.001
 inject_epoch: 0
+inject_index: 0
 comment: Uniform noise [0, epoch). Inj each conv and linear layer. all model. p_c [0.1].
 
 # Criticality analysis

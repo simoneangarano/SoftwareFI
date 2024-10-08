@@ -29,8 +29,8 @@ class ModelWrapper(pl.LightningModule):
 
         # self.save_hyperparameters("model", "n_classes", "optim", "loss")
 
-    def forward(self, x, inject=True):
-        return self.model(x, inject, self.current_epoch)
+    def forward(self, x, inject=True, inject_index=0):
+        return self.model(x, inject, self.current_epoch, inject_index=inject_index)
 
     def configure_optimizers(self):
         if self.optim["optimizer"] == "sgd":
@@ -49,11 +49,11 @@ class ModelWrapper(pl.LightningModule):
         scheduler = CosineAnnealingLR(optimizer, self.optim["epochs"], eta_min=1e-4)
         return {"optimizer": optimizer, "lr_scheduler": scheduler}
 
-    def get_metrics(self, batch, inject=True):
+    def get_metrics(self, batch, inject=True, inject_index=0):
         x, y = batch
 
         # forward
-        outputs, intermediates = self(x, inject)
+        outputs, _ = self(x, inject, inject_index=inject_index)
 
         # loss
         if self.use_one_hot and not self.training:
@@ -70,8 +70,8 @@ class ModelWrapper(pl.LightningModule):
             acc, probs, preds = 0, 0, 0
         return loss, acc, (probs, preds)
 
-    def training_step(self, train_batch, batch_idx):
-        loss, acc, _ = self.get_metrics(train_batch)
+    def training_step(self, train_batch, batch_idx, inject=True, inject_index=0):
+        loss, acc, _ = self.get_metrics(train_batch, inject=inject, inject_index=inject_index)
 
         self.epoch_log("train_loss", loss)
         self.epoch_log("train_acc", acc)
@@ -91,9 +91,9 @@ class ModelWrapper(pl.LightningModule):
         self.epoch_log("value_diff_pct", value_diff_pct)
         self.epoch_log("preds_diff_pct", preds_diff_pct)
 
-    def validation_step(self, val_batch, batch_idx, check_criticality=True):
-        loss, acc, clean_vals = self.get_metrics(val_batch, False)
-        noisy_loss, noisy_acc, noisy_vals = self.get_metrics(val_batch)
+    def validation_step(self, val_batch, batch_idx, check_criticality=True, inject_index=0):
+        loss, acc, clean_vals = self.get_metrics(val_batch, False, inject_index=inject_index) ############# Comment it out 
+        noisy_loss, noisy_acc, noisy_vals = self.get_metrics(val_batch, True, inject_index=inject_index)
 
         # Test the accuracy
         self.epoch_log("val_loss", loss)
@@ -102,7 +102,7 @@ class ModelWrapper(pl.LightningModule):
         self.epoch_log("noisy_val_acc", noisy_acc)
         if check_criticality and self.n_classes > 0:
             self.check_criticality(gold=clean_vals, faulty=noisy_vals)
-        return noisy_loss
+        return noisy_loss, loss
 
     def on_train_epoch_start(self):
         lr = self.optimizers().param_groups[0]["lr"]

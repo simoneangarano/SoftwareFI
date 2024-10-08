@@ -1,4 +1,5 @@
 import yaml, argparse
+from tqdm import tqdm
 from timm.data import create_loader, FastCollateMixup
 
 from .models.LightningModelWrapper import ModelWrapper
@@ -233,6 +234,11 @@ def get_parser():
         help="How many epochs before starting the injection.",
     )
 
+    parser.add_argument(
+        "--inject_index",
+        default=0,
+        help="Injection index: specific layer.",
+    )
     # Augmentations and Regularisations
     parser.add_argument("--wd", default=1e-4, help="Weight Decay.")
     parser.add_argument(
@@ -281,3 +287,14 @@ def parse_args(parser, config_parser):
     print()
     
     return args
+
+@torch.no_grad()
+def validate(net:ModelWrapper, datamodule, args):
+    total_loss, total_noisy_loss = 0, 0
+    for batch_idx, batch in tqdm(enumerate(datamodule.val_dataloader())):
+        batch = [b.cuda() for b in batch]
+        noisy_loss, loss = net.validation_step(batch, batch_idx, False, inject_index=args.inject_index)
+        total_loss += loss
+        total_noisy_loss += noisy_loss
+    return total_noisy_loss / len(datamodule.val_dataloader()), total_loss / len(datamodule.val_dataloader()) 
+    

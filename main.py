@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import csv, json
 import warnings
 
 import torch
@@ -8,21 +9,19 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 
 # DieHardNET packages
-from utils.utils import get_parser, parse_args, build_model
+from utils.utils import get_parser, parse_args, build_model, validate
 from utils.data.data_module import CifarDataModule, CoreDataModule
 
 # Suppress the annoying warning for non-empty checkpoint directory
 warnings.filterwarnings("ignore")
 torch.set_float32_matmul_precision("high")
+torch.backends.cudnn.benchmark = True
+torch.backends.cudnn.deterministic = True
 
-parser, config_parser = get_parser()
-
-
-def main():
-    args = parse_args(parser, config_parser)
+def software_fault_injection(args):
 
     # Set random seed
-    pl.seed_everything(args.seed, workers=True)
+    # pl.seed_everything(args.seed, workers=True)
 
     augs = {
         "rand_aug": args.rand_aug,
@@ -36,7 +35,7 @@ def main():
             args.dataset, args.data_dir, args.batch_size, 1, augs
         )
     elif args.dataset == "sentinel":
-        datamodule = CoreDataModule(args, batch_size=128)
+        datamodule = CoreDataModule(args)
 
     # Build model (Resnet only up to now)
     optim_params = {
@@ -60,6 +59,7 @@ def main():
         args.affine,
         ckpt=args.ckpt,
     )
+    net = net.cuda().eval()
 
     # W&B logger
     # wandb_logger = None
@@ -76,30 +76,50 @@ def main():
     callbacks = [ckpt_callback]
 
     # Pytorch-Lightning Trainer
-    trainer = pl.Trainer(
-        max_epochs=args.epochs,
-        devices=[int(args.device)],
-        callbacks=callbacks,
-        logger=wandb_logger,
-        deterministic=True,
-        benchmark=True,
-        accelerator="gpu",
-        strategy="auto",
-        sync_batchnorm=True,
-        gradient_clip_val=args.clip,
-    )
+    # trainer = pl.Trainer(
+    #     max_epochs=args.epochs,
+    #     devices=[int(args.device)],
+    #     callbacks=callbacks,
+    #     logger=wandb_logger,
+    #     deterministic=True,
+    #     benchmark=True,
+    #     accelerator="gpu",
+    #     strategy="auto",
+    #     sync_batchnorm=True,
+    #     gradient_clip_val=args.clip,
+    # )
 
     # if args.ckpt:
     #     args.ckpt = "ckpt/" + args.ckpt
     #     net = load_fi_weights(net, args.ckpt)
     if args.mode == "train" or args.mode == "training":
-        trainer.fit(net, datamodule, ckpt_path=args.ckpt)
+        pass
+        # trainer.fit(net, datamodule, ckpt_path=args.ckpt)
     elif args.mode == "validation" or args.mode == "validate":
-        trainer.validate(net, datamodule, ckpt_path=None)
+        noisy_loss, loss = validate(net, datamodule, args)
+        # trainer.validate(net, datamodule, ckpt_path=None)
     else:
         print(
             'ERROR: select a suitable mode "train/training" or "validation/validate".'
         )
+    
+    return noisy_loss, loss
+
+
+def main():
+    parser, config_parser = get_parser()
+    args = parse_args(parser, config_parser)
+
+    reader = csv.reader(open("ckpt/layers.csv", mode="r"))
+    layers = {i:row[0] for i, row in enumerate(reader)}
+    results = {}
+    for i, l in layers.items():
+        args.inject_index = i
+        noisy_loss, loss = software_fault_injection(args)
+        print(f"Layer {i} ({l}): Noisy Loss: {noisy_loss}, Loss: {loss}")
+        results[i] = (float(noisy_loss.cpu().numpy()), float(loss.cpu().numpy()))
+
+    json.dump( results, open( "ckpt/results.json", 'w' ) )
 
 
 if __name__ == "__main__":
