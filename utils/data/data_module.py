@@ -120,6 +120,7 @@ class CifarDataModule(pl.LightningDataModule):
             self.test_data,
             batch_size=200 * self.num_gpus,
             num_workers=4 * self.num_gpus,
+            shuffle=False, pin_memory=True,
         )
 
 
@@ -200,7 +201,7 @@ class CoreDataModule(pl.LightningDataModule):
             dataset=CoreDataset(self.train_dataset, args=self.args),
             batch_size=self.batch_size,
             num_workers=4,
-            shuffle=True,
+            shuffle=True, pin_memory=True,
         )
 
     def val_dataloader(self):
@@ -208,6 +209,7 @@ class CoreDataModule(pl.LightningDataModule):
             dataset=CoreDataset(self.validation_dataset, args=self.args),
             num_workers=4,
             batch_size=self.batch_size,
+            shuffle=False, pin_memory=True,
         )
 
     def test_dataloader(self):
@@ -215,4 +217,5 @@ class CoreDataModule(pl.LightningDataModule):
             dataset=CoreDataset(self.test_dataset, args=self.args),
             num_workers=4,
             batch_size=self.batch_size,
+            shuffle=False, pin_memory=True,
         )

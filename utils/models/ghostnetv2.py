@@ -135,11 +135,11 @@ def _make_divisible(v, divisor, min_value=None):
     return new_v
 
 
-def hard_sigmoid(x, inplace: bool = False):
+def hard_sigmoid(x, inplace: bool = False, activation="relu"):
     if inplace:
         return x.add_(3.0).clamp_(0.0, 6.0).div_(6.0)
     else:
-        return NaNReLU()(x + 3.0) / 6.0
+        return NaNReLU(act=activation)(x + 3.0) / 6.0
 
 
 class SqueezeExcite(nn.Module):
@@ -245,6 +245,7 @@ class GhostModuleV2(nn.Module):
         dw_size=3,
         stride=1,
         relu=True,
+        activation="relu",
         mode=None,
         args=None,
         error_model="random",
@@ -274,7 +275,7 @@ class GhostModuleV2(nn.Module):
                 BNInjector(
                     init_channels, error_model="random", inject_p=0.01, inject_epoch=0
                 ),
-                NaNReLU(inplace=True) if relu else SequentialInjector(),
+                NaNReLU(act=activation, inplace=True) if relu else SequentialInjector(),
             )
             self.cheap_operation = SequentialInjector(
                 ConvInjector(
@@ -292,7 +293,7 @@ class GhostModuleV2(nn.Module):
                 BNInjector(
                     new_channels, error_model="random", inject_p=0.01, inject_epoch=0
                 ),
-                NaNReLU(inplace=True) if relu else SequentialInjector(),
+                NaNReLU(act=activation, inplace=True) if relu else SequentialInjector(),
             )
         elif self.mode in ["attn"]:
             self.oup = oup
@@ -313,7 +314,7 @@ class GhostModuleV2(nn.Module):
                 BNInjector(
                     init_channels, error_model="random", inject_p=0.01, inject_epoch=0
                 ),
-                NaNReLU(inplace=True) if relu else SequentialInjector(),
+                NaNReLU(act=activation, inplace=True) if relu else SequentialInjector(),
             )
             self.cheap_operation = SequentialInjector(
                 ConvInjector(
@@ -331,7 +332,7 @@ class GhostModuleV2(nn.Module):
                 BNInjector(
                     new_channels, error_model="random", inject_p=0.01, inject_epoch=0
                 ),
-                NaNReLU(inplace=True) if relu else SequentialInjector(),
+                NaNReLU(act=activation, inplace=True) if relu else SequentialInjector(),
             )
             self.short_conv = SequentialInjector(
                 ConvInjector(
@@ -577,6 +578,7 @@ class GhostNetV2(nn.Module):
         width=1.0,
         dropout=0.2,
         block=GhostBottleneckV2,
+        activation="relu",
         args=None,
         error_model="random",
         inject_p=0.01,
@@ -605,7 +607,7 @@ class GhostNetV2(nn.Module):
         self.bn1 = BNInjector(
             output_channel, error_model="random", inject_p=0.01, inject_epoch=0
         )
-        self.act1 = NaNReLU(inplace=True)
+        self.act1 = NaNReLU(act=activation, inplace=True)
         input_channel = output_channel
 
         # building inverted residual blocks
@@ -668,7 +670,7 @@ class GhostNetV2(nn.Module):
             inject_p=inject_p,
             inject_epoch=inject_epoch,
         )
-        self.act2 = NaNReLU(inplace=True)
+        self.act2 = NaNReLU(act=activation, inplace=True)
         self.classifier = LinearInjector(
             output_channel,
             num_classes,
@@ -743,6 +745,7 @@ def ghostnetv2(
     error_model="random",
     inject_p=0.01,
     inject_epoch=0,
+    activation="relu",
     ckpt=None,
 ):
     cfgs = cfgs_standard()
@@ -753,6 +756,7 @@ def ghostnetv2(
         error_model=error_model,
         inject_p=inject_p,
         inject_epoch=inject_epoch,
+        activation=activation,
     )
     if ckpt is not None:
         model = load_fi_weights(model, ckpt)

@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-import csv, json
+import os, csv, json
 import warnings
 
 import torch
@@ -19,7 +19,44 @@ torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.deterministic = True
 
 
-def software_fault_injection(args):
+def software_fault_injection(args, net, datamodule):
+
+    # Pytorch-Lightning Trainer
+    # trainer = pl.Trainer(
+    #     max_epochs=args.epochs,
+    #     devices=[int(args.device)],
+    #     callbacks=callbacks,
+    #     logger=wandb_logger,
+    #     deterministic=True,
+    #     benchmark=True,
+    #     accelerator="gpu",
+    #     strategy="auto",
+    #     sync_batchnorm=True,
+    #     gradient_clip_val=args.clip,
+    # )
+
+    # if args.ckpt:
+    #     args.ckpt = "ckpt/" + args.ckpt
+    #     net = load_fi_weights(net, args.ckpt)
+    if args.mode == "train" or args.mode == "training":
+        pass
+        # trainer.fit(net, datamodule, ckpt_path=args.ckpt)
+    elif args.mode == "validation" or args.mode == "validate":
+        noisy_loss, loss = validate(net, datamodule, args)
+        # trainer.validate(net, datamodule, ckpt_path=None)
+    else:
+        print(
+            'ERROR: select a suitable mode "train/training" or "validation/validate".'
+        )
+
+    return noisy_loss, loss
+
+
+def main():
+    parser, config_parser = get_parser()
+    args = parse_args(parser, config_parser)
+
+    ### Initialization ###
 
     # Set random seed
     # pl.seed_everything(args.seed, workers=True)
@@ -76,52 +113,28 @@ def software_fault_injection(args):
     )
     callbacks = [ckpt_callback]
 
-    # Pytorch-Lightning Trainer
-    # trainer = pl.Trainer(
-    #     max_epochs=args.epochs,
-    #     devices=[int(args.device)],
-    #     callbacks=callbacks,
-    #     logger=wandb_logger,
-    #     deterministic=True,
-    #     benchmark=True,
-    #     accelerator="gpu",
-    #     strategy="auto",
-    #     sync_batchnorm=True,
-    #     gradient_clip_val=args.clip,
-    # )
 
-    # if args.ckpt:
-    #     args.ckpt = "ckpt/" + args.ckpt
-    #     net = load_fi_weights(net, args.ckpt)
-    if args.mode == "train" or args.mode == "training":
-        pass
-        # trainer.fit(net, datamodule, ckpt_path=args.ckpt)
-    elif args.mode == "validation" or args.mode == "validate":
-        noisy_loss, loss = validate(net, datamodule, args)
-        # trainer.validate(net, datamodule, ckpt_path=None)
-    else:
-        print(
-            'ERROR: select a suitable mode "train/training" or "validation/validate".'
-        )
-
-    return noisy_loss, loss
-
-
-def main():
-    parser, config_parser = get_parser()
-    args = parse_args(parser, config_parser)
+    ### Fault Injection Test ###
 
     reader = csv.reader(open("ckpt/layers.csv", mode="r"))
     layers = {i: row[0] for i, row in enumerate(reader)}
-    results = {}
-    for i, l in layers.items():
-        args.inject_index = i
-        noisy_loss, loss = software_fault_injection(args)
-        print(f"Layer {i} ({l}): Noisy Loss: {noisy_loss}, Loss: {loss}")
-        results[i] = (float(noisy_loss.cpu().numpy()), float(loss.cpu().numpy()))
-        # break
 
-    json.dump(results, open("ckpt/results.json", "w"))
+    while args.inject_index < len(layers):
+        try:
+            results = json.load(open(f"ckpt/{args.name}_results.json", "r"))
+            args.inject_index = len(results)
+        except:
+            results = {}
+
+        noisy_loss, loss = software_fault_injection(args, net, datamodule)
+        print(
+            f"Layer {args.inject_index} ({layers[args.inject_index]}): Noisy Loss: {noisy_loss}, Loss: {loss}"
+        )
+        results[args.inject_index] = (
+            float(noisy_loss.cpu().numpy()),
+            float(loss.cpu().numpy()),
+        )
+        json.dump(results, open(f"ckpt/{args.name}_results.json", "w"))
 
 
 if __name__ == "__main__":

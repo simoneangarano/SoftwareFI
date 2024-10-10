@@ -1,20 +1,16 @@
-# DieHardNET
+# SoftwareFI - Fault Injection for GhostNetV2
 
-Repository for a reliable Deep Neural Network (DNN) model. DieHardNet stands for
-**D**esign **i**mprov**e**d **Hard**ened neural **Net**work
-
-[comment]: <> (TODO: Replace by two images from john mcclane one 
-classified with DieHardNet and other with an error
- l![Die hard photo]&#40;/diehard.jpg&#41;)
+Based on https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=9897813.
 
 ## Directories
 
 The directories are organized as follows:
 
-* hg_noise_injector - A module to inject realistic errors in the training process
-* eval_fault_injection_cfg - Configuration files for NVBITFI for fault injection
-* pytorch_scripts - PyTorch scripts for training and inference for the used DNNs. For information, read
-  the [README](/pytorch_scripts/README.md).
+* cfg - Configuration files for NVBITFI for fault injection
+* utils - PyTorch scripts for training and inference for the used DNNs. For information, read
+* utils/hg_noise_injector - A module to inject realistic errors in the training process
+
+  the [README](/utils/README.md).
 
 ## Main script options
 
@@ -66,7 +62,7 @@ optional arguments:
 
 ```
 
-# To cite this work
+# To cite the original work
 
 **2022 IEEE 28th International Symposium on On-Line Testing and Robust System Design (IOLTS)**
 
