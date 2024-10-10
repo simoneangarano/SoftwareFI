@@ -18,10 +18,11 @@ torch.set_float32_matmul_precision("high")
 torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.deterministic = True
 
+
 def software_fault_injection(args):
 
     # Set random seed
-    # pl.seed_everything(args.seed, workers=True)
+    # pl.seed_everything(args.seed, workers=True)
 
     augs = {
         "rand_aug": args.rand_aug,
@@ -97,12 +98,12 @@ def software_fault_injection(args):
         # trainer.fit(net, datamodule, ckpt_path=args.ckpt)
     elif args.mode == "validation" or args.mode == "validate":
         noisy_loss, loss = validate(net, datamodule, args)
-        # trainer.validate(net, datamodule, ckpt_path=None)
+        # trainer.validate(net, datamodule, ckpt_path=None)
     else:
         print(
             'ERROR: select a suitable mode "train/training" or "validation/validate".'
         )
-    
+
     return noisy_loss, loss
 
 
@@ -111,15 +112,16 @@ def main():
     args = parse_args(parser, config_parser)
 
     reader = csv.reader(open("ckpt/layers.csv", mode="r"))
-    layers = {i:row[0] for i, row in enumerate(reader)}
+    layers = {i: row[0] for i, row in enumerate(reader)}
     results = {}
     for i, l in layers.items():
         args.inject_index = i
         noisy_loss, loss = software_fault_injection(args)
         print(f"Layer {i} ({l}): Noisy Loss: {noisy_loss}, Loss: {loss}")
         results[i] = (float(noisy_loss.cpu().numpy()), float(loss.cpu().numpy()))
+        # break
 
-    json.dump( results, open( "ckpt/results.json", 'w' ) )
+    json.dump(results, open("ckpt/results.json", "w"))
 
 
 if __name__ == "__main__":

@@ -75,6 +75,7 @@ def build_model(
             inject_p=inject_p,
             inject_epoch=inject_epoch,
             ckpt=ckpt,
+            activation=activation,
         )
     else:
         model = "hard_resnet20"
@@ -285,16 +286,20 @@ def parse_args(parser, config_parser):
     for k, v in vars(args).items():
         print(f"{k}: {v}")
     print()
-    
+
     return args
 
+
 @torch.no_grad()
-def validate(net:ModelWrapper, datamodule, args):
+def validate(net: ModelWrapper, datamodule, args):
     total_loss, total_noisy_loss = 0, 0
     for batch_idx, batch in tqdm(enumerate(datamodule.val_dataloader())):
         batch = [b.cuda() for b in batch]
-        noisy_loss, loss = net.validation_step(batch, batch_idx, False, inject_index=args.inject_index)
+        noisy_loss, loss = net.validation_step(
+            batch, batch_idx, True, inject_index=args.inject_index
+        )
         total_loss += loss
         total_noisy_loss += noisy_loss
-    return total_noisy_loss / len(datamodule.val_dataloader()), total_loss / len(datamodule.val_dataloader()) 
-    
+    return total_noisy_loss / len(datamodule.val_dataloader()), total_loss / len(
+        datamodule.val_dataloader()
+    )

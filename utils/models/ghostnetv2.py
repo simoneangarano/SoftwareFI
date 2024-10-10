@@ -11,7 +11,7 @@ from utils.hg_noise_injector.hans_gruber import HansGruberNI
 
 
 class NaNReLU(nn.Module):
-    def __init__(self, nan=True, act="relu", inplace=False):
+    def __init__(self, nan=True, act="relu6", inplace=False):
         super().__init__()
 
         if act == "relu":
@@ -49,7 +49,7 @@ class ConvInjector(nn.Module):
 
     def forward(self, x, inject=True, current_epoch=0, counter=0, inject_index=0):
         x = self.conv(x)
-        if counter == inject_index:
+        if inject and counter == inject_index:
             x = self.injector(x, inject, current_epoch)
         counter += 1
         return x, counter, inject_index
@@ -74,7 +74,7 @@ class BNInjector(nn.Module):
             x = self.injector(x, inject, current_epoch)
         counter += 1
         return x, counter, inject_index
-    
+
 
 class LinearInjector(nn.Module):
     def __init__(
@@ -217,7 +217,9 @@ class ConvBnAct(nn.Module):
             inject_p=inject_p,
             inject_epoch=inject_epoch,
         )
-        self.bn1 = BNInjector(out_chs, error_model="random", inject_p=0.01, inject_epoch=0)
+        self.bn1 = BNInjector(
+            out_chs, error_model="random", inject_p=0.01, inject_epoch=0
+        )
         self.act1 = act_layer(inplace=True)
 
     def forward(self, x, inject=True, current_epoch=0, counter=0, inject_index=0):
@@ -225,7 +227,9 @@ class ConvBnAct(nn.Module):
         x, counter, inject_index = self.conv(
             x, inject, current_epoch, counter, inject_index
         )
-        x, counter, inject_index = self.bn1(x, inject, current_epoch, counter, inject_index)
+        x, counter, inject_index = self.bn1(
+            x, inject, current_epoch, counter, inject_index
+        )
         x = self.act1(x)
 
         return x, counter, inject_index
@@ -267,7 +271,9 @@ class GhostModuleV2(nn.Module):
                     inject_p=inject_p,
                     inject_epoch=inject_epoch,
                 ),
-                BNInjector(init_channels, error_model="random", inject_p=0.01, inject_epoch=0),
+                BNInjector(
+                    init_channels, error_model="random", inject_p=0.01, inject_epoch=0
+                ),
                 NaNReLU(inplace=True) if relu else SequentialInjector(),
             )
             self.cheap_operation = SequentialInjector(
@@ -283,7 +289,9 @@ class GhostModuleV2(nn.Module):
                     inject_p=inject_p,
                     inject_epoch=inject_epoch,
                 ),
-                BNInjector(new_channels, error_model="random", inject_p=0.01, inject_epoch=0),
+                BNInjector(
+                    new_channels, error_model="random", inject_p=0.01, inject_epoch=0
+                ),
                 NaNReLU(inplace=True) if relu else SequentialInjector(),
             )
         elif self.mode in ["attn"]:
@@ -302,7 +310,9 @@ class GhostModuleV2(nn.Module):
                     inject_p=inject_p,
                     inject_epoch=inject_epoch,
                 ),
-                BNInjector(init_channels, error_model="random", inject_p=0.01, inject_epoch=0),
+                BNInjector(
+                    init_channels, error_model="random", inject_p=0.01, inject_epoch=0
+                ),
                 NaNReLU(inplace=True) if relu else SequentialInjector(),
             )
             self.cheap_operation = SequentialInjector(
@@ -318,7 +328,9 @@ class GhostModuleV2(nn.Module):
                     inject_p=inject_p,
                     inject_epoch=inject_epoch,
                 ),
-                BNInjector(new_channels, error_model="random", inject_p=0.01, inject_epoch=0),
+                BNInjector(
+                    new_channels, error_model="random", inject_p=0.01, inject_epoch=0
+                ),
                 NaNReLU(inplace=True) if relu else SequentialInjector(),
             )
             self.short_conv = SequentialInjector(
@@ -458,7 +470,9 @@ class GhostBottleneckV2(nn.Module):
                 inject_p=inject_p,
                 inject_epoch=inject_epoch,
             )
-            self.bn_dw = BNInjector(mid_chs, error_model="random", inject_p=0.01, inject_epoch=0)
+            self.bn_dw = BNInjector(
+                mid_chs, error_model="random", inject_p=0.01, inject_epoch=0
+            )
 
         # Squeeze-and-excitation
         if has_se:
@@ -512,7 +526,9 @@ class GhostBottleneckV2(nn.Module):
                     inject_p=inject_p,
                     inject_epoch=inject_epoch,
                 ),
-                BNInjector(out_chs, error_model="random", inject_p=0.01, inject_epoch=0),
+                BNInjector(
+                    out_chs, error_model="random", inject_p=0.01, inject_epoch=0
+                ),
             )
 
     def forward(self, x, inject=True, current_epoch=0, counter=0, inject_index=0):
@@ -586,7 +602,9 @@ class GhostNetV2(nn.Module):
             inject_p=inject_p,
             inject_epoch=inject_epoch,
         )
-        self.bn1 = BNInjector(output_channel, error_model="random", inject_p=0.01, inject_epoch=0)
+        self.bn1 = BNInjector(
+            output_channel, error_model="random", inject_p=0.01, inject_epoch=0
+        )
         self.act1 = NaNReLU(inplace=True)
         input_channel = output_channel
 
@@ -666,8 +684,8 @@ class GhostNetV2(nn.Module):
             x, inject, current_epoch, counter, inject_index
         )
         x, counter, inject_index = self.bn1(
-                x, inject, current_epoch, counter, inject_index
-            )
+            x, inject, current_epoch, counter, inject_index
+        )
         x = self.act1(x)
 
         for block in self.stages:
@@ -692,7 +710,7 @@ class GhostNetV2(nn.Module):
 
 def cfgs_standard():
 
-    cfgs = [ # Each line is a GhostBottleneckV2 block (16 blocks in total)
+    cfgs = [  # Each line is a GhostBottleneckV2 block (16 blocks in total)
         # k, t, c, SE, s
         [[3, 16, 16, 0, 1]],
         [[3, 48, 24, 0, 2]],
@@ -755,7 +773,11 @@ def load_fi_weights(model, filename, verbose=False):
             continue
         new_name = name.replace("conv.weight", "weight").replace("conv.bias", "bias")
         new_name = new_name.replace("bn.weight", "weight").replace("bn.bias", "bias")
-        new_name = new_name.replace("bn.running_mean", "running_mean").replace("bn.running_var", "running_var").replace("bn.num_batches_tracked", "num_batches_tracked")
+        new_name = (
+            new_name.replace("bn.running_mean", "running_mean")
+            .replace("bn.running_var", "running_var")
+            .replace("bn.num_batches_tracked", "num_batches_tracked")
+        )
         new_name = new_name.replace("linear.weight", "weight").replace(
             "linear.bias", "bias"
         )

@@ -139,7 +139,7 @@ class CoreDataset(torch.utils.data.DataLoader):
                 inject_p=0,
                 inject_epoch=args.inject_epoch,
                 order=args.order,
-                activation=args.activation,
+                activation="relu",
                 nan=args.nan,
                 affine=args.affine,
                 ckpt=args.ckpt,

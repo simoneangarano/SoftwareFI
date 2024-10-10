@@ -7,21 +7,26 @@ data_dir: ./data
 num_gpus: 0
 model: ghostnetv2
 loss: mse
-clip: !!float 0.05
-order: relu-bn
-activation: relu
-affine: false
-epochs: 1
+activation: relu6
 batch_size: 128
-lr: !!float 1e-3
-wd: !!float 1e-3
-optimizer: adamw
+
+# Injection parameters
 seed: 0
 error_model: random
-inject_p: !!float 0.001
+inject_p: !!float 0.1 # 0.001
 inject_epoch: 0
 inject_index: 0
 comment: Uniform noise [0, epoch). Inj each conv and linear layer. all model. p_c [0.1].
+
+
+# Training parameters
+clip: !!float 0.05
+order: relu-bn
+affine: false
+epochs: 1
+lr: !!float 1e-3
+wd: !!float 1e-3
+optimizer: adamw
 
 # Criticality analysis
 randrange: 1000

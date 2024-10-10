@@ -53,7 +53,7 @@ class ModelWrapper(pl.LightningModule):
         x, y = batch
 
         # forward
-        outputs, _ = self(x, inject, inject_index=inject_index)
+        outputs, intermediates = self(x, inject, inject_index=inject_index)
 
         # loss
         if self.use_one_hot and not self.training:
@@ -68,10 +68,16 @@ class ModelWrapper(pl.LightningModule):
             acc = torch.sum(preds == y) / x.shape[0]
         else:
             acc, probs, preds = 0, 0, 0
+
+        if loss.isnan() or loss > 1e4:
+            print("NaN detected")
+
         return loss, acc, (probs, preds)
 
     def training_step(self, train_batch, batch_idx, inject=True, inject_index=0):
-        loss, acc, _ = self.get_metrics(train_batch, inject=inject, inject_index=inject_index)
+        loss, acc, _ = self.get_metrics(
+            train_batch, inject=inject, inject_index=inject_index
+        )
 
         self.epoch_log("train_loss", loss)
         self.epoch_log("train_acc", acc)
@@ -91,9 +97,16 @@ class ModelWrapper(pl.LightningModule):
         self.epoch_log("value_diff_pct", value_diff_pct)
         self.epoch_log("preds_diff_pct", preds_diff_pct)
 
-    def validation_step(self, val_batch, batch_idx, check_criticality=True, inject_index=0):
-        loss, acc, clean_vals = self.get_metrics(val_batch, False, inject_index=inject_index) ############# Comment it out 
-        noisy_loss, noisy_acc, noisy_vals = self.get_metrics(val_batch, True, inject_index=inject_index)
+    def validation_step(
+        self, val_batch, batch_idx, check_criticality=True, inject_index=0
+    ):
+        # loss, acc, clean_vals = 0, 0, 0
+        loss, acc, clean_vals = self.get_metrics(
+            val_batch, False, inject_index=inject_index
+        )  ############# Comment it out
+        noisy_loss, noisy_acc, noisy_vals = self.get_metrics(
+            val_batch, True, inject_index=inject_index
+        )
 
         # Test the accuracy
         self.epoch_log("val_loss", loss)
@@ -102,6 +115,7 @@ class ModelWrapper(pl.LightningModule):
         self.epoch_log("noisy_val_acc", noisy_acc)
         if check_criticality and self.n_classes > 0:
             self.check_criticality(gold=clean_vals, faulty=noisy_vals)
+
         return noisy_loss, loss
 
     def on_train_epoch_start(self):
