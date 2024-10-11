@@ -70,7 +70,7 @@ class BNInjector(nn.Module):
 
     def forward(self, x, inject=True, current_epoch=0, counter=0, inject_index=0):
         x = self.bn(x)
-        if counter == inject_index:
+        if inject and counter == inject_index:
             x = self.injector(x, inject, current_epoch)
         counter += 1
         return x, counter, inject_index

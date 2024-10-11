@@ -90,10 +90,14 @@ def generate_square_masks(shape, sampled_indexes):
     # Corrupt squares in multiple channels
     rand_c = torch.bernoulli(torch.ones(c) * 0.3) > 0
     if h - 1 == 0:
-        h_0 = 0
-    h_0 = torch.randint(high=h - 1, size=(1,))
+        h_0 = torch.tensor(0)
+    else:
+        h_0 = torch.randint(high=h - 1, size=(1,))
     h_1 = torch.randint(low=h_0.item(), high=h, size=(1,))
-    w_0 = torch.randint(high=w - 1, size=(1,))
+    if w - 1 == 0:
+        w_0 = torch.tensor(0)
+    else:
+        w_0 = torch.randint(high=w - 1, size=(1,))
     w_1 = torch.randint(low=w_0.item(), high=w, size=(1,))
     rand_h = np.arange(h_0, h_1 + 1)
     rand_w = np.arange(w_0, w_1 + 1)

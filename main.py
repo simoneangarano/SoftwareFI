@@ -128,7 +128,7 @@ def main():
 
         noisy_loss, loss = software_fault_injection(args, net, datamodule)
         print(
-            f"Layer {args.inject_index} ({layers[args.inject_index]}): Noisy Loss: {noisy_loss}, Loss: {loss}"
+            f"Layer {args.inject_index} ({layers[args.inject_index]}): Noisy Loss: {noisy_loss:.2e}, Loss: {loss:.2e}"
         )
         results[args.inject_index] = (
             float(noisy_loss.cpu().numpy()),
