@@ -122,7 +122,8 @@ class CifarDataModule(pl.LightningDataModule):
             self.test_data,
             batch_size=200 * self.num_gpus,
             num_workers=4 * self.num_gpus,
-            shuffle=False, pin_memory=True,
+            shuffle=False,
+            pin_memory=True,
         )
 
 
@@ -204,7 +205,8 @@ class CoreDataModule(pl.LightningDataModule):
             dataset=CoreDataset(self.train_dataset, args=self.args),
             batch_size=self.batch_size,
             num_workers=4,
-            shuffle=True, pin_memory=True,
+            shuffle=True,
+            pin_memory=True,
         )
 
     def val_dataloader(self):
@@ -212,7 +214,8 @@ class CoreDataModule(pl.LightningDataModule):
             dataset=CoreDataset(self.validation_dataset, args=self.args),
             num_workers=4,
             batch_size=self.batch_size,
-            shuffle=False, pin_memory=True,
+            shuffle=False,
+            pin_memory=True,
         )
 
     def test_dataloader(self):
@@ -220,14 +223,21 @@ class CoreDataModule(pl.LightningDataModule):
             dataset=CoreDataset(self.test_dataset, args=self.args),
             num_workers=4,
             batch_size=self.batch_size,
-            shuffle=False, pin_memory=True,
+            shuffle=False,
+            pin_memory=True,
         )
 
 
 # CloudSen12 dataset
 class CloudSen12(torch.utils.data.Dataset):
 
-    def __init__(self, path : str = "/media/SSD2/inzerillo/datasets/cloudsen12", normalization = True, split = None, aggregate_labels = False):
+    def __init__(
+        self,
+        path: str = "/media/SSD2/inzerillo/datasets/cloudsen12",
+        normalization=True,
+        split=None,
+        aggregate_labels=False,
+    ):
 
         self.normalization = normalization
 
@@ -270,11 +280,10 @@ class CloudSen12(torch.utils.data.Dataset):
 
             # Delete duplicates from the list
             self.folders = list(dict.fromkeys(self.folders))
-        
 
     def __len__(self):
         return len(self.folders)
-    
+
     def __getitem__(self, index):
 
         # Get image and label paths
@@ -284,15 +293,14 @@ class CloudSen12(torch.utils.data.Dataset):
 
         # Open the images using rasterio
         with rasterio.open(img_path) as img:
-            b02 = img.read(2) # Band 2 = Blue
-            b03 = img.read(3) # Band 3 = Green
-            b04 = img.read(4) # Band 4 = Red
-            b08 = img.read(8) # Band 8 = NIR
-            b11 = img.read(11) # Band 11 = SWIR1
+            b02 = img.read(2)  # Band 2 = Blue
+            b03 = img.read(3)  # Band 3 = Green
+            b04 = img.read(4)  # Band 4 = Red
+            b08 = img.read(8)  # Band 8 = NIR
+            b11 = img.read(11)  # Band 11 = SWIR1
 
             # Stack the bands
             img_image = np.stack([b02, b03, b04, b08, b11], axis=0).astype(np.float32)
-
 
         with rasterio.open(label_path) as label:
             # 0 = Background
@@ -314,8 +322,10 @@ class CloudSen12(torch.utils.data.Dataset):
 
         # Normalize
         if self.normalization:
-            img_tensor = (img_tensor - torch.min(img_tensor)) / (torch.max(img_tensor) - torch.min(img_tensor))
-        
+            img_tensor = (img_tensor - torch.min(img_tensor)) / (
+                torch.max(img_tensor) - torch.min(img_tensor)
+            )
+
         # Original image size is 509 x 509
         # Padding from 509 x 509 to 512 x 512
         # Padding with zeros
@@ -328,6 +338,5 @@ class CloudSen12(torch.utils.data.Dataset):
         label_tensor = torch.cat((label_tensor, torch.zeros((1, 2, 509))), dim=1)
         label_tensor = torch.cat((torch.zeros((1, 512, 1)), label_tensor), dim=2)
         label_tensor = torch.cat((label_tensor, torch.zeros((1, 512, 2))), dim=2)
-
 
         return img_tensor, label_tensor

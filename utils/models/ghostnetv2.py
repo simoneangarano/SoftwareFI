@@ -142,6 +142,7 @@ def _make_divisible(v, divisor, min_value=None):
         new_v += divisor
     return new_v
 
+
 class HardSigmoid(nn.Module):
     def __init__(self, inplace: bool = False, act="relu"):
         super().__init__()
@@ -153,6 +154,7 @@ class HardSigmoid(nn.Module):
             return x.add_(3.0).clamp_(0.0, 6.0).div_(6.0)
         else:
             return self.activation(x + 3.0) / 6.0
+
 
 class SqueezeExcite(nn.Module):
     def __init__(
@@ -706,7 +708,7 @@ class GhostNetV2(nn.Module):
         # x = x.view(x.size(0), -1)
         # if self.dropout > 0.0:
         #     x = F.dropout(x, p=self.dropout, training=self.training)
-        # x = self.classifier(x, inject, current_epoch, counter, inject_index)
+        # x = self.classifier(x, inject, current_epoch, counter, inject_index)
 
         return x, intermediates
 
@@ -769,96 +771,151 @@ def ghostnetv2(
 ###############
 class SegmentationHeadGhostBN(nn.Module):
 
-  def __init__(self, num_classes = 3, width = 1.6, se_ratio = 0.25, activation="relu",        
-               error_model="random", inject_p=0.01, inject_epoch=0):
+    def __init__(
+        self,
+        num_classes=3,
+        width=1.6,
+        se_ratio=0.25,
+        activation="relu",
+        error_model="random",
+        inject_p=0.01,
+        inject_epoch=0,
+    ):
 
-    super().__init__()
+        super().__init__()
 
-    self.num_classes = num_classes
-    
-    # Number of input channels for 3 feature maps used from the backbone
-    in_channels = [960, 112, 40] # From standard GhostNetV2 configuration (layers: 9, 6, 4)
-    in_channels = [math.ceil(c * width) for c in in_channels] # Apply width multiplier (round up)
+        self.num_classes = num_classes
 
-    # Upsampling layers
-    self.up2 = nn.Upsample(mode="bilinear", scale_factor=2)
-    self.up8 = nn.Upsample(mode="bilinear", scale_factor=8)
-    
-    self.conv_block_960 = GhostBottleneckV2(in_channels[0], in_channels[0]//4, num_classes, 3, layer_id=0, se_ratio=se_ratio, activation=activation,
-                                            error_model=error_model, inject_p=inject_p, inject_epoch=inject_epoch)
-    self.conv_block_112 =  GhostBottleneckV2(in_channels[1], in_channels[1]//4, num_classes, 3, layer_id=0, se_ratio=se_ratio, activation=activation,
-                                             error_model=error_model, inject_p=inject_p, inject_epoch=inject_epoch)
-    self.conv_block_40 =  GhostBottleneckV2(in_channels[2], in_channels[2]//4, num_classes, 3, layer_id=0, se_ratio=se_ratio, activation=activation,
-                                            error_model=error_model, inject_p=inject_p, inject_epoch=inject_epoch)
+        # Number of input channels for 3 feature maps used from the backbone
+        in_channels = [
+            960,
+            112,
+            40,
+        ]  # From standard GhostNetV2 configuration (layers: 9, 6, 4)
+        in_channels = [
+            math.ceil(c * width) for c in in_channels
+        ]  # Apply width multiplier (round up)
 
-    self.ff = torch.nn.quantized.FloatFunctional()
+        # Upsampling layers
+        self.up2 = nn.Upsample(mode="bilinear", scale_factor=2)
+        self.up8 = nn.Upsample(mode="bilinear", scale_factor=8)
 
-  def forward(self, tensors, inject=True, current_epoch=0, counter=0, inject_index=0):
-    """
-    Forward pass through the module.
+        self.conv_block_960 = GhostBottleneckV2(
+            in_channels[0],
+            in_channels[0] // 4,
+            num_classes,
+            3,
+            layer_id=0,
+            se_ratio=se_ratio,
+            activation=activation,
+            error_model=error_model,
+            inject_p=inject_p,
+            inject_epoch=inject_epoch,
+        )
+        self.conv_block_112 = GhostBottleneckV2(
+            in_channels[1],
+            in_channels[1] // 4,
+            num_classes,
+            3,
+            layer_id=0,
+            se_ratio=se_ratio,
+            activation=activation,
+            error_model=error_model,
+            inject_p=inject_p,
+            inject_epoch=inject_epoch,
+        )
+        self.conv_block_40 = GhostBottleneckV2(
+            in_channels[2],
+            in_channels[2] // 4,
+            num_classes,
+            3,
+            layer_id=0,
+            se_ratio=se_ratio,
+            activation=activation,
+            error_model=error_model,
+            inject_p=inject_p,
+            inject_epoch=inject_epoch,
+        )
 
-    This method takes a list of tensors, each of which is the output of another neural network.
+        self.ff = torch.nn.quantized.FloatFunctional()
 
-    Arguments:
-        tensors (list of torch.Tensor): A list containing tensors which are the features of the backbone.
-            Each tensor in the list should have the following dimensions:
-            - Output n.0 shape: torch.Size([batch_size, 16 * width, H / 2, W / 2])
-            - Output n.1 shape: torch.Size([batch_size, 24 * width, H / 4, W / 4])
-            - Output n.2 shape: torch.Size([batch_size, 24 * width, H / 4, W / 4])
-            - Output n.3 shape: torch.Size([batch_size, 40 * width, H / 8, W / 8])
-            - Output n.4 shape: torch.Size([batch_size, 40 * width, H / 8, W / 8])
-            - Output n.5 shape: torch.Size([batch_size, 80 * width, H / 16, W / 16])
-            - Output n.6 shape: torch.Size([batch_size, 112 * width, H / 16, W / 16])
-            - Output n.7 shape: torch.Size([batch_size, 160 * width, H / 32, W / 32])
-            - Output n.8 shape: torch.Size([batch_size, 160 * width, H / 32, W / 32])
-            - Output n.9 shape: torch.Size([batch_size, 960 * width, H / 32, W / 32])
+    def forward(self, tensors, inject=True, current_epoch=0, counter=0, inject_index=0):
+        """
+        Forward pass through the module.
 
-    Returns:
-        torch.Tensor: The final tensor obtained after applying the operations on the input tensors.
-    """
+        This method takes a list of tensors, each of which is the output of another neural network.
 
-    # Extract the feature maps from the backbone
-    out_9 = tensors[9] # Sequential 2-10: [B, C * width, H/32, W/32]
-    out_6 = tensors[6] # Sequential 2-7: [B, C * width, H/16, W/16]
-    out_4 = tensors[4] # Sequential 2-5: [B, C * width, H/8, H/8]
+        Arguments:
+            tensors (list of torch.Tensor): A list containing tensors which are the features of the backbone.
+                Each tensor in the list should have the following dimensions:
+                - Output n.0 shape: torch.Size([batch_size, 16 * width, H / 2, W / 2])
+                - Output n.1 shape: torch.Size([batch_size, 24 * width, H / 4, W / 4])
+                - Output n.2 shape: torch.Size([batch_size, 24 * width, H / 4, W / 4])
+                - Output n.3 shape: torch.Size([batch_size, 40 * width, H / 8, W / 8])
+                - Output n.4 shape: torch.Size([batch_size, 40 * width, H / 8, W / 8])
+                - Output n.5 shape: torch.Size([batch_size, 80 * width, H / 16, W / 16])
+                - Output n.6 shape: torch.Size([batch_size, 112 * width, H / 16, W / 16])
+                - Output n.7 shape: torch.Size([batch_size, 160 * width, H / 32, W / 32])
+                - Output n.8 shape: torch.Size([batch_size, 160 * width, H / 32, W / 32])
+                - Output n.9 shape: torch.Size([batch_size, 960 * width, H / 32, W / 32])
 
-    out_9, counter, inject_index = self.conv_block_960(out_9, inject, current_epoch, counter, inject_index) # [..., H/32, W/32]
-    x_2upsampled_pred = self.up2(out_9) # [..., H/16, W/16]
+        Returns:
+            torch.Tensor: The final tensor obtained after applying the operations on the input tensors.
+        """
 
-    out_6, counter, inject_index = self.conv_block_112(out_6, inject, current_epoch, counter, inject_index) # [..., H/16, W/16]
+        # Extract the feature maps from the backbone
+        out_9 = tensors[9]  # Sequential 2-10: [B, C * width, H/32, W/32]
+        out_6 = tensors[6]  # Sequential 2-7: [B, C * width, H/16, W/16]
+        out_4 = tensors[4]  # Sequential 2-5: [B, C * width, H/8, H/8]
 
-    x = self.ff.add(x_2upsampled_pred, out_6) # [..., H/16, W/16]
+        out_9, counter, inject_index = self.conv_block_960(
+            out_9, inject, current_epoch, counter, inject_index
+        )  # [..., H/32, W/32]
+        x_2upsampled_pred = self.up2(out_9)  # [..., H/16, W/16]
 
-    x_2upsampled_pred = self.up2(x) # [..., H/8, W/8]
+        out_6, counter, inject_index = self.conv_block_112(
+            out_6, inject, current_epoch, counter, inject_index
+        )  # [..., H/16, W/16]
 
-    out_4, counter, inject_index = self.conv_block_40(out_4, inject, current_epoch, counter, inject_index) # [..., H/8, W/8]
+        x = self.ff.add(x_2upsampled_pred, out_6)  # [..., H/16, W/16]
 
-    x = self.ff.add(x_2upsampled_pred, out_4) # [..., H/8, W/8]
+        x_2upsampled_pred = self.up2(x)  # [..., H/8, W/8]
 
-    x = self.up8(x)  # [..., H, W] 
+        out_4, counter, inject_index = self.conv_block_40(
+            out_4, inject, current_epoch, counter, inject_index
+        )  # [..., H/8, W/8]
 
-    return x
-  
+        x = self.ff.add(x_2upsampled_pred, out_4)  # [..., H/8, W/8]
+
+        x = self.up8(x)  # [..., H, W]
+
+        return x
+
+
 ###############
 # GhostNet+SS #
 ###############
 class GhostNetSS(nn.Module):
 
-  def __init__(self, ghostnet, head, ckpt=None):
+    def __init__(self, ghostnet, head, ckpt=None):
 
-    super().__init__()
+        super().__init__()
 
-    self.ghostnet = ghostnet
-    self.head = head
-    if ckpt is not None:
-        self = load_fi_weights(self, ckpt)
+        self.ghostnet = ghostnet
+        self.head = head
+        if ckpt is not None:
+            self = load_fi_weights(self, ckpt)
 
-  def forward(self, tensors, inject=True, current_epoch=0, counter=0, inject_index=0):
+    def forward(self, tensors, inject=True, current_epoch=0, counter=0, inject_index=0):
 
-    _, intermediate_features = self.ghostnet(tensors, inject, current_epoch, counter, inject_index)
-    outputs = self.head(intermediate_features, inject, current_epoch, counter, inject_index)
+        _, intermediate_features = self.ghostnet(
+            tensors, inject, current_epoch, counter, inject_index
+        )
+        outputs = self.head(
+            intermediate_features, inject, current_epoch, counter, inject_index
+        )
 
-    return outputs
+        return outputs
 
 
 def load_fi_weights(model, filename, verbose=False):
@@ -869,7 +926,9 @@ def load_fi_weights(model, filename, verbose=False):
     for name, param in state_dict.items():
         if verbose:
             print(name, param.data.shape)
-        if "dummy" in name or "conv_head" in name: # conv_head and dummy layers are not needed
+        if (
+            "dummy" in name or "conv_head" in name
+        ):  # conv_head and dummy layers are not needed
             if verbose:
                 print("-\n")
             continue

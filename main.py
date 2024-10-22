@@ -4,6 +4,7 @@ import csv, json
 import warnings
 
 import torch
+
 # import pytorch_lightning as pl
 # from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
@@ -113,7 +114,6 @@ def main():
     # )
     # callbacks = [ckpt_callback]
 
-
     ### Fault Injection Test ###
 
     reader = csv.reader(open(f"ckpt/{args.name}_layers_info.csv", mode="r"))
@@ -126,7 +126,9 @@ def main():
         except:
             results = {}
 
-        noisy_loss, loss, noisy_acc, acc = software_fault_injection(args, net, datamodule)
+        noisy_loss, loss, noisy_acc, acc = software_fault_injection(
+            args, net, datamodule
+        )
         print(
             f"Layer {args.inject_index} ({layers[args.inject_index]}): Noisy Loss: {noisy_loss:.2e}, Loss: {loss:.2e}, Noisy Acc: {noisy_acc:.2f}, Acc: {acc:.2f}"
         )
@@ -138,6 +140,7 @@ def main():
         )
         json.dump(results, open(f"ckpt/{args.name}_results.json", "w"))
         break
+
 
 if __name__ == "__main__":
     main()

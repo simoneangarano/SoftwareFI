@@ -315,8 +315,9 @@ def validate(net: ModelWrapper, datamodule, args):
         total_noisy_loss += noisy_loss
         total_acc += acc
         total_noisy_acc += noisy_acc
-    return total_noisy_loss / len(datamodule.val_dataloader()), total_loss / len(
-        datamodule.val_dataloader()
-    ), total_noisy_acc / len(datamodule.val_dataloader()), total_acc / len(
-        datamodule.val_dataloader()
+    return (
+        total_noisy_loss / len(datamodule.val_dataloader()),
+        total_loss / len(datamodule.val_dataloader()),
+        total_noisy_acc / len(datamodule.val_dataloader()),
+        total_acc / len(datamodule.val_dataloader()),
     )
