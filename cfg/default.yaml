@@ -1,14 +1,14 @@
 name: default
-mode: train
+mode: validation
 ckpt: null
-dataset: cifar10
+dataset: sentinel
 data_dir: ./data
-num_gpus: 1
+num_gpus: 0
 model: resnet20
 loss: bce
 clip: null
 norm: batch
-epochs: 160
+epochs: 1
 batch_size: 128
 lr: !!float 1e-1
 wd: !!float 1e-4

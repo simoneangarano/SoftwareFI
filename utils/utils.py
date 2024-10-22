@@ -5,7 +5,7 @@ from timm.data import create_loader, FastCollateMixup
 from .models.LightningModelWrapper import ModelWrapper
 from .models.hard_resnet import *
 from .models.hard_densenet import *
-from .models.ghostnetv2 import ghostnetv2
+from .models.ghostnetv2 import ghostnetv2, GhostNetSS, SegmentationHeadGhostBN
 
 
 def build_model(
@@ -69,14 +69,26 @@ def build_model(
     elif model == "densenet100":
         net = densenet100(n_classes)
     elif model == "ghostnetv2":
-        net = ghostnetv2(
-            num_classes=n_classes,
-            error_model=error_model,
-            inject_p=inject_p,
-            inject_epoch=inject_epoch,
-            ckpt=ckpt,
-            activation=activation,
-        )
+        if n_classes == 0:
+            net = ghostnetv2(
+                # num_classes=n_classes,
+                error_model=error_model,
+                inject_p=inject_p,
+                inject_epoch=inject_epoch,
+                ckpt=ckpt,
+                activation=activation,
+            )
+        else:
+            backbone = ghostnetv2(
+                # num_classes=n_classes,
+                error_model=error_model,
+                inject_p=inject_p,
+                inject_epoch=inject_epoch,
+                ckpt=None,
+                activation=activation,
+            )
+            head = SegmentationHeadGhostBN(num_classes=n_classes, activation=activation)
+            net = GhostNetSS(backbone, head, ckpt=ckpt)
     else:
         model = "hard_resnet20"
         net = hard_resnet20(
@@ -164,7 +176,7 @@ def get_parser():
     parser.add_argument(
         "-c",
         "--config",
-        default="cfg/ghostnetv2.yaml",
+        default="cfg/ghostnetv2_clouds.yaml",
         type=str,
         metavar="FILE",
         help="YAML config file specifying default arguments.",
@@ -270,9 +282,9 @@ def get_parser():
     return parser, config_parser
 
 
-def parse_args(parser, config_parser):
+def parse_args(parser, config_parser, args=None):
     # Do we have a config file to parse?
-    args_config, remaining = config_parser.parse_known_args("")
+    args_config, remaining = config_parser.parse_known_args(args)
     if args_config.config:
         with open(args_config.config, "r") as f:
             cfg = yaml.safe_load(f)
@@ -293,13 +305,18 @@ def parse_args(parser, config_parser):
 @torch.no_grad()
 def validate(net: ModelWrapper, datamodule, args):
     total_loss, total_noisy_loss = 0, 0
+    total_acc, total_noisy_acc = 0, 0
     for batch_idx, batch in tqdm(enumerate(datamodule.val_dataloader())):
         batch = [b.cuda() for b in batch]
-        noisy_loss, loss = net.validation_step(
+        noisy_loss, loss, noisy_acc, acc = net.validation_step(
             batch, batch_idx, True, inject_index=args.inject_index
         )
         total_loss += loss
         total_noisy_loss += noisy_loss
+        total_acc += acc
+        total_noisy_acc += noisy_acc
     return total_noisy_loss / len(datamodule.val_dataloader()), total_loss / len(
+        datamodule.val_dataloader()
+    ), total_noisy_acc / len(datamodule.val_dataloader()), total_acc / len(
         datamodule.val_dataloader()
     )

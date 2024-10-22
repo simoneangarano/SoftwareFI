@@ -53,7 +53,9 @@ class ModelWrapper(pl.LightningModule):
         x, y = batch
 
         # forward
-        outputs, intermediates = self(x, inject, inject_index=inject_index)
+        outputs = self(x, inject, inject_index=inject_index)
+        if self.n_classes == 0:
+            outputs = outputs[0]
 
         # loss
         if self.use_one_hot and not self.training:
@@ -65,12 +67,14 @@ class ModelWrapper(pl.LightningModule):
         # accuracy
         if not self.training and self.n_classes > 0:
             probs, preds = torch.max(outputs, 1)
-            acc = torch.sum(preds == y) / x.shape[0]
+            acc = torch.mean((preds == y).float())
         else:
             acc, probs, preds = 0, 0, 0
 
-        if loss.isnan() or loss > 1e4:
+        if loss.isnan():
             print("NaN detected")
+        elif loss > 1e4:
+            print("Large Loss detected")
 
         return loss, acc, (probs, preds)
 
@@ -116,7 +120,7 @@ class ModelWrapper(pl.LightningModule):
         if check_criticality and self.n_classes > 0:
             self.check_criticality(gold=clean_vals, faulty=noisy_vals)
 
-        return noisy_loss, loss
+        return noisy_loss, loss, noisy_acc, acc
 
     def on_train_epoch_start(self):
         lr = self.optimizers().param_groups[0]["lr"]

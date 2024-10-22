@@ -1,11 +1,11 @@
 #!/usr/bin/python3
 
-import os, csv, json
+import csv, json
 import warnings
 
 import torch
-import pytorch_lightning as pl
-from pytorch_lightning.callbacks import ModelCheckpoint
+# import pytorch_lightning as pl
+# from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 
 # DieHardNET packages
@@ -42,14 +42,14 @@ def software_fault_injection(args, net, datamodule):
         pass
         # trainer.fit(net, datamodule, ckpt_path=args.ckpt)
     elif args.mode == "validation" or args.mode == "validate":
-        noisy_loss, loss = validate(net, datamodule, args)
+        noisy_loss, loss, noisy_acc, acc = validate(net, datamodule, args)
         # trainer.validate(net, datamodule, ckpt_path=None)
     else:
         print(
             'ERROR: select a suitable mode "train/training" or "validation/validate".'
         )
 
-    return noisy_loss, loss
+    return noisy_loss, loss, noisy_acc, acc
 
 
 def main():
@@ -106,18 +106,18 @@ def main():
     wandb_logger.watch(net, log_graph=False)
 
     # Callbacks
-    ckpt_callback = ModelCheckpoint(
-        "ckpt/",
-        filename=args.name + "-{epoch:02d}-{val_acc:.2f}",
-        save_last=True,
-    )
-    callbacks = [ckpt_callback]
+    # ckpt_callback = ModelCheckpoint(
+    #     "ckpt/",
+    #     filename=args.name + "-{epoch:02d}-{val_acc:.2f}",
+    #     save_last=True,
+    # )
+    # callbacks = [ckpt_callback]
 
 
     ### Fault Injection Test ###
 
-    reader = csv.reader(open("ckpt/layers.csv", mode="r"))
-    layers = {i: row[0] for i, row in enumerate(reader)}
+    reader = csv.reader(open(f"ckpt/{args.name}_layers_info.csv", mode="r"))
+    layers = {i: row[1] for i, row in enumerate(reader)}
 
     while args.inject_index < len(layers):
         try:
@@ -126,16 +126,18 @@ def main():
         except:
             results = {}
 
-        noisy_loss, loss = software_fault_injection(args, net, datamodule)
+        noisy_loss, loss, noisy_acc, acc = software_fault_injection(args, net, datamodule)
         print(
-            f"Layer {args.inject_index} ({layers[args.inject_index]}): Noisy Loss: {noisy_loss:.2e}, Loss: {loss:.2e}"
+            f"Layer {args.inject_index} ({layers[args.inject_index]}): Noisy Loss: {noisy_loss:.2e}, Loss: {loss:.2e}, Noisy Acc: {noisy_acc:.2f}, Acc: {acc:.2f}"
         )
         results[args.inject_index] = (
             float(noisy_loss.cpu().numpy()),
             float(loss.cpu().numpy()),
+            float(noisy_acc.cpu().numpy()),
+            float(acc.cpu().numpy()),
         )
         json.dump(results, open(f"ckpt/{args.name}_results.json", "w"))
-
+        break
 
 if __name__ == "__main__":
     main()
