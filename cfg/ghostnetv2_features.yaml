@@ -16,6 +16,7 @@ error_model: random
 inject_p: !!float 0.1 # 0.001
 inject_epoch: 0
 inject_index: 0
+nan: true
 comment: Uniform noise [0, epoch). Inj each conv and linear layer. all model. p_c [0.1].
 
 
@@ -32,3 +33,6 @@ optimizer: adamw
 randrange: 1000
 csv: ghostnetv2.csv
 injsite: neuron
+
+# Wandb
+wandb: null

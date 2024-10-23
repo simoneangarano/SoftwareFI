@@ -17,3 +17,5 @@ seed: 0
 inject_p: !!float 0.1
 inject_epoch: 0
 comment: null
+wandb: null
+nan: true

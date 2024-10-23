@@ -11,7 +11,7 @@ from utils.hg_noise_injector.hans_gruber import HansGruberNI
 
 
 class NaNReLU(nn.Module):
-    def __init__(self, nan=True, act="relu6", inplace=False):
+    def __init__(self, nan=False, act="relu6", inplace=False):
         super().__init__()
         # print(f"NaNReLU: {act}")
         if act == "relu":
@@ -144,10 +144,10 @@ def _make_divisible(v, divisor, min_value=None):
 
 
 class HardSigmoid(nn.Module):
-    def __init__(self, inplace: bool = False, act="relu"):
+    def __init__(self, inplace: bool = False, act="relu", nan=False):
         super().__init__()
         self.inplace = inplace
-        self.activation = NaNReLU(act=act)
+        self.activation = NaNReLU(act=act, nan=nan)
 
     def forward(self, x):
         if self.inplace:
@@ -165,6 +165,7 @@ class SqueezeExcite(nn.Module):
         activation="relu",
         gate_fn=HardSigmoid,
         divisor=4,
+        nan=False,
         error_model="random",
         inject_p=0.01,
         inject_epoch=0,
@@ -184,7 +185,7 @@ class SqueezeExcite(nn.Module):
             inject_p=inject_p,
             inject_epoch=inject_epoch,
         )
-        self.act1 = NaNReLU(act=activation, inplace=True)
+        self.act1 = NaNReLU(act=activation, inplace=True, nan=nan)
         self.conv_expand = ConvInjector(
             reduced_chs,
             in_chs,
@@ -216,6 +217,7 @@ class ConvBnAct(nn.Module):
         kernel_size,
         stride=1,
         activation="relu",
+        nan=False,
         error_model="random",
         inject_p=0.01,
         inject_epoch=0,
@@ -235,7 +237,7 @@ class ConvBnAct(nn.Module):
         self.bn1 = BNInjector(
             out_chs, error_model="random", inject_p=0.01, inject_epoch=0
         )
-        self.act1 = NaNReLU(act=activation, inplace=True)
+        self.act1 = NaNReLU(act=activation, inplace=True, nan=nan)
 
     def forward(self, x, inject=True, current_epoch=0, counter=0, inject_index=0):
 
@@ -262,6 +264,7 @@ class GhostModuleV2(nn.Module):
         relu=True,
         activation="relu",
         mode=None,
+        nan=False,
         error_model="random",
         inject_p=0.01,
         inject_epoch=0,
@@ -289,7 +292,11 @@ class GhostModuleV2(nn.Module):
                 BNInjector(
                     init_channels, error_model="random", inject_p=0.01, inject_epoch=0
                 ),
-                NaNReLU(act=activation, inplace=True) if relu else SequentialInjector(),
+                (
+                    NaNReLU(act=activation, inplace=True, nan=nan)
+                    if relu
+                    else SequentialInjector()
+                ),
             )
             self.cheap_operation = SequentialInjector(
                 ConvInjector(
@@ -307,7 +314,11 @@ class GhostModuleV2(nn.Module):
                 BNInjector(
                     new_channels, error_model="random", inject_p=0.01, inject_epoch=0
                 ),
-                NaNReLU(act=activation, inplace=True) if relu else SequentialInjector(),
+                (
+                    NaNReLU(act=activation, inplace=True, nan=nan)
+                    if relu
+                    else SequentialInjector()
+                ),
             )
         elif self.mode in ["attn"]:
             self.oup = oup
@@ -328,7 +339,11 @@ class GhostModuleV2(nn.Module):
                 BNInjector(
                     init_channels, error_model="random", inject_p=0.01, inject_epoch=0
                 ),
-                NaNReLU(act=activation, inplace=True) if relu else SequentialInjector(),
+                (
+                    NaNReLU(act=activation, inplace=True, nan=nan)
+                    if relu
+                    else SequentialInjector()
+                ),
             )
             self.cheap_operation = SequentialInjector(
                 ConvInjector(
@@ -346,7 +361,11 @@ class GhostModuleV2(nn.Module):
                 BNInjector(
                     new_channels, error_model="random", inject_p=0.01, inject_epoch=0
                 ),
-                NaNReLU(act=activation, inplace=True) if relu else SequentialInjector(),
+                (
+                    NaNReLU(act=activation, inplace=True, nan=nan)
+                    if relu
+                    else SequentialInjector()
+                ),
             )
             self.short_conv = SequentialInjector(
                 ConvInjector(
@@ -438,6 +457,7 @@ class GhostBottleneckV2(nn.Module):
         se_ratio=0.0,
         layer_id=None,
         activation="relu",
+        nan=False,
         error_model="random",
         inject_p=0.01,
         inject_epoch=0,
@@ -582,6 +602,7 @@ class GhostNetV2(nn.Module):
         dropout=0.2,
         block=GhostBottleneckV2,
         activation="relu",
+        nan=False,
         error_model="random",
         inject_p=0.01,
         inject_epoch=0,
@@ -609,7 +630,7 @@ class GhostNetV2(nn.Module):
         self.bn1 = BNInjector(
             output_channel, error_model="random", inject_p=0.01, inject_epoch=0
         )
-        self.act1 = NaNReLU(act=activation, inplace=True)
+        self.act1 = NaNReLU(act=activation, inplace=True, nan=nan)
         input_channel = output_channel
 
         # building inverted residual blocks
@@ -635,6 +656,7 @@ class GhostNetV2(nn.Module):
                             inject_p=inject_p,
                             inject_epoch=inject_epoch,
                             activation=activation,
+                            nan=nan,
                         )
                     )
                 input_channel = output_channel
@@ -673,7 +695,7 @@ class GhostNetV2(nn.Module):
         #     inject_p=inject_p,
         #     inject_epoch=inject_epoch,
         # )
-        # self.act2 = NaNReLU(act=activation, inplace=True)
+        # self.act2 = NaNReLU(act=activation, inplace=True, nan=nan)
         # self.classifier = LinearInjector(
         #     output_channel,
         #     num_classes,
@@ -750,6 +772,7 @@ def ghostnetv2(
     inject_epoch=0,
     activation="relu",
     ckpt=None,
+    nan=False,
 ):
     cfgs = cfgs_standard()
     model = GhostNetV2(
@@ -760,6 +783,7 @@ def ghostnetv2(
         inject_p=inject_p,
         inject_epoch=inject_epoch,
         activation=activation,
+        nan=nan,
     )
     if ckpt is not None:
         model = load_fi_weights(model, ckpt)
@@ -777,6 +801,7 @@ class SegmentationHeadGhostBN(nn.Module):
         width=1.6,
         se_ratio=0.25,
         activation="relu",
+        nan=False,
         error_model="random",
         inject_p=0.01,
         inject_epoch=0,
@@ -808,6 +833,7 @@ class SegmentationHeadGhostBN(nn.Module):
             layer_id=0,
             se_ratio=se_ratio,
             activation=activation,
+            nan=nan,
             error_model=error_model,
             inject_p=inject_p,
             inject_epoch=inject_epoch,
@@ -820,6 +846,7 @@ class SegmentationHeadGhostBN(nn.Module):
             layer_id=0,
             se_ratio=se_ratio,
             activation=activation,
+            nan=nan,
             error_model=error_model,
             inject_p=inject_p,
             inject_epoch=inject_epoch,
@@ -832,6 +859,7 @@ class SegmentationHeadGhostBN(nn.Module):
             layer_id=0,
             se_ratio=se_ratio,
             activation=activation,
+            nan=nan,
             error_model=error_model,
             inject_p=inject_p,
             inject_epoch=inject_epoch,

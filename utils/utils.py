@@ -1,172 +1,20 @@
 import yaml, argparse
 from tqdm import tqdm
+import torch
 from timm.data import create_loader, FastCollateMixup
 
 from .models.LightningModelWrapper import ModelWrapper
-from .models.hard_resnet import *
-from .models.hard_densenet import *
+from .models.hard_resnet import (
+    hard_resnet20,
+    hard_resnet32,
+    hard_resnet44,
+    hard_resnet56,
+)
+from .models.hard_densenet import densenet100
 from .models.ghostnetv2 import ghostnetv2, GhostNetSS, SegmentationHeadGhostBN
 
 
-def build_model(
-    model="hard_resnet20",
-    n_classes=10,
-    optim_params={},
-    loss="bce",
-    error_model="random",
-    inject_p=0.1,
-    inject_epoch=0,
-    order="relu-bn",
-    activation="relu",
-    nan=False,
-    affine=True,
-    ckpt=None,
-):
-    if model == "hard_resnet20":
-        net = hard_resnet20(
-            n_classes,
-            error_model,
-            inject_p,
-            inject_epoch,
-            order,
-            activation,
-            nan,
-            affine,
-        )
-    elif model == "hard_resnet32":
-        net = hard_resnet32(
-            n_classes,
-            error_model,
-            inject_p,
-            inject_epoch,
-            order,
-            activation,
-            nan,
-            affine,
-        )
-    elif model == "hard_resnet44":
-        net = hard_resnet44(
-            n_classes,
-            error_model,
-            inject_p,
-            inject_epoch,
-            order,
-            activation,
-            nan,
-            affine,
-        )
-    elif model == "hard_resnet56":
-        net = hard_resnet56(
-            n_classes,
-            error_model,
-            inject_p,
-            inject_epoch,
-            order,
-            activation,
-            nan,
-            affine,
-        )
-    elif model == "densenet100":
-        net = densenet100(n_classes)
-    elif model == "ghostnetv2":
-        if n_classes == 0:
-            net = ghostnetv2(
-                # num_classes=n_classes,
-                error_model=error_model,
-                inject_p=inject_p,
-                inject_epoch=inject_epoch,
-                ckpt=ckpt,
-                activation=activation,
-            )
-        else:
-            backbone = ghostnetv2(
-                # num_classes=n_classes,
-                error_model=error_model,
-                inject_p=inject_p,
-                inject_epoch=inject_epoch,
-                ckpt=None,
-                activation=activation,
-            )
-            head = SegmentationHeadGhostBN(num_classes=n_classes, activation=activation)
-            net = GhostNetSS(backbone, head, ckpt=ckpt)
-    else:
-        model = "hard_resnet20"
-        net = hard_resnet20(
-            n_classes,
-            error_model,
-            inject_p,
-            inject_epoch,
-            order,
-            activation,
-            nan,
-            affine,
-        )
-
-    print(f"\n==> {model} built.")
-    return ModelWrapper(net, n_classes, optim_params, loss)
-
-
-def get_loader(
-    data,
-    batch_size=128,
-    workers=4,
-    n_classes=1000,
-    stats=None,
-    mixup_cutmix=True,
-    rand_erasing=0.0,
-    label_smooth=0.1,
-    rand_aug="rand-m9-mstd0.5-inc1",
-    jitter=0.0,
-    size=32,
-):
-    if mixup_cutmix:
-        mixup_alpha = 0.8
-        cutmix_alpha = 1.0
-        prob = 1.0
-        switch_prob = 0.5
-    else:
-        mixup_alpha = 0.0
-        cutmix_alpha = 0.0
-        prob = 0.0
-        switch_prob = 0.0
-    collate = FastCollateMixup(
-        mixup_alpha=mixup_alpha,
-        cutmix_alpha=cutmix_alpha,
-        cutmix_minmax=None,
-        prob=prob,
-        switch_prob=switch_prob,
-        mode="batch",
-        label_smoothing=label_smooth,
-        num_classes=n_classes,
-    )
-    return create_loader(
-        data,
-        input_size=(3, size, size),
-        batch_size=batch_size,
-        is_training=True,
-        use_prefetcher=True,
-        no_aug=False,
-        re_prob=rand_erasing,  # RandErasing
-        re_mode="pixel",
-        re_count=1,
-        re_split=False,
-        scale=[0.75, 1.0],
-        ratio=[3.0 / 4.0, 4.0 / 3.0],
-        hflip=0.5,
-        vflip=0,
-        color_jitter=jitter,
-        auto_augment=rand_aug,
-        num_aug_splits=0,
-        interpolation="random",
-        mean=stats[0],
-        std=stats[1],
-        num_workers=workers,
-        distributed=False,
-        collate_fn=collate,
-        pin_memory=True,
-        use_multi_epochs_loader=False,
-        fp16=False,
-    )
+### Configuration ###
 
 
 def get_parser():
@@ -302,22 +150,202 @@ def parse_args(parser, config_parser, args=None):
     return args
 
 
+### Data ###
+
+
+def get_loader(
+    data,
+    batch_size=128,
+    workers=4,
+    n_classes=1000,
+    stats=None,
+    mixup_cutmix=True,
+    rand_erasing=0.0,
+    label_smooth=0.1,
+    rand_aug="rand-m9-mstd0.5-inc1",
+    jitter=0.0,
+    size=32,
+):
+    if mixup_cutmix:
+        mixup_alpha = 0.8
+        cutmix_alpha = 1.0
+        prob = 1.0
+        switch_prob = 0.5
+    else:
+        mixup_alpha = 0.0
+        cutmix_alpha = 0.0
+        prob = 0.0
+        switch_prob = 0.0
+    collate = FastCollateMixup(
+        mixup_alpha=mixup_alpha,
+        cutmix_alpha=cutmix_alpha,
+        cutmix_minmax=None,
+        prob=prob,
+        switch_prob=switch_prob,
+        mode="batch",
+        label_smoothing=label_smooth,
+        num_classes=n_classes,
+    )
+    return create_loader(
+        data,
+        input_size=(3, size, size),
+        batch_size=batch_size,
+        is_training=True,
+        use_prefetcher=True,
+        no_aug=False,
+        re_prob=rand_erasing,  # RandErasing
+        re_mode="pixel",
+        re_count=1,
+        re_split=False,
+        scale=[0.75, 1.0],
+        ratio=[3.0 / 4.0, 4.0 / 3.0],
+        hflip=0.5,
+        vflip=0,
+        color_jitter=jitter,
+        auto_augment=rand_aug,
+        num_aug_splits=0,
+        interpolation="random",
+        mean=stats[0],
+        std=stats[1],
+        num_workers=workers,
+        distributed=False,
+        collate_fn=collate,
+        pin_memory=True,
+        use_multi_epochs_loader=False,
+        fp16=False,
+    )
+
+
+### Model ###
+
+
+def build_model(
+    model="hard_resnet20",
+    n_classes=10,
+    optim_params={},
+    loss="bce",
+    error_model="random",
+    inject_p=0.1,
+    inject_epoch=0,
+    order="relu-bn",
+    activation="relu",
+    nan=False,
+    affine=True,
+    ckpt=None,
+):
+    if model == "hard_resnet20":
+        net = hard_resnet20(
+            n_classes,
+            error_model,
+            inject_p,
+            inject_epoch,
+            order,
+            activation,
+            nan,
+            affine,
+        )
+    elif model == "hard_resnet32":
+        net = hard_resnet32(
+            n_classes,
+            error_model,
+            inject_p,
+            inject_epoch,
+            order,
+            activation,
+            nan,
+            affine,
+        )
+    elif model == "hard_resnet44":
+        net = hard_resnet44(
+            n_classes,
+            error_model,
+            inject_p,
+            inject_epoch,
+            order,
+            activation,
+            nan,
+            affine,
+        )
+    elif model == "hard_resnet56":
+        net = hard_resnet56(
+            n_classes,
+            error_model,
+            inject_p,
+            inject_epoch,
+            order,
+            activation,
+            nan,
+            affine,
+        )
+    elif model == "densenet100":
+        net = densenet100(n_classes)
+    elif model == "ghostnetv2":
+        if n_classes == 0:
+            net = ghostnetv2(
+                # num_classes=n_classes,
+                error_model=error_model,
+                inject_p=inject_p,
+                inject_epoch=inject_epoch,
+                ckpt=ckpt,
+                activation=activation,
+                nan=nan,
+            )
+        else:
+            backbone = ghostnetv2(
+                # num_classes=n_classes,
+                error_model=error_model,
+                inject_p=inject_p,
+                inject_epoch=inject_epoch,
+                ckpt=None,
+                activation=activation,
+                nan=nan,
+            )
+            head = SegmentationHeadGhostBN(
+                num_classes=n_classes, activation=activation, nan=nan
+            )
+            net = GhostNetSS(backbone, head, ckpt=ckpt)
+    else:
+        model = "hard_resnet20"
+        net = hard_resnet20(
+            n_classes,
+            error_model,
+            inject_p,
+            inject_epoch,
+            order,
+            activation,
+            nan,
+            affine,
+        )
+
+    print(f"\n==> {model} built.")
+    return ModelWrapper(net, n_classes, optim_params, loss)
+
+
+### Validation ###
+
+
 @torch.no_grad()
 def validate(net: ModelWrapper, datamodule, args):
     total_loss, total_noisy_loss = 0, 0
     total_acc, total_noisy_acc = 0, 0
+    total_noisy_miou, total_miou = 0, 0
     for batch_idx, batch in tqdm(enumerate(datamodule.val_dataloader())):
         batch = [b.cuda() for b in batch]
-        noisy_loss, loss, noisy_acc, acc = net.validation_step(
+        noisy_loss, loss, noisy_acc, acc, noisy_miou, miou = net.validation_step(
             batch, batch_idx, True, inject_index=args.inject_index
         )
         total_loss += loss
         total_noisy_loss += noisy_loss
         total_acc += acc
         total_noisy_acc += noisy_acc
+        total_miou += miou
+        total_noisy_miou += noisy_miou
+
     return (
         total_noisy_loss / len(datamodule.val_dataloader()),
         total_loss / len(datamodule.val_dataloader()),
         total_noisy_acc / len(datamodule.val_dataloader()),
         total_acc / len(datamodule.val_dataloader()),
+        total_noisy_miou / len(datamodule.val_dataloader()),
+        total_miou / len(datamodule.val_dataloader()),
     )

@@ -43,7 +43,9 @@ def software_fault_injection(args, net, datamodule):
         pass
         # trainer.fit(net, datamodule, ckpt_path=args.ckpt)
     elif args.mode == "validation" or args.mode == "validate":
-        noisy_loss, loss, noisy_acc, acc = validate(net, datamodule, args)
+        noisy_loss, loss, noisy_acc, acc, noisy_miou, miou = validate(
+            net, datamodule, args
+        )
         # trainer.validate(net, datamodule, ckpt_path=None)
     else:
         print(
@@ -101,10 +103,12 @@ def main():
     net = net.cuda().eval()
 
     # W&B logger
-    # wandb_logger = None
-    wandb_logger = WandbLogger(project="asi", name=args.name, id=args.name)
-    wandb_logger.log_hyperparams(args)
-    wandb_logger.watch(net, log_graph=False)
+    if args.wandb:
+        wandb_logger = WandbLogger(project="asi", name=args.name, id=args.name)
+        wandb_logger.log_hyperparams(args)
+        wandb_logger.watch(net, log_graph=False)
+    else:
+        wandb_logger = None
 
     # Callbacks
     # ckpt_callback = ModelCheckpoint(
@@ -130,7 +134,7 @@ def main():
             args, net, datamodule
         )
         print(
-            f"Layer {args.inject_index} ({layers[args.inject_index]}): Noisy Loss: {noisy_loss:.2e}, Loss: {loss:.2e}, Noisy Acc: {noisy_acc:.2f}, Acc: {acc:.2f}"
+            f"Layer {args.inject_index} ({layers[args.inject_index]}): Noisy Loss: {noisy_loss:.2e}, Loss: {loss:.2e}, Noisy Acc: {noisy_acc:.2f}, Acc: {acc:.2f}, Noisy mIoU: {noisy_acc:.2f}, mIoU: {acc:.2f}"
         )
         results[args.inject_index] = (
             float(noisy_loss.cpu().numpy()),
