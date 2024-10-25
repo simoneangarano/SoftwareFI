@@ -1,5 +1,6 @@
 import yaml, argparse
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 import torch
 from timm.data import create_loader, FastCollateMixup
 
@@ -130,7 +131,7 @@ def get_parser():
     return parser, config_parser
 
 
-def parse_args(parser, config_parser, args=None):
+def parse_args(parser, config_parser, args=None, verbose=True):
     # Do we have a config file to parse?
     args_config, remaining = config_parser.parse_known_args(args)
     if args_config.config:
@@ -142,10 +143,11 @@ def parse_args(parser, config_parser, args=None):
     # defaults will have been overridden if config file specified.
     args = parser.parse_args(remaining)
 
-    print("\n==> Config parsed:")
-    for k, v in vars(args).items():
-        print(f"{k}: {v}")
-    print()
+    if verbose:
+        print("\n==> Config parsed:")
+        for k, v in vars(args).items():
+            print(f"{k}: {v}")
+        print()
 
     return args
 
@@ -349,3 +351,32 @@ def validate(net: ModelWrapper, datamodule, args):
         total_noisy_miou / len(datamodule.val_dataloader()),
         total_miou / len(datamodule.val_dataloader()),
     )
+
+
+def plot_results(results, layers, metric):
+    m_ids = {m: 2 * i for i, m in enumerate(["loss", "acc", "miou"])}
+
+    x = [int(i) for i, _ in results.items()]
+    y = [metrics[m_ids[metric]] for _, metrics in results.items()]
+    # plt.rcParams['figure.figsize'] = [4, 4]
+    plt.plot(x, y, label=metric, color="tab:grey", alpha=0.3)
+
+    for i, metrics in results.items():
+        noisy_loss, loss, noisy_acc, acc, noisy_miou, miou = metrics  # NOQA
+        layer_type = layers[int(i)]["layer_type"]
+        layer_color = (
+            "tab:orange"
+            if layer_type == "Conv2d"
+            else "tab:blue" if layer_type == "BatchNorm2d" else "tab:red"
+        )
+        plt.scatter(i, eval(f"noisy_{metric}"), color=layer_color, label=layer_type)
+    plt.hlines(eval(metric), 0, i, color="tab:green", label="Original", linestyle="--")
+    plt.xlabel("Layer")
+    plt.ylabel(metric)
+    handles, labels = plt.gca().get_legend_handles_labels()
+    by_label = dict(zip(labels, handles))
+    plt.legend(by_label.values(), by_label.keys(), loc="best")
+    plt.xticks(range(0, len(results.keys()), 15))
+    if metric == "loss":
+        plt.yscale("log")
+    plt.show()

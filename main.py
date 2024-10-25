@@ -52,7 +52,7 @@ def software_fault_injection(args, net, datamodule):
             'ERROR: select a suitable mode "train/training" or "validation/validate".'
         )
 
-    return noisy_loss, loss, noisy_acc, acc
+    return noisy_loss, loss, noisy_acc, acc, noisy_miou, miou
 
 
 def main():
@@ -76,7 +76,7 @@ def main():
             args.dataset, args.data_dir, args.batch_size, 1, augs
         )
     elif args.dataset == "sentinel":
-        datamodule = CoreDataModule(args)
+        datamodule = CoreDataModule(args, batch_size=args.batch_size)
 
     # Build model (Resnet only up to now)
     optim_params = {
@@ -120,30 +120,36 @@ def main():
 
     ### Fault Injection Test ###
 
-    reader = csv.reader(open(f"ckpt/{args.name}_layers_info.csv", mode="r"))
+    reader = csv.reader(
+        open(f"cfg/{'_'.join(args.name.split('_')[:2])}_layers_info.csv", mode="r")
+    )
     layers = {i: row[1] for i, row in enumerate(reader)}
 
     while args.inject_index < len(layers):
         try:
             results = json.load(open(f"ckpt/{args.name}_results.json", "r"))
             args.inject_index = len(results)
+            if args.inject_index == len(layers):
+                print("All layers have been tested.")
+                break
         except:
             results = {}
 
-        noisy_loss, loss, noisy_acc, acc = software_fault_injection(
+        noisy_loss, loss, noisy_acc, acc, noisy_miou, miou = software_fault_injection(
             args, net, datamodule
         )
         print(
-            f"Layer {args.inject_index} ({layers[args.inject_index]}): Noisy Loss: {noisy_loss:.2e}, Loss: {loss:.2e}, Noisy Acc: {noisy_acc:.2f}, Acc: {acc:.2f}, Noisy mIoU: {noisy_acc:.2f}, mIoU: {acc:.2f}"
+            f"Layer {args.inject_index} ({layers[args.inject_index]}): Noisy Loss: {noisy_loss:.1e}, Loss: {loss:.1e}, Noisy Acc: {noisy_acc:.2f}, Acc: {acc:.2f}, Noisy mIoU: {noisy_miou:.2f}, mIoU: {miou:.2f}"
         )
         results[args.inject_index] = (
             float(noisy_loss.cpu().numpy()),
             float(loss.cpu().numpy()),
             float(noisy_acc.cpu().numpy()),
             float(acc.cpu().numpy()),
+            float(noisy_miou),
+            float(miou),
         )
         json.dump(results, open(f"ckpt/{args.name}_results.json", "w"))
-        break
 
 
 if __name__ == "__main__":

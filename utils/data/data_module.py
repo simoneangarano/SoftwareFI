@@ -106,7 +106,7 @@ class CifarDataModule(pl.LightningDataModule):
         return get_loader(
             self.train_data,
             self.batch_size // self.num_gpus,
-            4 * self.num_gpus,
+            8 * self.num_gpus,
             self.n_classes,
             self.stats,
             self.mixup_cutmix,
@@ -121,7 +121,7 @@ class CifarDataModule(pl.LightningDataModule):
         return torch.utils.data.DataLoader(
             self.test_data,
             batch_size=200 * self.num_gpus,
-            num_workers=4 * self.num_gpus,
+            num_workers=8 * self.num_gpus,
             shuffle=False,
             pin_memory=True,
         )
@@ -177,7 +177,7 @@ class CoreDataModule(pl.LightningDataModule):
         super().__init__()
 
         # Load the metadata from the MLSTAC Collection file
-        metadata = mlstac.load(snippet="isp-uv-es/CloudSEN12Plus").metadata
+        metadata = mlstac.load(snippet="data/main.json").metadata
 
         # Split the metadata into train, validation and test sets
         self.train_dataset = metadata[
@@ -186,7 +186,7 @@ class CoreDataModule(pl.LightningDataModule):
             & (metadata["proj_shape"] == 509)
         ]
         self.validation_dataset = metadata[
-            (metadata["split"] == "validation")
+            (metadata["split"] == "test")
             & (metadata["label_type"] == "high")
             & (metadata["proj_shape"] == 509)
         ]
@@ -204,7 +204,7 @@ class CoreDataModule(pl.LightningDataModule):
         return torch.utils.data.DataLoader(
             dataset=CoreDataset(self.train_dataset, args=self.args),
             batch_size=self.batch_size,
-            num_workers=4,
+            num_workers=8,
             shuffle=True,
             pin_memory=True,
         )
@@ -212,7 +212,7 @@ class CoreDataModule(pl.LightningDataModule):
     def val_dataloader(self):
         return torch.utils.data.DataLoader(
             dataset=CoreDataset(self.validation_dataset, args=self.args),
-            num_workers=4,
+            num_workers=8,
             batch_size=self.batch_size,
             shuffle=False,
             pin_memory=True,
@@ -221,7 +221,7 @@ class CoreDataModule(pl.LightningDataModule):
     def test_dataloader(self):
         return torch.utils.data.DataLoader(
             dataset=CoreDataset(self.test_dataset, args=self.args),
-            num_workers=4,
+            num_workers=8,
             batch_size=self.batch_size,
             shuffle=False,
             pin_memory=True,

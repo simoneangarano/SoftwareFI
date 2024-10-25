@@ -68,22 +68,18 @@ class ModelWrapper(pl.LightningModule):
             loss = self.criterion(outputs, y)
         if loss.isnan():
             print("NaN detected")
-        elif loss > 1e4:
-            print("Large Loss detected")
+        elif loss > 1e5:
+            pass  # print("Large Loss detected")
 
-        # Accuracy
+        # Accuracy and Mean IoU
         if not self.training and self.n_classes > 0:
             probs, preds = torch.max(outputs, 1)
             acc = torch.mean((preds == y).float())
-        else:
-            acc, probs, preds = 0, 0, 0
-
-        # Mean IoU
-        if not self.training and self.n_classes > 0:
             self.miou.evaluateBatch(preds, y)
             miou = self.miou.outputScores()
+            self.miou.clear()
         else:
-            miou = 0
+            acc, probs, preds, miou = 0, 0, 0, 0
 
         return loss, acc, miou, (probs, preds)
 
