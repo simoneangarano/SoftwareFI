@@ -11,16 +11,21 @@ from utils.hg_noise_injector.hans_gruber import HansGruberNI
 ###############
 
 
-class NaNReLU(nn.Module):
+class NaNAct(nn.Module):
     def __init__(self, nan=False, act="relu6", inplace=False):
         super().__init__()
-        # print(f"NaNReLU: {act}")
+        # print(f"NaNAct: {act}")
         if act == "relu":
             self.act = nn.ReLU(inplace=inplace)
         elif act == "relu6":
-            self.act = F.relu6
+            self.act = nn.ReLU6(inplace=inplace)
         elif act == "relumax":
             self.act = nn.ReLU(inplace=inplace)  ###############################
+        elif act == "sigmoid":
+            self.act = torch.sigmoid
+        elif act == "hard_sigmoid":
+            self.act = HardSigmoid(inplace=inplace)
+
         self.nan = nan
 
     def forward(self, x):
@@ -170,10 +175,10 @@ def _make_divisible(v, divisor, min_value=None):
 
 
 class HardSigmoid(nn.Module):
-    def __init__(self, inplace: bool = False, act="relu", nan=False):
+    def __init__(self, inplace: bool = False):
         super().__init__()
         self.inplace = inplace
-        self.activation = NaNReLU(act=act, nan=nan)
+        self.activation = nn.ReLU6(inplace=inplace)
 
     def forward(self, x):
         if self.inplace:
@@ -189,7 +194,6 @@ class SqueezeExcite(nn.Module):
         se_ratio=0.25,
         reduced_base_chs=None,
         activation="relu",
-        gate_fn=HardSigmoid,
         divisor=4,
         inject=True,
         nan=False,
@@ -200,7 +204,7 @@ class SqueezeExcite(nn.Module):
     ):
         super(SqueezeExcite, self).__init__()
         self.activation = activation
-        self.gate_fn = gate_fn(act=self.activation)
+        self.gate_fn = NaNAct(nan=nan, act="hard_sigmoid")
         reduced_chs = _make_divisible((reduced_base_chs or in_chs) * se_ratio, divisor)
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
         self.conv_reduce = ConvInjector(
@@ -213,7 +217,7 @@ class SqueezeExcite(nn.Module):
             inject_p=inject_p,
             inject_epoch=inject_epoch,
         )
-        self.act1 = NaNReLU(act=activation, inplace=True, nan=nan)
+        self.act1 = NaNAct(act=activation, inplace=True, nan=nan)
         self.conv_expand = ConvInjector(
             reduced_chs,
             in_chs,
@@ -268,7 +272,7 @@ class ConvBnAct(nn.Module):
         self.bn1 = BNInjector(
             out_chs, inject=inject, error_model="random", inject_p=0.01, inject_epoch=0
         )
-        self.act1 = NaNReLU(act=activation, inplace=True, nan=nan)
+        self.act1 = NaNAct(act=activation, inplace=True, nan=nan)
 
     def forward(self, x, inject=True, current_epoch=0, counter=0, inject_index=0):
 
@@ -303,7 +307,6 @@ class GhostModuleV2(nn.Module):
     ):
         super(GhostModuleV2, self).__init__()
         self.mode = mode
-        self.gate_fn = nn.Sigmoid()
 
         if self.mode in ["original"]:
             self.oup = oup
@@ -330,7 +333,7 @@ class GhostModuleV2(nn.Module):
                     inject_epoch=0,
                 ),
                 (
-                    NaNReLU(
+                    NaNAct(
                         act=activation, inplace=True, nan=nan
                     )  # CHECK (act after bn)
                     if relu
@@ -359,7 +362,7 @@ class GhostModuleV2(nn.Module):
                     inject_epoch=0,
                 ),
                 (
-                    NaNReLU(
+                    NaNAct(
                         act=activation, inplace=True, nan=nan
                     )  # CHECK (act after bn)
                     if relu
@@ -370,6 +373,8 @@ class GhostModuleV2(nn.Module):
             self.oup = oup
             init_channels = math.ceil(oup / ratio)
             new_channels = init_channels * (ratio - 1)
+            self.avg_pool = nn.AvgPool2d(kernel_size=2, stride=2)
+            self.gate_fn = NaNAct(nan=nan, act="sigmoid")
             self.primary_conv = SequentialInjector(
                 ConvInjector(
                     inp,
@@ -391,7 +396,7 @@ class GhostModuleV2(nn.Module):
                     inject_epoch=0,
                 ),
                 (
-                    NaNReLU(
+                    NaNAct(
                         act=activation, inplace=True, nan=nan
                     )  # CHECK (act after bn)
                     if relu
@@ -420,7 +425,7 @@ class GhostModuleV2(nn.Module):
                     inject_epoch=0,
                 ),
                 (
-                    NaNReLU(
+                    NaNAct(
                         act=activation, inplace=True, nan=nan
                     )  # CHECK (act after bn)
                     if relu
@@ -440,7 +445,13 @@ class GhostModuleV2(nn.Module):
                     inject_p=inject_p,
                     inject_epoch=inject_epoch,
                 ),
-                BNInjector(oup, error_model="random", inject_p=0.01, inject_epoch=0),
+                BNInjector(
+                    oup,
+                    error_model="random",
+                    inject=inject,
+                    inject_p=0.01,
+                    inject_epoch=0,
+                ),
                 ConvInjector(
                     oup,
                     oup,
@@ -495,7 +506,7 @@ class GhostModuleV2(nn.Module):
             return out[:, : self.oup, :, :], counter, inject_index
         elif self.mode in ["attn"]:
             res, counter, inject_index = self.short_conv(
-                F.avg_pool2d(x, kernel_size=2, stride=2),
+                self.avg_pool(x),
                 inject,
                 current_epoch,
                 counter,
@@ -733,7 +744,7 @@ class GhostNetV2(nn.Module):
             inject_p=0.01,
             inject_epoch=0,
         )
-        self.act1 = NaNReLU(act=activation, inplace=True, nan=nan)
+        self.act1 = NaNAct(act=activation, inplace=True, nan=nan)
         input_channel = output_channel
 
         # building inverted residual blocks
@@ -800,7 +811,7 @@ class GhostNetV2(nn.Module):
         #     inject_p=inject_p,
         #     inject_epoch=inject_epoch,
         # )
-        # self.act2 = NaNReLU(act=activation, inplace=True, nan=nan)
+        # self.act2 = NaNAct(act=activation, inplace=True, nan=nan)
         # self.classifier = LinearInjector(
         #     output_channel,
         #     num_classes,

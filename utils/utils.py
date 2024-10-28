@@ -1,6 +1,7 @@
 import argparse
 
 import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import yaml
 from timm.data import FastCollateMixup, create_loader
@@ -381,3 +382,98 @@ def plot_results(results, layers, metric):
     if metric == "loss":
         plt.yscale("log")
     plt.show()
+
+
+class RunningStats(object):
+    """Computes running mean and standard deviation
+    Url: https://gist.github.com/wassname/a9502f562d4d3e73729dc5b184db2501
+    Adapted from:
+        *
+        <http://stackoverflow.com/questions/1174984/how-to-efficiently-calculate-a-running-standard-deviation>
+        * <http://mathcentral.uregina.ca/QQ/database/QQ.09.02/carlos1.html>
+        * <https://gist.github.com/fvisin/5a10066258e43cf6acfa0a474fcdb59f>
+
+    Usage:
+        rs = RunningStats()
+        for i in range(10):
+            rs += np.random.randn()
+            print(rs)
+        print(rs.mean, rs.std)
+    """
+
+    def __init__(self, num=0.0, mean=None, var=None, min=None, max=None):
+        self.num = num  # number of samples
+        self.mean = mean  # mean
+        self.var = var  # sum of squared differences from the mean
+        self.min = min  # min value
+        self.max = max  # max value
+
+    def clear(self):
+        self.num = 0.0
+
+    def push(self, x, per_dim=False):
+        # process input
+        if per_dim:
+            self.update_params(x)
+        else:
+            for el in x.flatten():
+                self.update_params(el)
+
+    def update_params(self, x):
+        self.num += 1
+        if self.num == 1:
+            self.mean = x
+            self.var = 0.0
+            self.min = x
+            self.max = x
+        else:
+            prev_m = self.mean.copy()
+            self.mean += (x - self.mean) / self.num
+            self.var += (x - prev_m) * (x - self.mean)
+
+    def __add__(self, other):
+        if isinstance(other, RunningStats):
+            sum_ns = self.num + other.num
+            prod_ns = self.num * other.num
+            delta2 = (other.mean - self.mean) ** 2.0
+            return RunningStats(
+                sum_ns,
+                (self.mean * self.num + other.mean * other.num) / sum_ns,
+                self.var + other.var + delta2 * prod_ns / sum_ns,
+            )
+        else:
+            self.push(other)
+            return self
+
+    def get_stats(self):
+        return self._mean, self._std, self._min, self._max
+
+    @property
+    def _mean(self):
+        return float(self.mean) if self.num else 0.0
+
+    @property
+    def _var(self):
+        return float((self.var) / (self.num - 1)) if self.num else 0.0
+
+    @property
+    def _std(self):
+        return float(np.sqrt(self._var))
+
+    @property
+    def _min(self):
+        return float(self.min) if self.num else 0.0
+
+    @property
+    def _max(self):
+        return float(self.max) if self.num else 0.0
+
+    def __repr__(self):
+        return "<RunningMean(mean={: 2.4f}, std={: 2.4f}, min={: 2.4f}, max={: 2.4f})>".format(
+            self._mean, self._std, self._min, self._max
+        )
+
+    def __str__(self):
+        return "mean={: 2.4f}, std={: 2.4f}, min={: 2.4f}, max={: 2.4f}".format(
+            self._mean, self._std, self._min, self._max
+        )

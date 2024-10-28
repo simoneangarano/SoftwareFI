@@ -33,5 +33,6 @@ randrange: 1000
 csv: ghostnetv2.csv
 injsite: neuron
 
-# Wandb
+# Log
 wandb: null
+# log_stats: true # save layer output stats (pooling, activation, distribution)
