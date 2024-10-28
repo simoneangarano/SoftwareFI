@@ -13,8 +13,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
-
-from hans_gruber import HansGruberNI, LINE
+from hans_gruber import LINE, HansGruberNI
 
 DATA_PATH = "../../data"
 MODEL_PATH = f"{DATA_PATH}/cifar_net.pth"

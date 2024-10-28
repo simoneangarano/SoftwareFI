@@ -1,9 +1,11 @@
 import time
+
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 from torch.optim import SGD
 from torch.optim.lr_scheduler import PolynomialLR, StepLR
+
 from utils.segmentation.losses import FocalLoss
 from utils.segmentation.stream_metrics import StreamSegMetrics
 

@@ -1,9 +1,10 @@
+import os
+
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
-import os
-from PIL import Image
 import torchvision.transforms as transforms
+from PIL import Image
 
 
 class ClientModel(nn.Module):

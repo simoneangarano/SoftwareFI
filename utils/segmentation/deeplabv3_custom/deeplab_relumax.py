@@ -1,22 +1,20 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
 from torchvision.models.segmentation import DeepLabV3_ResNet101_Weights
 
 # from torchvision.models import resnet101
 try:
-    from utils.segmentation.deeplabv3_custom.activations import (
-        RobustActivation,
-    )
+    from utils.segmentation.deeplabv3_custom.activations import RobustActivation
     from utils.segmentation.deeplabv3_custom.resnet_relumax import resnet101
 except ModuleNotFoundError:
     from activations import RobustActivation
     from resnet_relumax import resnet101
 
-from typing import Dict, List
-from torch import Tensor
 from collections import OrderedDict
+from typing import Dict, List
+
+from torch import Tensor
 
 
 class IntermediateLayerGetter(nn.ModuleDict):

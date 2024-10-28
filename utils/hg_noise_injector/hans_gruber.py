@@ -4,8 +4,8 @@ in the training process
 """
 
 import random
-import numpy as np
 
+import numpy as np
 import torch
 import torch.nn as nn
 
@@ -265,6 +265,6 @@ class HansGruberNI(torch.nn.Module):
         else:
             if inject:
                 # inject noise to all samples
-                output = self.inject(forward_input, 1)
+                output = self.inject(forward_input, self.p)
 
         return output

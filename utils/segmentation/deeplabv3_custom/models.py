@@ -1,15 +1,15 @@
+from collections import OrderedDict
+from typing import Dict, List
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torchvision.models import resnet101, resnet50
-from torchvision.models.segmentation import (
-    DeepLabV3_ResNet101_Weights,
-    DeepLabV3_ResNet50_Weights,
-)
-
-from typing import Dict, List
 from torch import Tensor
-from collections import OrderedDict
+from torchvision.models import resnet50, resnet101
+from torchvision.models.segmentation import (
+    DeepLabV3_ResNet50_Weights,
+    DeepLabV3_ResNet101_Weights,
+)
 
 
 class IntermediateLayerGetter(nn.ModuleDict):

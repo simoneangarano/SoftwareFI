@@ -1,8 +1,8 @@
-import torch
+import mlstac
 import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
-import mlstac
+import torch
 
 
 class LitModel(pl.LightningModule):

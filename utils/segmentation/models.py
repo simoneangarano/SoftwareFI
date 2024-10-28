@@ -1,13 +1,14 @@
+from typing import Any, Callable, Dict, List, Optional
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-from typing import Optional, Callable, List, Any, Dict
 from torchvision.models.segmentation.deeplabv3 import (
     DeepLabV3_ResNet101_Weights,
+    IntermediateLayerGetter,
     ResNet101_Weights,
     WeightsEnum,
-    IntermediateLayerGetter,
 )
 
 

@@ -1,17 +1,17 @@
-import yaml
 import torch
 import torch.nn as nn
-from .transforms import (
-    ExtCompose,
-    ExtRandomCrop,
-    ExtColorJitter,
-    ExtRandomHorizontalFlip,
-    ExtToTensor,
-    ExtNormalize,
-)
+import yaml
 from torch.utils.data import DataLoader
 
 from .LightningModelWrapper import ModelWrapper
+from .transforms import (
+    ExtColorJitter,
+    ExtCompose,
+    ExtNormalize,
+    ExtRandomCrop,
+    ExtRandomHorizontalFlip,
+    ExtToTensor,
+)
 
 
 def build_model(

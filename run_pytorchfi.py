@@ -8,8 +8,8 @@ import torchvision
 from pytorchfi import core as pfi_core
 from pytorchfi import neuron_error_models as pfi_neuron_error_models
 
-from utils.utils import build_model, parse_args
 from utils.test_utils import CoreDataModule
+from utils.utils import build_model, parse_args
 
 
 # single random neuron error in single batch element

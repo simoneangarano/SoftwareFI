@@ -1,4 +1,4 @@
-name: ghostnetv2_clouds_p1
+name: ghostnetv2_clouds_p1e_5
 mode: validation
 ckpt: "ckpt/bb_heads_clouds.pth"
 dataset: sentinel
@@ -13,9 +13,9 @@ batch_size: 32
 # Injection parameters
 seed: 0
 error_model: random 
-inject_p: !!float 1.0 #####################################
+inject_p: !!float 1.0e-5 #####################################
 inject_epoch: 0
-inject_index: 0
+inject_index: -1 # -1 means all layers
 nan: true
 comment: Uniform noise [0, epoch). Inj each conv and linear layer. all model. p_c [0.1].
 

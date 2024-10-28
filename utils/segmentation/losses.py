@@ -1,7 +1,7 @@
 # Adapted from: https://github.com/VainF/DeepLabV3Plus-Pytorch
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch
 
 
 class FocalLoss(nn.Module):

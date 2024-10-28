@@ -1,8 +1,10 @@
 from argparse import Namespace
-import pandas as pd
+
 import matplotlib.pyplot as plt
+import pandas as pd
 import seaborn as sns
 import torch
+
 from utils.utils import build_model
 
 sns.set_theme(style="whitegrid")

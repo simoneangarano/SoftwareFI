@@ -1,16 +1,17 @@
 import os
-import rasterio
-import numpy as np
-import mlstac
-import pandas as pd
 
-import torch
+import mlstac
+import numpy as np
+import pandas as pd
 import pytorch_lightning as pl
+import rasterio
+import torch
 import torchvision.transforms as transforms
 from torchvision.datasets import CIFAR10, CIFAR100
 
+from utils.utils import build_model, get_loader
+
 from .tiny_imagenet import TinyImageNet
-from utils.utils import get_loader, build_model
 
 
 class CifarDataModule(pl.LightningDataModule):

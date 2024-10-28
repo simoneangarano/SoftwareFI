@@ -4,13 +4,10 @@ from typing import Any, Callable, List, Optional, Type, Union
 import torch
 import torch.nn as nn
 from torch import Tensor
-
 from torchvision.models import ResNet101_Weights
 
 try:
-    from utils.segmentation.deeplabv3_custom.activations import (
-        RobustActivation,
-    )
+    from utils.segmentation.deeplabv3_custom.activations import RobustActivation
 except ModuleNotFoundError:
     from activations import RobustActivation
 

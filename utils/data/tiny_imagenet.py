@@ -16,12 +16,10 @@
 """Simple Tiny ImageNet dataset utility class for pytorch."""
 
 import os
-
 import shutil
 
 from torchvision.datasets import ImageFolder
-from torchvision.datasets.utils import verify_str_arg
-from torchvision.datasets.utils import download_and_extract_archive
+from torchvision.datasets.utils import download_and_extract_archive, verify_str_arg
 
 
 def normalize_tin_val_folder_structure(

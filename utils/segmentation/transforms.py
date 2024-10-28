@@ -1,12 +1,22 @@
 # Adapted from: https://github.com/VainF/DeepLabV3Plus-Pytorch
 import collections
-import torchvision
-import torch
-import torchvision.transforms.functional as F
-import random
 import numbers
+import random
+
 import numpy as np
+import torch
+import torchvision
+import torchvision.transforms.functional as F
 from PIL import Image
+
+_pil_interpolation_to_str = {
+    Image.NEAREST: "PIL.Image.NEAREST",
+    Image.BILINEAR: "PIL.Image.BILINEAR",
+    Image.BICUBIC: "PIL.Image.BICUBIC",
+    Image.LANCZOS: "PIL.Image.LANCZOS",
+    Image.HAMMING: "PIL.Image.HAMMING",
+    Image.BOX: "PIL.Image.BOX",
+}
 
 
 #

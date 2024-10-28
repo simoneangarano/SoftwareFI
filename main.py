@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
-import csv, json
+import csv
+import json
 import warnings
 
 import torch
@@ -9,9 +10,10 @@ import torch
 # from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 
-# DieHardNET packages
-from utils.utils import get_parser, parse_args, build_model, validate
 from utils.data.data_module import CifarDataModule, CoreDataModule
+
+# DieHardNET packages
+from utils.utils import build_model, get_parser, parse_args, validate
 
 # Suppress the annoying warning for non-empty checkpoint directory
 warnings.filterwarnings("ignore")
@@ -125,6 +127,17 @@ def main():
     )
     layers = {i: row[1] for i, row in enumerate(reader)}
 
+    if args.inject_index == -1:
+        # inject all layers
+        noisy_loss, loss, noisy_acc, acc, noisy_miou, miou = software_fault_injection(
+            args, net, datamodule
+        )
+        print(
+            f"All Layers - Noisy Loss: {noisy_loss:.1e}, Loss: {loss:.1e}, Noisy Acc: {noisy_acc:.2f}, Acc: {acc:.2f}, Noisy mIoU: {noisy_miou:.2f}, mIoU: {miou:.2f}"
+        )
+        return
+
+    # inject specific layer
     while args.inject_index < len(layers):
         try:
             results = json.load(open(f"ckpt/{args.name}_results.json", "r"))

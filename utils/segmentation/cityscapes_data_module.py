@@ -1,9 +1,10 @@
 import os
+
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader
 
 from .cityscapes import Cityscapes
-from .transforms import ExtCompose, ExtToTensor, ExtNormalize
+from .transforms import ExtCompose, ExtNormalize, ExtToTensor
 from .utils import get_loader
 
 

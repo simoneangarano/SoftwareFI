@@ -1,7 +1,8 @@
+import math
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import math
 
 from utils.hg_noise_injector.hans_gruber import HansGruberNI
 
@@ -57,7 +58,7 @@ class ConvInjector(nn.Module):
 
     def forward(self, x, inject=True, current_epoch=0, counter=0, inject_index=0):
         x = self.conv(x)
-        if inject and counter == inject_index:
+        if inject and (counter == inject_index or inject_index == -1):
             x = self.injector(x, inject, current_epoch)
         counter += 1
         return x, counter, inject_index
@@ -83,7 +84,7 @@ class BNInjector(nn.Module):
 
     def forward(self, x, inject=True, current_epoch=0, counter=0, inject_index=0):
         x = self.bn(x)
-        if inject and counter == inject_index:
+        if inject and (counter == inject_index or inject_index == -1):
             x = self.injector(x, inject, current_epoch)
         counter += 1
         return x, counter, inject_index
@@ -115,7 +116,11 @@ class LinearInjector(nn.Module):
 
     def forward(self, x, inject=True, current_epoch=0, counter=0, inject_index=0):
         x = self.linear(x)
-        if counter == inject_index and isinstance(self.linear, nn.Linear):
+        if (
+            inject
+            and (counter == inject_index or inject_index == -1)
+            and isinstance(self.linear, nn.Linear)
+        ):
             x = self.injector(x, inject, current_epoch)
         return x
 
@@ -662,15 +667,15 @@ class GhostBottleneckV2(nn.Module):
         residual = x
         x, counter, inject_index = self.ghost1(
             x, inject, current_epoch, counter, inject_index
-        )
-        if self.stride > 1:
+        )  # activation at the end of the block
+        if self.stride > 1:  # no activation at the end of the block
             x, counter, inject_index = self.conv_dw(
                 x, inject, current_epoch, counter, inject_index
             )
             x, counter, inject_index = self.bn_dw(  # CHECK (bn without act)
                 x, inject, current_epoch, counter, inject_index
             )
-        if self.se is not None:
+        if self.se is not None:  # leading avgpool
             x, counter, inject_index = self.se(
                 x, inject, current_epoch, counter, inject_index
             )
@@ -840,11 +845,11 @@ def cfgs_standard():
     cfgs = [  # Each line is a GhostBottleneckV2 block (16 blocks in total)
         # k, t, c, SE, s
         [[3, 16, 16, 0, 1]],
-        [[3, 48, 24, 0, 2]],
+        [[3, 48, 24, 0, 2]],  # avgpool critical
         [[3, 72, 24, 0, 1]],
-        [[5, 72, 40, 0.25, 2]],
+        [[5, 72, 40, 0.25, 2]],  # avgpool critical
         [[5, 120, 40, 0.25, 1]],
-        [[3, 240, 80, 0, 2]],
+        [[3, 240, 80, 0, 2]],  # avgpool critical
         [
             [3, 200, 80, 0, 1],
             [3, 184, 80, 0, 1],
@@ -852,7 +857,7 @@ def cfgs_standard():
             [3, 480, 112, 0.25, 1],
             [3, 672, 112, 0.25, 1],
         ],
-        [[5, 672, 160, 0.25, 2]],
+        [[5, 672, 160, 0.25, 2]],  # avgpool critical
         [
             [5, 960, 160, 0, 1],
             [5, 960, 160, 0.25, 1],
