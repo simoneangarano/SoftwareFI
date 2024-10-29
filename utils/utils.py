@@ -411,7 +411,7 @@ class RunningStats(object):
     def clear(self):
         self.num = 0.0
 
-    def push(self, x, per_dim=False):
+    def push(self, x, per_dim=True):
         # process input
         if per_dim:
             self.update_params(x)
@@ -450,11 +450,11 @@ class RunningStats(object):
 
     @property
     def _mean(self):
-        return float(self.mean) if self.num else 0.0
+        return float(self.mean.mean()) if self.num else 0.0
 
     @property
     def _var(self):
-        return float((self.var) / (self.num - 1)) if self.num else 0.0
+        return float(self.var.mean() / (self.num - 1)) if self.num > 1 else 0.0
 
     @property
     def _std(self):
@@ -462,11 +462,11 @@ class RunningStats(object):
 
     @property
     def _min(self):
-        return float(self.min) if self.num else 0.0
+        return float(self.min.min()) if self.num else 0.0
 
     @property
     def _max(self):
-        return float(self.max) if self.num else 0.0
+        return float(self.max.max()) if self.num else 0.0
 
     def __repr__(self):
         return "<RunningMean(mean={: 2.4f}, std={: 2.4f}, min={: 2.4f}, max={: 2.4f})>".format(
@@ -477,3 +477,9 @@ class RunningStats(object):
         return "mean={: 2.4f}, std={: 2.4f}, min={: 2.4f}, max={: 2.4f}".format(
             self._mean, self._std, self._min, self._max
         )
+
+
+def get_layer_type(model, lname):
+    for name, layer in model.named_modules():
+        if name == lname[6:]:
+            return str(type(layer)).split(".")[-1][:-2]

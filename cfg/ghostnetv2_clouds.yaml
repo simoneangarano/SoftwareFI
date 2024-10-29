@@ -1,4 +1,4 @@
-name: ghostnetv2_clouds_p1e_5
+name: ghostnetv2_clouds_p1
 mode: validation
 ckpt: "ckpt/bb_heads_clouds.pth"
 dataset: sentinel
@@ -13,7 +13,7 @@ batch_size: 32
 # Injection parameters
 seed: 0
 error_model: random 
-inject_p: !!float 1.0e-5 #####################################
+inject_p: !!float 1.0 #####################################
 inject_epoch: 0
 inject_index: -1 # -1 means all layers
 nan: true

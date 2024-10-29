@@ -20,7 +20,7 @@ class NaNAct(nn.Module):
         elif act == "relu6":
             self.act = nn.ReLU6(inplace=inplace)
         elif act == "relumax":
-            self.act = nn.ReLU(inplace=inplace)  ###############################
+            self.act = ReLUMax(inplace=inplace)
         elif act == "sigmoid":
             self.act = torch.sigmoid
         elif act == "hard_sigmoid":
@@ -187,6 +187,37 @@ class HardSigmoid(nn.Module):
             return self.activation(x + 3.0) / 6.0
 
 
+class ReLUMax(nn.Module):
+    def __init__(self, inplace: bool = False, max: float = 6.0):
+        super().__init__()
+        self.activation = nn.ReLU(inplace=inplace)
+        self.max = max
+
+    def forward(self, x):
+        x = self.activation(x)
+        x[x > self.max] = 0.0
+        return x
+
+
+class ClampAvgPool2d(nn.Module):
+    def __init__(
+        self, output_size=None, kernel_size=None, stride=None, padding=0, max=None
+    ):
+        super(ClampAvgPool2d, self).__init__()
+        if output_size is not None:
+            self.avg_pool = nn.AdaptiveAvgPool2d(output_size)
+        elif kernel_size is not None:
+            self.avg_pool = nn.AvgPool2d(kernel_size, stride, padding)
+        else:
+            raise ValueError("output_size or kernel_size must be defined")
+        self.max = max
+
+    def forward(self, x):
+        if self.max is not None:
+            x[x > self.max] = self.max  # or 0?
+        return self.avg_pool(x)
+
+
 class SqueezeExcite(nn.Module):
     def __init__(
         self,
@@ -206,7 +237,7 @@ class SqueezeExcite(nn.Module):
         self.activation = activation
         self.gate_fn = NaNAct(nan=nan, act="hard_sigmoid")
         reduced_chs = _make_divisible((reduced_base_chs or in_chs) * se_ratio, divisor)
-        self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        self.avg_pool = ClampAvgPool2d(output_size=1)
         self.conv_reduce = ConvInjector(
             in_chs,
             reduced_chs,
@@ -373,7 +404,7 @@ class GhostModuleV2(nn.Module):
             self.oup = oup
             init_channels = math.ceil(oup / ratio)
             new_channels = init_channels * (ratio - 1)
-            self.avg_pool = nn.AvgPool2d(kernel_size=2, stride=2)
+            self.avg_pool = ClampAvgPool2d(kernel_size=2, stride=2)
             self.gate_fn = NaNAct(nan=nan, act="sigmoid")
             self.primary_conv = SequentialInjector(
                 ConvInjector(
@@ -1108,7 +1139,10 @@ def load_fi_weights(model, filename, verbose=False):
         new_dict[name] = new_weights
 
     print(f"Loaded {count} weights")
-    model.load_state_dict(new_dict, strict=False)
+    model.load_state_dict(
+        new_dict,
+        strict=False,
+    )
     return model
 
 

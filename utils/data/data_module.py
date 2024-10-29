@@ -174,7 +174,7 @@ class CoreDataset(torch.utils.data.DataLoader):
 
 
 class CoreDataModule(pl.LightningDataModule):
-    def __init__(self, args=None, batch_size: int = 4):
+    def __init__(self, args=None, batch_size: int = 4, drop_last: bool = False):
         super().__init__()
 
         # Load the metadata from the MLSTAC Collection file
@@ -199,6 +199,7 @@ class CoreDataModule(pl.LightningDataModule):
 
         # Define the batch_size
         self.batch_size = batch_size
+        self.drop_last = drop_last
         self.args = args
 
     def train_dataloader(self):
@@ -208,6 +209,7 @@ class CoreDataModule(pl.LightningDataModule):
             num_workers=8,
             shuffle=True,
             pin_memory=True,
+            drop_last=True,
         )
 
     def val_dataloader(self):
@@ -217,6 +219,7 @@ class CoreDataModule(pl.LightningDataModule):
             batch_size=self.batch_size,
             shuffle=False,
             pin_memory=True,
+            drop_last=self.drop_last,
         )
 
     def test_dataloader(self):
@@ -226,6 +229,7 @@ class CoreDataModule(pl.LightningDataModule):
             batch_size=self.batch_size,
             shuffle=False,
             pin_memory=True,
+            drop_last=self.drop_last,
         )
 
 
