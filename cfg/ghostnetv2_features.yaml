@@ -1,26 +1,38 @@
-name: ghostnetv2
 mode: validation
-ckpt: "ckpt/GN_SSL_280.pt"
 dataset: sentinel
-num_classes: 0
 data_dir: ./data
-num_gpus: 0
+num_classes: 0
+task: features # clouds or features
 model: ghostnetv2
-loss: mse
-activation: relu6
-batch_size: 128
 
-# Injection parameters
+# Logging
+ckpt: "ckpt/GN_SSL_280.pt"
+wandb: null
+
+# Model
+width: 1.6
+se_ratio: 0.25
+activation: relu #########################################
+loss: mse 
+
+# Environment
+num_gpus: 0
+batch_size: 128
+num_workers: 8
+pin_memory: true
+drop_last: true
+
+# Injection
 seed: 0
 error_model: random
-inject_p: !!float 0.1 # 0.001
+inject: true ##############################################
+inject_p: !!float 1.0 #####################################
 inject_epoch: 0
-inject_index: 0
+inject_index: -1 ########## -1 means all layers ###########
 nan: true
-comment: Uniform noise [0, epoch). Inj each conv and linear layer. all model. p_c [0.1].
+comment: null
 
-
-# Training parameters
+# Training (old)
 clip: !!float 0.05
 order: relu-bn
 affine: false
@@ -28,11 +40,9 @@ epochs: 1
 lr: !!float 1e-3
 wd: !!float 1e-3
 optimizer: adamw
+optim_params: None
 
-# Criticality analysis
+# run_pytorchfi.py (old)
 randrange: 1000
 csv: ghostnetv2.csv
 injsite: neuron
-
-# Wandb
-wandb: null

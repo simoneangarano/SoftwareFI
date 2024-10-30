@@ -6,15 +6,22 @@ import torch.nn.functional as F
 
 from utils.hg_noise_injector.hans_gruber import HansGruberNI
 
+
 ###############
 # GhostNetV2  #
 ###############
 
 
 class NaNAct(nn.Module):
-    def __init__(self, nan=False, act="relu6", inplace=False):
+    def __init__(
+        self,
+        act=None,
+        inplace=False,
+        args=None,
+    ):
         super().__init__()
-        # print(f"NaNAct: {act}")
+        if act is None:
+            act = args.activation
         if act == "relu":
             self.act = nn.ReLU(inplace=inplace)
         elif act == "relu6":
@@ -26,7 +33,7 @@ class NaNAct(nn.Module):
         elif act == "hard_sigmoid":
             self.act = HardSigmoid(inplace=inplace)
 
-        self.nan = nan
+        self.nan = args.nan
 
     def forward(self, x):
         if self.nan:
@@ -43,56 +50,50 @@ class ConvInjector(nn.Module):
         kernel_size=3,
         stride=1,
         padding=0,
-        inject=True,
-        error_model="random",
-        inject_p=0.01,
-        inject_epoch=0,
-        bias=False,
+        args=None,
         **kwargs,
     ):
         super(ConvInjector, self).__init__()
         self.conv = nn.Conv2d(
-            in_channels, out_channels, kernel_size, stride, padding, bias=bias, **kwargs
+            in_channels=in_channels,
+            out_channels=out_channels,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding,
+            **kwargs,
         )
-        if inject:
-            self.injector = HansGruberNI(
-                error_model, p=inject_p, inject_epoch=inject_epoch
-            )
+        if args.inject:
+            self.injector = HansGruberNI(args)
         else:
             self.injector = SequentialInjector(multi_output=False)
 
-    def forward(self, x, inject=True, current_epoch=0, counter=0, inject_index=0):
+    def forward(self, x, fwargs):
         x = self.conv(x)
-        if inject and (counter == inject_index or inject_index == -1):
-            x = self.injector(x, inject, current_epoch)
-        counter += 1
-        return x, counter, inject_index
+        if fwargs["inj"] and (fwargs["cnt"] == fwargs["idx"] or fwargs["idx"] == -1):
+            x = self.injector(x, fwargs)
+        fwargs["cnt"] += 1
+        return x, fwargs
 
 
 class BNInjector(nn.Module):
     def __init__(
         self,
         out_channels,
-        inject=True,
-        error_model="random",
-        inject_p=0.01,
-        inject_epoch=0,
+        args=None,
     ):
         super(BNInjector, self).__init__()
         self.bn = nn.BatchNorm2d(out_channels)
-        if inject:
-            self.injector = HansGruberNI(
-                error_model, p=inject_p, inject_epoch=inject_epoch
-            )
+        if args.inject:
+            self.injector = HansGruberNI(args)
         else:
             self.injector = SequentialInjector(multi_output=False)
 
-    def forward(self, x, inject=True, current_epoch=0, counter=0, inject_index=0):
+    def forward(self, x, fwargs):
         x = self.bn(x)
-        if inject and (counter == inject_index or inject_index == -1):
-            x = self.injector(x, inject, current_epoch)
-        counter += 1
-        return x, counter, inject_index
+        if fwargs["inj"] and (fwargs["cnt"] == fwargs["idx"] or fwargs["idx"] == -1):
+            x = self.injector(x, fwargs)
+        fwargs["cnt"] += 1
+        return x, fwargs
 
 
 class LinearInjector(nn.Module):
@@ -100,10 +101,7 @@ class LinearInjector(nn.Module):
         self,
         in_channels,
         out_channels,
-        inject=True,
-        error_model="random",
-        inject_p=0.01,
-        inject_epoch=0,
+        args=None,
         **kwargs,
     ):
         super(LinearInjector, self).__init__()
@@ -112,21 +110,20 @@ class LinearInjector(nn.Module):
             if out_channels > 0
             else nn.Identity()
         )
-        if inject:
-            self.injector = HansGruberNI(
-                error_model, p=inject_p, inject_epoch=inject_epoch
-            )
+        if args.inject:
+            self.injector = HansGruberNI(args)
         else:
             self.injector = SequentialInjector(multi_output=False)
 
-    def forward(self, x, inject=True, current_epoch=0, counter=0, inject_index=0):
+    def forward(self, x, fwargs):
         x = self.linear(x)
         if (
-            inject
-            and (counter == inject_index or inject_index == -1)
+            fwargs["inj"]
+            and (fwargs["cnt"] == fwargs["idx"] or fwargs["idx"] == -1)
             and isinstance(self.linear, nn.Linear)
         ):
-            x = self.injector(x, inject, current_epoch)
+            x = self.injector(x, fwargs)
+        fwargs["cnt"] += 1
         return x
 
 
@@ -145,17 +142,65 @@ class SequentialInjector(nn.Module):
         ]
         self.multi_output = multi_output
 
-    def forward(self, x, inject=True, current_epoch=0, counter=0, inject_index=0):
+    def forward(self, x, fwargs):
         for layer in self.layers:
             if any(isinstance(layer, t) for t in self.injection_layers):
-                x, counter, inject_index = layer(
-                    x, inject, current_epoch, counter, inject_index
-                )
+                x, fwargs = layer(x, fwargs)
             elif any(isinstance(layer, t) for t in [LinearInjector]):
-                x = layer(x, inject, current_epoch, counter, inject_index)
+                x = layer(x, fwargs)
             else:
                 x = layer(x)
-        return x, counter, inject_index if self.multi_output else x
+                
+        if self.multi_output:
+            return x, fwargs
+        return x
+
+
+class HardSigmoid(nn.Module):
+    def __init__(self, inplace: bool = False, args=None):
+        super().__init__()
+        self.inplace = inplace
+        self.activation = nn.ReLU6(inplace=inplace)
+
+    def forward(self, x):
+        if self.inplace:
+            return x.add_(3.0).clamp_(0.0, 6.0).div_(6.0)
+        else:
+            return self.activation(x + 3.0) / 6.0
+
+
+class ReLUMax(nn.Module):
+    def __init__(self, inplace: bool = False, args=None):
+        super().__init__()
+        self.activation = nn.ReLU(inplace=inplace)
+
+    def forward(self, x):
+        x = self.activation(x)
+        # x[x > self.max] = 0.0
+        return x
+
+
+class ClampAvgPool2d(nn.Module):
+    def __init__(
+        self,
+        output_size=None,
+        kernel_size=None,
+        stride=None,
+        padding=0,
+        args=None,
+    ):
+        super(ClampAvgPool2d, self).__init__()
+        if output_size is not None:
+            self.avg_pool = nn.AdaptiveAvgPool2d(output_size)
+        elif kernel_size is not None:
+            self.avg_pool = nn.AvgPool2d(kernel_size, stride, padding)
+        else:
+            raise ValueError("output_size or kernel_size must be defined")
+
+    def forward(self, x):
+        # if self.max is not None:
+        #     x[x > self.max] = self.max  # or 0?
+        return self.avg_pool(x)
 
 
 def _make_divisible(v, divisor, min_value=None):
@@ -174,103 +219,43 @@ def _make_divisible(v, divisor, min_value=None):
     return new_v
 
 
-class HardSigmoid(nn.Module):
-    def __init__(self, inplace: bool = False):
-        super().__init__()
-        self.inplace = inplace
-        self.activation = nn.ReLU6(inplace=inplace)
-
-    def forward(self, x):
-        if self.inplace:
-            return x.add_(3.0).clamp_(0.0, 6.0).div_(6.0)
-        else:
-            return self.activation(x + 3.0) / 6.0
-
-
-class ReLUMax(nn.Module):
-    def __init__(self, inplace: bool = False, max: float = 6.0):
-        super().__init__()
-        self.activation = nn.ReLU(inplace=inplace)
-        self.max = max
-
-    def forward(self, x):
-        x = self.activation(x)
-        x[x > self.max] = 0.0
-        return x
-
-
-class ClampAvgPool2d(nn.Module):
-    def __init__(
-        self, output_size=None, kernel_size=None, stride=None, padding=0, max=None
-    ):
-        super(ClampAvgPool2d, self).__init__()
-        if output_size is not None:
-            self.avg_pool = nn.AdaptiveAvgPool2d(output_size)
-        elif kernel_size is not None:
-            self.avg_pool = nn.AvgPool2d(kernel_size, stride, padding)
-        else:
-            raise ValueError("output_size or kernel_size must be defined")
-        self.max = max
-
-    def forward(self, x):
-        if self.max is not None:
-            x[x > self.max] = self.max  # or 0?
-        return self.avg_pool(x)
-
-
 class SqueezeExcite(nn.Module):
     def __init__(
         self,
         in_chs,
         se_ratio=0.25,
         reduced_base_chs=None,
-        activation="relu",
         divisor=4,
-        inject=True,
-        nan=False,
-        error_model="random",
-        inject_p=0.01,
-        inject_epoch=0,
+        args=None,
         **_,
     ):
         super(SqueezeExcite, self).__init__()
-        self.activation = activation
-        self.gate_fn = NaNAct(nan=nan, act="hard_sigmoid")
+        self.gate_fn = NaNAct(act="hard_sigmoid", args=args)
         reduced_chs = _make_divisible((reduced_base_chs or in_chs) * se_ratio, divisor)
-        self.avg_pool = ClampAvgPool2d(output_size=1)
+        self.avg_pool = ClampAvgPool2d(output_size=1, args=args)
         self.conv_reduce = ConvInjector(
-            in_chs,
-            reduced_chs,
-            1,
+            in_channels=in_chs,
+            out_channels=reduced_chs,
+            kernel_size=1,
             bias=True,
-            inject=inject,
-            error_model=error_model,
-            inject_p=inject_p,
-            inject_epoch=inject_epoch,
+            args=args,
         )
-        self.act1 = NaNAct(act=activation, inplace=True, nan=nan)
+        self.act1 = NaNAct(inplace=True, args=args)
         self.conv_expand = ConvInjector(
-            reduced_chs,
-            in_chs,
-            1,
+            in_channels=reduced_chs,
+            out_channels=in_chs,
+            kernel_size=1,
             bias=True,
-            inject=inject,
-            error_model=error_model,
-            inject_p=inject_p,
-            inject_epoch=inject_epoch,
+            args=args,
         )
 
-    def forward(self, x, inject=True, current_epoch=0, counter=0, inject_index=0):
+    def forward(self, x, fwargs):
         x_se = self.avg_pool(x)
-        x_se, counter, inject_index = self.conv_reduce(
-            x_se, inject, current_epoch, counter, inject_index
-        )
+        x_se, fwargs = self.conv_reduce(x_se, fwargs)
         x_se = self.act1(x_se)
-        x_se, counter, inject_index = self.conv_expand(
-            x_se, inject, current_epoch, counter, inject_index
-        )
+        x_se, fwargs = self.conv_expand(x_se, fwargs)
         x = x * self.gate_fn(x_se)
-        return x, counter, inject_index
+        return x, fwargs
 
 
 class ConvBnAct(nn.Module):
@@ -280,42 +265,27 @@ class ConvBnAct(nn.Module):
         out_chs,
         kernel_size,
         stride=1,
-        activation="relu",
-        inject=True,
-        nan=False,
-        error_model="random",
-        inject_p=0.01,
-        inject_epoch=0,
+        args=None,
     ):
         super(ConvBnAct, self).__init__()
         self.conv = ConvInjector(
-            in_chs,
-            out_chs,
-            kernel_size,
-            stride,
-            kernel_size // 2,
+            in_channels=in_chs,
+            out_channels=out_chs,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=kernel_size // 2,
             bias=False,
-            inject=inject,
-            error_model=error_model,
-            inject_p=inject_p,
-            inject_epoch=inject_epoch,
+            args=args,
         )
-        self.bn1 = BNInjector(
-            out_chs, inject=inject, error_model="random", inject_p=0.01, inject_epoch=0
-        )
-        self.act1 = NaNAct(act=activation, inplace=True, nan=nan)
+        self.bn1 = BNInjector(out_channels=out_chs, args=args)
+        self.act1 = NaNAct(inplace=True, args=args)
 
-    def forward(self, x, inject=True, current_epoch=0, counter=0, inject_index=0):
-
-        x, counter, inject_index = self.conv(
-            x, inject, current_epoch, counter, inject_index
-        )
-        x, counter, inject_index = self.bn1(
-            x, inject, current_epoch, counter, inject_index
-        )
+    def forward(self, x, fwargs):
+        x, fwargs = self.conv(x, fwargs)
+        x, fwargs = self.bn1(x, fwargs)
         x = self.act1(x)  # CHECK (act after bn)
 
-        return x, counter, inject_index
+        return x, fwargs
 
 
 class GhostModuleV2(nn.Module):
@@ -328,13 +298,8 @@ class GhostModuleV2(nn.Module):
         dw_size=3,
         stride=1,
         relu=True,
-        activation="relu",
         mode=None,
-        inject=True,
-        nan=False,
-        error_model="random",
-        inject_p=0.01,
-        inject_epoch=0,
+        args=None,
     ):
         super(GhostModuleV2, self).__init__()
         self.mode = mode
@@ -345,57 +310,35 @@ class GhostModuleV2(nn.Module):
             new_channels = init_channels * (ratio - 1)
             self.primary_conv = SequentialInjector(
                 ConvInjector(
-                    inp,
-                    init_channels,
-                    kernel_size,
-                    stride,
-                    kernel_size // 2,
+                    in_channels=inp,
+                    out_channels=init_channels,
+                    kernel_size=kernel_size,
+                    stride=stride,
+                    padding=kernel_size // 2,
                     bias=False,
-                    inject=inject,
-                    error_model=error_model,
-                    inject_p=inject_p,
-                    inject_epoch=inject_epoch,
+                    args=args,
                 ),
-                BNInjector(
-                    init_channels,
-                    inject=inject,
-                    error_model="random",
-                    inject_p=0.01,
-                    inject_epoch=0,
-                ),
+                BNInjector(out_channels=init_channels, args=args),
                 (
-                    NaNAct(
-                        act=activation, inplace=True, nan=nan
-                    )  # CHECK (act after bn)
+                    NaNAct(inplace=True, args=args)  # CHECK (act after bn)
                     if relu
                     else SequentialInjector()
                 ),
             )
             self.cheap_operation = SequentialInjector(
                 ConvInjector(
-                    init_channels,
-                    new_channels,
-                    dw_size,
-                    1,
-                    dw_size // 2,
+                    in_channels=init_channels,
+                    out_channels=new_channels,
+                    kernel_size=dw_size,
+                    stride=1,
+                    padding=dw_size // 2,
                     groups=init_channels,
                     bias=False,
-                    inject=inject,
-                    error_model=error_model,
-                    inject_p=inject_p,
-                    inject_epoch=inject_epoch,
+                    args=args,
                 ),
-                BNInjector(
-                    new_channels,
-                    inject=inject,
-                    error_model="random",
-                    inject_p=0.01,
-                    inject_epoch=0,
-                ),
+                BNInjector(out_channels=new_channels, args=args),
                 (
-                    NaNAct(
-                        act=activation, inplace=True, nan=nan
-                    )  # CHECK (act after bn)
+                    NaNAct(inplace=True, args=args)  # CHECK (act after bn)
                     if relu
                     else SequentialInjector()
                 ),
@@ -404,151 +347,88 @@ class GhostModuleV2(nn.Module):
             self.oup = oup
             init_channels = math.ceil(oup / ratio)
             new_channels = init_channels * (ratio - 1)
-            self.avg_pool = ClampAvgPool2d(kernel_size=2, stride=2)
-            self.gate_fn = NaNAct(nan=nan, act="sigmoid")
+            self.avg_pool = ClampAvgPool2d(kernel_size=2, stride=2, args=args)
+            self.gate_fn = NaNAct(act="sigmoid", args=args)
             self.primary_conv = SequentialInjector(
                 ConvInjector(
-                    inp,
-                    init_channels,
-                    kernel_size,
-                    stride,
-                    kernel_size // 2,
+                    in_channels=inp,
+                    out_channels=init_channels,
+                    kernel_size=kernel_size,
+                    stride=stride,
+                    padding=kernel_size // 2,
                     bias=False,
-                    inject=inject,
-                    error_model=error_model,
-                    inject_p=inject_p,
-                    inject_epoch=inject_epoch,
+                    args=args,
                 ),
-                BNInjector(
-                    init_channels,
-                    inject=inject,
-                    error_model="random",
-                    inject_p=0.01,
-                    inject_epoch=0,
-                ),
+                BNInjector(out_channels=init_channels, args=args),
                 (
-                    NaNAct(
-                        act=activation, inplace=True, nan=nan
-                    )  # CHECK (act after bn)
+                    NaNAct(inplace=True, args=args)  # CHECK (act after bn)
                     if relu
                     else SequentialInjector()
                 ),
             )
             self.cheap_operation = SequentialInjector(
                 ConvInjector(
-                    init_channels,
-                    new_channels,
-                    dw_size,
-                    1,
-                    dw_size // 2,
+                    in_channels=init_channels,
+                    out_channels=new_channels,
+                    kernel_size=dw_size,
+                    stride=1,
+                    padding=dw_size // 2,
                     groups=init_channels,
                     bias=False,
-                    inject=inject,
-                    error_model=error_model,
-                    inject_p=inject_p,
-                    inject_epoch=inject_epoch,
+                    args=args,
                 ),
-                BNInjector(
-                    new_channels,
-                    inject=inject,
-                    error_model="random",
-                    inject_p=0.01,
-                    inject_epoch=0,
-                ),
+                BNInjector(out_channels=new_channels, args=args),
                 (
-                    NaNAct(
-                        act=activation, inplace=True, nan=nan
-                    )  # CHECK (act after bn)
+                    NaNAct(inplace=True, args=args)  # CHECK (act after bn)
                     if relu
                     else SequentialInjector()
                 ),
             )
             self.short_conv = SequentialInjector(  # CHECK (bn without act)
                 ConvInjector(
-                    inp,
-                    oup,
-                    kernel_size,
-                    stride,
-                    kernel_size // 2,
+                    in_channels=inp,
+                    out_channels=oup,
+                    kernel_size=kernel_size,
+                    stride=stride,
+                    padding=kernel_size // 2,
                     bias=False,
-                    inject=inject,
-                    error_model=error_model,
-                    inject_p=inject_p,
-                    inject_epoch=inject_epoch,
+                    args=args,
                 ),
-                BNInjector(
-                    oup,
-                    error_model="random",
-                    inject=inject,
-                    inject_p=0.01,
-                    inject_epoch=0,
-                ),
+                BNInjector(out_channels=oup, args=args),
                 ConvInjector(
-                    oup,
-                    oup,
+                    in_channels=oup,
+                    out_channels=oup,
                     kernel_size=(1, 5),
                     stride=1,
                     padding=(0, 2),
                     groups=oup,
                     bias=False,
-                    inject=inject,
-                    error_model=error_model,
-                    inject_p=inject_p,
-                    inject_epoch=inject_epoch,
+                    args=args,
                 ),
-                BNInjector(
-                    oup,
-                    inject=inject,
-                    error_model="random",
-                    inject_p=0.01,
-                    inject_epoch=0,
-                ),
+                BNInjector(oup, args=args),
                 ConvInjector(
-                    oup,
-                    oup,
+                    in_channels=oup,
+                    out_channels=oup,
                     kernel_size=(5, 1),
                     stride=1,
                     padding=(2, 0),
                     groups=oup,
                     bias=False,
-                    inject=inject,
-                    error_model=error_model,
-                    inject_p=inject_p,
-                    inject_epoch=inject_epoch,
+                    args=args,
                 ),
-                BNInjector(
-                    oup,
-                    inject=inject,
-                    error_model="random",
-                    inject_p=0.01,
-                    inject_epoch=0,
-                ),
+                BNInjector(out_channels=oup, args=args),
             )
 
-    def forward(self, x, inject=True, current_epoch=0, counter=0, inject_index=0):
+    def forward(self, x, fwargs):
         if self.mode in ["original"]:
-            x1, counter, inject_index = self.primary_conv(
-                x, inject, current_epoch, counter, inject_index
-            )
-            x2, counter, inject_index = self.cheap_operation(
-                x1, inject, current_epoch, counter, inject_index
-            )
+            x1, fwargs = self.primary_conv(x, fwargs)
+            x2, fwargs = self.cheap_operation(x1, fwargs)
             out = torch.cat([x1, x2], dim=1)
-            return out[:, : self.oup, :, :], counter, inject_index
+            return out[:, : self.oup, :, :], fwargs
         elif self.mode in ["attn"]:
-            res, counter, inject_index = self.short_conv(
-                self.avg_pool(x),
-                inject,
-                current_epoch,
-                counter,
-                inject_index,
-            )
-            x1, counter, inject_index = self.primary_conv(
-                x, inject, current_epoch, counter, inject_index
-            )
-            x2, counter, inject_index = self.cheap_operation(
-                x1, inject, current_epoch, counter, inject_index
-            )
+            res, fwargs = self.short_conv(self.avg_pool(x), fwargs)
+            x1, fwargs = self.primary_conv(x, fwargs)
+            x2, fwargs = self.cheap_operation(x1, fwargs)
             out = torch.cat([x1, x2], dim=1)
             return (
                 out[:, : self.oup, :, :]
@@ -557,8 +437,7 @@ class GhostModuleV2(nn.Module):
                     size=(out.shape[-2], out.shape[-1]),
                     mode="nearest",
                 ),
-                counter,
-                inject_index,
+                fwargs,
             )
 
 
@@ -573,12 +452,7 @@ class GhostBottleneckV2(nn.Module):
         stride=1,
         se_ratio=0.0,
         layer_id=None,
-        activation="relu",
-        inject=True,
-        nan=False,
-        error_model="random",
-        inject_p=0.01,
-        inject_epoch=0,
+        args=None,
     ):
         super(GhostBottleneckV2, self).__init__()
         has_se = se_ratio is not None and se_ratio > 0.0
@@ -587,76 +461,47 @@ class GhostBottleneckV2(nn.Module):
         # Point-wise expansion
         if layer_id <= 1:
             self.ghost1 = GhostModuleV2(
-                in_chs,
-                mid_chs,
+                inp=in_chs,
+                oup=mid_chs,
                 relu=True,
                 mode="original",
-                inject=inject,
-                error_model=error_model,
-                inject_p=inject_p,
-                inject_epoch=inject_epoch,
-                activation=activation,
+                args=args,
             )
         else:
             self.ghost1 = GhostModuleV2(
-                in_chs,
-                mid_chs,
+                inp=in_chs,
+                oup=mid_chs,
                 relu=True,
                 mode="attn",
-                inject=inject,
-                error_model=error_model,
-                inject_p=inject_p,
-                inject_epoch=inject_epoch,
-                activation=activation,
+                args=args,
             )
 
         # Depth-wise convolution
         if self.stride > 1:
             self.conv_dw = ConvInjector(
-                mid_chs,
-                mid_chs,
-                dw_kernel_size,
+                in_channels=mid_chs,
+                out_channels=mid_chs,
+                kernel_size=dw_kernel_size,
                 stride=stride,
                 padding=(dw_kernel_size - 1) // 2,
                 groups=mid_chs,
                 bias=False,
-                inject=inject,
-                error_model=error_model,
-                inject_p=inject_p,
-                inject_epoch=inject_epoch,
+                args=args,
             )
-            self.bn_dw = BNInjector(
-                mid_chs,
-                inject=inject,
-                error_model="random",
-                inject_p=0.01,
-                inject_epoch=0,
-            )
+            self.bn_dw = BNInjector(out_channels=mid_chs, args=args)
 
         # Squeeze-and-excitation
         if has_se:
-            self.se = SqueezeExcite(
-                mid_chs,
-                se_ratio=se_ratio,
-                inject=inject,
-                error_model=error_model,
-                inject_p=inject_p,
-                inject_epoch=inject_epoch,
-                activation=activation,
-            )
+            self.se = SqueezeExcite(in_chs=mid_chs, se_ratio=se_ratio, args=args)
         else:
             self.se = None
 
         self.ghost2 = GhostModuleV2(
-            mid_chs,
-            out_chs,
+            inp=mid_chs,
+            oup=out_chs,
             relu=False,
             mode="original",
-            inject=inject,
-            error_model=error_model,
-            inject_p=inject_p,
-            inject_epoch=inject_epoch,
-            activation=activation,
+            args=args,
         )
 
         # shortcut
@@ -665,117 +510,71 @@ class GhostBottleneckV2(nn.Module):
         else:
             self.shortcut = SequentialInjector(
                 ConvInjector(  # CHECK (bn without act)
-                    in_chs,
-                    in_chs,
-                    dw_kernel_size,
+                    in_channels=in_chs,
+                    out_channels=in_chs,
+                    kernel_size=dw_kernel_size,
                     stride=stride,
                     padding=(dw_kernel_size - 1) // 2,
                     groups=in_chs,
                     bias=False,
-                    inject=inject,
-                    error_model=error_model,
-                    inject_p=inject_p,
-                    inject_epoch=inject_epoch,
+                    args=args,
                 ),
-                BNInjector(
-                    in_chs,
-                    inject=inject,
-                    error_model="random",
-                    inject_p=0.01,
-                    inject_epoch=0,
-                ),
+                BNInjector(out_channels=in_chs, args=args),
                 ConvInjector(
-                    in_chs,
-                    out_chs,
-                    1,
+                    in_channels=in_chs,
+                    out_channels=out_chs,
+                    kernel_size=1,
                     stride=1,
                     padding=0,
                     bias=False,
-                    inject=inject,
-                    error_model=error_model,
-                    inject_p=inject_p,
-                    inject_epoch=inject_epoch,
+                    args=args,
                 ),
-                BNInjector(
-                    out_chs,
-                    inject=inject,
-                    error_model="random",
-                    inject_p=0.01,
-                    inject_epoch=0,
-                ),
+                BNInjector(out_channels=out_chs, args=args),
             )
 
-    def forward(self, x, inject=True, current_epoch=0, counter=0, inject_index=0):
+    def forward(self, x, fwargs):
         residual = x
-        x, counter, inject_index = self.ghost1(
-            x, inject, current_epoch, counter, inject_index
-        )  # activation at the end of the block
+        x, fwargs = self.ghost1(x, fwargs)  # activation at the end of the block
         if self.stride > 1:  # no activation at the end of the block
-            x, counter, inject_index = self.conv_dw(
-                x, inject, current_epoch, counter, inject_index
-            )
-            x, counter, inject_index = self.bn_dw(  # CHECK (bn without act)
-                x, inject, current_epoch, counter, inject_index
-            )
+            x, fwargs = self.conv_dw(x, fwargs)
+            x, fwargs = self.bn_dw(x, fwargs)  # CHECK (bn without act)
         if self.se is not None:  # leading avgpool
-            x, counter, inject_index = self.se(
-                x, inject, current_epoch, counter, inject_index
-            )
-        x, counter, inject_index = self.ghost2(
-            x, inject, current_epoch, counter, inject_index
-        )
-        x_short, counter, inject_index = self.shortcut(
-            residual, inject, current_epoch, counter, inject_index
-        )
+            x, fwargs = self.se(x, fwargs)
+        x, fwargs = self.ghost2(x, fwargs)
+        x_short, fwargs = self.shortcut(residual, fwargs)
         x = x + x_short
 
-        return x, counter, inject_index
+        return x, fwargs
 
 
 class GhostNetV2(nn.Module):
     def __init__(
         self,
+        args,
         cfgs,
-        # num_classes=1000,
-        width=1.0,
-        inject=True,
-        dropout=0.2,
         block=GhostBottleneckV2,
-        activation="relu",
-        nan=False,
-        error_model="random",
-        inject_p=0.01,
-        inject_epoch=0,
+        dropout=0.2,
     ):
         super(GhostNetV2, self).__init__()
         self.cfgs = cfgs
         self.dropout = dropout
 
         # building first layer
-        output_channel = _make_divisible(16 * width, 4)
+        output_channel = _make_divisible(16 * args.width, 4)
 
         # 5 channels input
         # 5 spectral bands: B02, B03, B04, B08, B11
         self.conv_stem = ConvInjector(
-            5,
-            output_channel,
-            3,
-            2,
-            1,
+            in_channels=5,
+            out_channels=output_channel,
+            kernel_size=3,
+            stride=2,
+            padding=1,
             bias=False,
-            inject=inject,
-            error_model=error_model,
-            inject_p=inject_p,
-            inject_epoch=inject_epoch,
+            args=args,
         )
-        self.bn1 = BNInjector(
-            output_channel,
-            inject=inject,
-            error_model="random",
-            inject_p=0.01,
-            inject_epoch=0,
-        )
-        self.act1 = NaNAct(act=activation, inplace=True, nan=nan)
+        self.bn1 = BNInjector(out_channels=output_channel, args=args)
+        self.act1 = NaNAct(inplace=True, args=args)
         input_channel = output_channel
 
         # building inverted residual blocks
@@ -785,42 +584,33 @@ class GhostNetV2(nn.Module):
         for cfg in self.cfgs:
             layers = []
             for k, exp_size, c, se_ratio, s in cfg:
-                output_channel = _make_divisible(c * width, 4)
-                hidden_channel = _make_divisible(exp_size * width, 4)
+                output_channel = _make_divisible(c * args.width, 4)
+                hidden_channel = _make_divisible(exp_size * args.width, 4)
                 if block == GhostBottleneckV2:
                     layers.append(
                         block(
-                            input_channel,
-                            hidden_channel,
-                            output_channel,
-                            k,
-                            s,
+                            in_chs=input_channel,
+                            mid_chs=hidden_channel,
+                            out_chs=output_channel,
+                            dw_kernel_size=k,
+                            stride=s,
                             se_ratio=se_ratio,
                             layer_id=layer_id,
-                            inject=inject,
-                            error_model=error_model,
-                            inject_p=inject_p,
-                            inject_epoch=inject_epoch,
-                            activation=activation,
-                            nan=nan,
+                            args=args,
                         )
                     )
                 input_channel = output_channel
                 layer_id += 1
             self.stages.append(SequentialInjector(*layers))
 
-        output_channel = _make_divisible(exp_size * width, 4)
+        output_channel = _make_divisible(exp_size * args.width, 4)
         self.stages.append(
             SequentialInjector(
                 ConvBnAct(
-                    input_channel,
-                    output_channel,
-                    1,
-                    activation=activation,
-                    inject=inject,
-                    error_model=error_model,
-                    inject_p=inject_p,
-                    inject_epoch=inject_epoch,
+                    in_chs=input_channel,
+                    out_chs=output_channel,
+                    kernel_size=1,
+                    args=args,
                 )
             )
         )
@@ -838,48 +628,35 @@ class GhostNetV2(nn.Module):
         #     1,
         #     0,
         #     bias=True,
-        #     error_model=error_model,
-        #     inject_p=inject_p,
-        #     inject_epoch=inject_epoch,
+        #     args=args,
         # )
-        # self.act2 = NaNAct(act=activation, inplace=True, nan=nan)
+        # self.act2 = NaNAct(inplace=True, args=args)
         # self.classifier = LinearInjector(
         #     output_channel,
         #     num_classes,
-        #     error_model=error_model,
-        #     inject_p=inject_p,
-        #     inject_epoch=inject_epoch,
+        #     args=args,
         # )
 
-    def forward(self, x, inject=False, current_epoch=0, counter=0, inject_index=0):
+    def forward(self, x, fwargs):
         intermediates = []  # List to store intermediate features
 
-        x, counter, inject_index = self.conv_stem(
-            x, inject, current_epoch, counter, inject_index
-        )
-        x, counter, inject_index = self.bn1(  # CHECK (act after bn)
-            x, inject, current_epoch, counter, inject_index
-        )
+        x, fwargs = self.conv_stem(x, fwargs)
+        x, fwargs = self.bn1(x, fwargs)  # CHECK (act after bn)
         x = self.act1(x)
 
         for block in self.stages:
-            x, counter, inject_index = block(
-                x, inject, current_epoch, counter, inject_index
-            )
+            x, fwargs = block(x, fwargs)
             intermediates.append(x)  # Store the intermediate features
 
         # x = self.global_pool(x)
-        # x, counter, inject_index = self.conv_head(
-        #     x, inject, current_epoch, counter, inject_index
-        # )
+        # x, fwargs = self.conv_head(x, fwargs)
         # x = self.act2(x)
-
         # x = x.view(x.size(0), -1)
         # if self.dropout > 0.0:
         #     x = F.dropout(x, p=self.dropout, training=self.training)
-        # x = self.classifier(x, inject, current_epoch, counter, inject_index)
+        # x = self.classifier(x, fwargs)
 
-        return x, intermediates
+        return (x, fwargs), intermediates
 
 
 def cfgs_standard():
@@ -911,31 +688,9 @@ def cfgs_standard():
     return cfgs
 
 
-def ghostnetv2(
-    width=1.6,
-    # num_classes=1000,
-    inject=True,
-    error_model="random",
-    inject_p=0.01,
-    inject_epoch=0,
-    activation="relu",
-    ckpt=None,
-    nan=False,
-):
+def ghostnetv2(args):
     cfgs = cfgs_standard()
-    model = GhostNetV2(
-        cfgs,
-        # num_classes=num_classes,
-        width=width,
-        inject=inject,
-        error_model=error_model,
-        inject_p=inject_p,
-        inject_epoch=inject_epoch,
-        activation=activation,
-        nan=nan,
-    )
-    if ckpt is not None:
-        model = load_fi_weights(model, ckpt)
+    model = GhostNetV2(args, cfgs)
     return model
 
 
@@ -944,31 +699,16 @@ def ghostnetv2(
 ###############
 class SegmentationHeadGhostBN(nn.Module):
 
-    def __init__(
-        self,
-        num_classes=3,
-        width=1.6,
-        se_ratio=0.25,
-        activation="relu",
-        nan=False,
-        inject=True,
-        error_model="random",
-        inject_p=0.01,
-        inject_epoch=0,
-    ):
+    def __init__(self, args):
 
         super().__init__()
 
-        self.num_classes = num_classes
+        self.num_classes = args.num_classes
 
         # Number of input channels for 3 feature maps used from the backbone
+        in_channels = [960, 112, 40]  # Standard GhostNetV2 cfg (layers: 9, 6, 4)
         in_channels = [
-            960,
-            112,
-            40,
-        ]  # From standard GhostNetV2 configuration (layers: 9, 6, 4)
-        in_channels = [
-            math.ceil(c * width) for c in in_channels
+            math.ceil(c * args.width) for c in in_channels
         ]  # Apply width multiplier (round up)
 
         # Upsampling layers
@@ -976,53 +716,35 @@ class SegmentationHeadGhostBN(nn.Module):
         self.up8 = nn.Upsample(mode="bilinear", scale_factor=8)
 
         self.conv_block_960 = GhostBottleneckV2(
-            in_channels[0],
-            in_channels[0] // 4,
-            num_classes,
-            3,
+            in_chs=in_channels[0],
+            mid_chs=in_channels[0] // 4,
+            out_chs=args.num_classes,
+            dw_kernel_size=3,
             layer_id=0,
-            se_ratio=se_ratio,
-            activation=activation,
-            nan=nan,
-            inject=inject,
-            error_model=error_model,
-            inject_p=inject_p,
-            inject_epoch=inject_epoch,
+            se_ratio=args.se_ratio,
+            args=args,
         )
         self.conv_block_112 = GhostBottleneckV2(
-            in_channels[1],
-            in_channels[1] // 4,
-            num_classes,
-            3,
+            in_chs=in_channels[1],
+            mid_chs=in_channels[1] // 4,
+            out_chs=args.num_classes,
+            dw_kernel_size=3,
             layer_id=0,
-            se_ratio=se_ratio,
-            activation=activation,
-            nan=nan,
-            inject=inject,
-            error_model=error_model,
-            inject_p=inject_p,
-            inject_epoch=inject_epoch,
+            se_ratio=args.se_ratio,
+            args=args,
         )
         self.conv_block_40 = GhostBottleneckV2(
-            in_channels[2],
-            in_channels[2] // 4,
-            num_classes,
-            3,
+            in_chs=in_channels[2],
+            mid_chs=in_channels[2] // 4,
+            out_chs=args.num_classes,
+            dw_kernel_size=3,
             layer_id=0,
-            se_ratio=se_ratio,
-            activation=activation,
-            nan=nan,
-            inject=inject,
-            error_model=error_model,
-            inject_p=inject_p,
-            inject_epoch=inject_epoch,
+            se_ratio=args.se_ratio,
+            args=args,
         )
-
         self.ff = torch.nn.quantized.FloatFunctional()
 
-    def forward(
-        self, tensors, inject=False, current_epoch=0, counter=0, inject_index=0
-    ):
+    def forward(self, tensors, fwargs):
         """
         Forward pass through the module.
 
@@ -1051,25 +773,13 @@ class SegmentationHeadGhostBN(nn.Module):
         out_6 = tensors[6]  # Sequential 2-7: [B, C * width, H/16, W/16]
         out_4 = tensors[4]  # Sequential 2-5: [B, C * width, H/8, H/8]
 
-        out_9, counter, inject_index = self.conv_block_960(
-            out_9, inject, current_epoch, counter, inject_index
-        )  # [..., H/32, W/32]
+        out_9, fwargs = self.conv_block_960(out_9, fwargs)  # [..., H/32, W/32]
         x_2upsampled_pred = self.up2(out_9)  # [..., H/16, W/16]
-
-        out_6, counter, inject_index = self.conv_block_112(
-            out_6, inject, current_epoch, counter, inject_index
-        )  # [..., H/16, W/16]
-
+        out_6, fwargs = self.conv_block_112(out_6, fwargs)  # [..., H/16, W/16]
         x = self.ff.add(x_2upsampled_pred, out_6)  # [..., H/16, W/16]
-
         x_2upsampled_pred = self.up2(x)  # [..., H/8, W/8]
-
-        out_4, counter, inject_index = self.conv_block_40(
-            out_4, inject, current_epoch, counter, inject_index
-        )  # [..., H/8, W/8]
-
+        out_4, _ = self.conv_block_40(out_4, fwargs)  # [..., H/8, W/8]
         x = self.ff.add(x_2upsampled_pred, out_4)  # [..., H/8, W/8]
-
         x = self.up8(x)  # [..., H, W]
 
         return x
@@ -1080,25 +790,26 @@ class SegmentationHeadGhostBN(nn.Module):
 ###############
 class GhostNetSS(nn.Module):
 
-    def __init__(self, ghostnet, head, ckpt=None):
+    def __init__(self, ghostnet, head, args):
 
         super().__init__()
 
         self.ghostnet = ghostnet
         self.head = head
-        if ckpt is not None:
-            self = load_fi_weights(self, ckpt)
+        if args.ckpt is not None:
+            self = load_fi_weights(self, args.ckpt)
 
     def forward(
         self, tensors, inject=False, current_epoch=0, counter=0, inject_index=0
     ):
-
-        _, intermediate_features = self.ghostnet(
-            tensors, inject, current_epoch, counter, inject_index
-        )
-        outputs = self.head(
-            intermediate_features, inject, current_epoch, counter, inject_index
-        )
+        fwargs = {
+            "inj": inject,
+            "idx": inject_index,
+            "ep": current_epoch,
+            "cnt": counter,
+        }
+        (_, fwargs), intermediate_features = self.ghostnet(tensors, fwargs)
+        outputs = self.head(intermediate_features, fwargs)
 
         return outputs
 

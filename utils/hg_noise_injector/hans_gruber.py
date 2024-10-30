@@ -115,15 +115,15 @@ def generate_all_masks(shape, sampled_indexes):
 
 class HansGruberNI(torch.nn.Module):
     def __init__(
-        self, error_model: str = "random", p: float = 0.3, inject_epoch: int = 0
+        self, args,
     ):
         super(HansGruberNI, self).__init__()
         # Error model necessary for the forward
-        self.error_model = error_model
+        self.error_model = args.error_model
         self.noise_data = list()
-        self.p = p  # fraction of the samples which the injection is applied to
+        self.p = args.inject_p  # fraction of the samples which the injection is applied to
         self.inject_epoch = (
-            inject_epoch  # how many epochs before starting the injection
+            args.inject_epoch  # how many epochs before starting the injection
         )
         self.dummy_param = nn.Parameter(torch.empty(0))  # just to get the device
         self.mask_generators = [
@@ -249,7 +249,7 @@ class HansGruberNI(torch.nn.Module):
         return output
 
     def forward(
-        self, forward_input: torch.Tensor, inject: bool = True, current_epoch: int = 0
+        self, forward_input: torch.Tensor, fwargs,
     ) -> torch.Tensor:
         r"""Perform a 'forward' operation to simulate the error model injection
         in the training process
@@ -259,11 +259,11 @@ class HansGruberNI(torch.nn.Module):
         """
         output = forward_input
         if self.training:
-            if current_epoch >= self.inject_epoch:
+            if fwargs['ep'] >= self.inject_epoch:
                 # inject noise to each sample with probability p
                 output = self.inject(forward_input, self.p)
         else:
-            if inject:
+            if fwargs['inj']:
                 # inject noise to all samples
                 output = self.inject(forward_input, self.p)
 

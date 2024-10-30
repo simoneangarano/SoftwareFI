@@ -1,25 +1,38 @@
-name: ghostnetv2_clouds_p1
 mode: validation
-ckpt: "ckpt/bb_heads_clouds.pth"
 dataset: sentinel
-num_classes: 3
 data_dir: ./data
-num_gpus: 0
+num_classes: 3
+task: clouds # clouds or features
 model: ghostnetv2
-loss: ce
-activation: relu6
-batch_size: 32
 
-# Injection parameters
+# Logging
+ckpt: "ckpt/bb_heads_clouds.pth"
+wandb: null
+
+# Model
+width: 1.6
+se_ratio: 0.25
+activation: relu6 #########################################
+loss: ce 
+
+# Environment
+num_gpus: 0
+batch_size: 128
+num_workers: 8
+pin_memory: true
+drop_last: true
+
+# Injection
 seed: 0
-error_model: random 
+error_model: random
+inject: true ##############################################
 inject_p: !!float 1.0 #####################################
 inject_epoch: 0
-inject_index: -1 # -1 means all layers
+inject_index: -1 ########## -1 means all layers ###########
 nan: true
-comment: Uniform noise [0, epoch). Inj each conv and linear layer. all model. p_c [0.1].
+comment: null
 
-# Training parameters
+# Training (old)
 clip: !!float 0.05
 order: relu-bn
 affine: false
@@ -27,12 +40,9 @@ epochs: 1
 lr: !!float 1e-3
 wd: !!float 1e-3
 optimizer: adamw
+optim_params: None
 
-# Criticality analysis
+# run_pytorchfi.py (old)
 randrange: 1000
 csv: ghostnetv2.csv
 injsite: neuron
-
-# Log
-wandb: null
-# log_stats: true # save layer output stats (pooling, activation, distribution)

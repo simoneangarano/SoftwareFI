@@ -20,16 +20,7 @@ def load_ptl_model(args):
     }
     n_classes = 10 if args.dataset == "cifar10" else 100
 
-    ptl_model = build_model(
-        model=args.model,
-        n_classes=n_classes,
-        optim_params=optim_params,
-        loss=args.loss,
-        inject_p=args.inject_p,
-        order=args.order,
-        activation=args.activation,
-        affine=args.affine,
-    )
+    ptl_model = build_model(args)
     checkpoint = torch.load(args.ckpt, map_location=torch.device("cpu"))
     ptl_model.load_state_dict(checkpoint["state_dict"])
     return ptl_model.model

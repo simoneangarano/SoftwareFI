@@ -65,6 +65,7 @@ def main():
 
     # Set random seed
     # pl.seed_everything(args.seed, workers=True)
+    torch.manual_seed(args.seed)
 
     augs = {
         "rand_aug": args.rand_aug,
@@ -78,30 +79,23 @@ def main():
             args.dataset, args.data_dir, args.batch_size, 1, augs
         )
     elif args.dataset == "sentinel":
-        datamodule = CoreDataModule(args, batch_size=args.batch_size)
+        datamodule = CoreDataModule(args)
 
     # Build model (Resnet only up to now)
-    optim_params = {
-        "optimizer": args.optimizer,
-        "epochs": args.epochs,
-        "lr": args.lr,
-        "wd": args.wd,
-    }
-
-    net = build_model(
-        args.model,
-        args.num_classes,
-        optim_params,
-        args.loss,
-        args.error_model,
-        args.inject_p,
-        args.inject_epoch,
-        args.order,
-        args.activation,
-        args.nan,
-        args.affine,
-        ckpt=args.ckpt,
+    args.optim_params = (
+        {
+            "optimizer": args.optimizer,
+            "epochs": args.epochs,
+            "lr": args.lr,
+            "wd": args.wd,
+        }
+        if args.optim_params is None
+        else args.optim_params
     )
+
+    # args.stats = {...}
+
+    net = build_model(args)
     net = net.cuda().eval()
 
     # W&B logger
@@ -122,9 +116,7 @@ def main():
 
     ### Fault Injection Test ###
 
-    reader = csv.reader(
-        open(f"cfg/{'_'.join(args.name.split('_')[:2])}_layers_info.csv", mode="r")
-    )
+    reader = csv.reader(open(f"cfg/{args.name}_layers_info.csv", mode="r"))
     layers = {i: row[1] for i, row in enumerate(reader)}
 
     if args.inject_index == -1:
@@ -140,7 +132,7 @@ def main():
     # inject specific layer
     while args.inject_index < len(layers):
         try:
-            results = json.load(open(f"ckpt/{args.name}_results.json", "r"))
+            results = json.load(open(f"ckpt/{args.exp}_eval.json", "r"))
             args.inject_index = len(results)
             if args.inject_index == len(layers):
                 print("All layers have been tested.")
@@ -162,7 +154,7 @@ def main():
             float(noisy_miou),
             float(miou),
         )
-        json.dump(results, open(f"ckpt/{args.name}_results.json", "w"))
+        json.dump(results, open(f"ckpt/{args.exp}_eval.json", "w"))
 
 
 if __name__ == "__main__":

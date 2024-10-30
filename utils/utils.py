@@ -17,6 +17,7 @@ from .models.hard_resnet import (
 )
 from .models.LightningModelWrapper import ModelWrapper
 
+
 ### Configuration ###
 
 
@@ -145,9 +146,12 @@ def parse_args(parser, config_parser, args=None, verbose=True):
     # defaults will have been overridden if config file specified.
     args = parser.parse_args(remaining)
 
+    args.name = f"{args.model}_{args.task}"
+    args.exp = f"{args.name}_i{args.inject}_p{args.inject_p}_{args.activation}"
+
     if verbose:
         print("\n==> Config parsed:")
-        for k, v in vars(args).items():
+        for k, v in sorted(vars(args).items()):
             print(f"{k}: {v}")
         print()
 
@@ -223,106 +227,36 @@ def get_loader(
 ### Model ###
 
 
-def build_model(
-    model="hard_resnet20",
-    n_classes=10,
-    optim_params={},
-    loss="bce",
-    error_model="random",
-    inject_p=0.1,
-    inject_epoch=0,
-    order="relu-bn",
-    activation="relu",
-    nan=False,
-    affine=True,
-    ckpt=None,
-):
-    if model == "hard_resnet20":
-        net = hard_resnet20(
-            n_classes,
-            error_model,
-            inject_p,
-            inject_epoch,
-            order,
-            activation,
-            nan,
-            affine,
-        )
-    elif model == "hard_resnet32":
-        net = hard_resnet32(
-            n_classes,
-            error_model,
-            inject_p,
-            inject_epoch,
-            order,
-            activation,
-            nan,
-            affine,
-        )
-    elif model == "hard_resnet44":
-        net = hard_resnet44(
-            n_classes,
-            error_model,
-            inject_p,
-            inject_epoch,
-            order,
-            activation,
-            nan,
-            affine,
-        )
-    elif model == "hard_resnet56":
-        net = hard_resnet56(
-            n_classes,
-            error_model,
-            inject_p,
-            inject_epoch,
-            order,
-            activation,
-            nan,
-            affine,
-        )
-    elif model == "densenet100":
-        net = densenet100(n_classes)
-    elif model == "ghostnetv2":
-        if n_classes == 0:
-            net = ghostnetv2(
-                # num_classes=n_classes,
-                error_model=error_model,
-                inject_p=inject_p,
-                inject_epoch=inject_epoch,
-                ckpt=ckpt,
-                activation=activation,
-                nan=nan,
-            )
+def build_model(args):
+    if args.model == "hard_resnet20":
+        net = hard_resnet20(args)
+    elif args.model == "hard_resnet32":
+        net = hard_resnet32(args)
+    elif args.model == "hard_resnet44":
+        net = hard_resnet44(args)
+    elif args.model == "hard_resnet56":
+        net = hard_resnet56(args)
+    elif args.model == "densenet100":
+        net = densenet100(args)
+    elif args.model == "ghostnetv2":
+        if args.num_classes == 0:
+            net = ghostnetv2(args)
         else:
-            backbone = ghostnetv2(
-                # num_classes=n_classes,
-                error_model=error_model,
-                inject_p=inject_p,
-                inject_epoch=inject_epoch,
-                ckpt=None,
-                activation=activation,
-                nan=nan,
-            )
-            head = SegmentationHeadGhostBN(
-                num_classes=n_classes, activation=activation, nan=nan
-            )
-            net = GhostNetSS(backbone, head, ckpt=ckpt)
+            backbone = ghostnetv2(args)
+            head = SegmentationHeadGhostBN(args)
+            net = GhostNetSS(backbone, head, args)
     else:
-        model = "hard_resnet20"
-        net = hard_resnet20(
-            n_classes,
-            error_model,
-            inject_p,
-            inject_epoch,
-            order,
-            activation,
-            nan,
-            affine,
-        )
+        args.model = "hard_resnet20"
+        net = hard_resnet20(args)
 
-    print(f"\n==> {model} built.")
-    return ModelWrapper(net, n_classes, optim_params, loss)
+    print(f"\n==> {args.model} built.")
+    return ModelWrapper(net, args)
+
+
+def get_layer_type(model, lname):
+    for name, layer in model.named_modules():
+        if name == lname[6:]:
+            return str(type(layer)).split(".")[-1][:-2]
 
 
 ### Validation ###
@@ -336,7 +270,7 @@ def validate(net: ModelWrapper, datamodule, args):
     for batch_idx, batch in tqdm(enumerate(datamodule.val_dataloader())):
         batch = [b.cuda() for b in batch]
         noisy_loss, loss, noisy_acc, acc, noisy_miou, miou = net.validation_step(
-            batch, batch_idx, True, inject_index=args.inject_index
+            batch, batch_idx, inject_index=args.inject_index
         )
         total_loss += loss
         total_noisy_loss += noisy_loss
@@ -353,35 +287,6 @@ def validate(net: ModelWrapper, datamodule, args):
         total_noisy_miou / len(datamodule.val_dataloader()),
         total_miou / len(datamodule.val_dataloader()),
     )
-
-
-def plot_results(results, layers, metric):
-    m_ids = {m: 2 * i for i, m in enumerate(["loss", "acc", "miou"])}
-
-    x = [int(i) for i, _ in results.items()]
-    y = [metrics[m_ids[metric]] for _, metrics in results.items()]
-    # plt.rcParams['figure.figsize'] = [4, 4]
-    plt.plot(x, y, label=metric, color="tab:grey", alpha=0.3)
-
-    for i, metrics in results.items():
-        noisy_loss, loss, noisy_acc, acc, noisy_miou, miou = metrics  # NOQA
-        layer_type = layers[int(i)]["layer_type"]
-        layer_color = (
-            "tab:orange"
-            if layer_type == "Conv2d"
-            else "tab:blue" if layer_type == "BatchNorm2d" else "tab:red"
-        )
-        plt.scatter(i, eval(f"noisy_{metric}"), color=layer_color, label=layer_type)
-    plt.hlines(eval(metric), 0, i, color="tab:green", label="Original", linestyle="--")
-    plt.xlabel("Layer")
-    plt.ylabel(metric)
-    handles, labels = plt.gca().get_legend_handles_labels()
-    by_label = dict(zip(labels, handles))
-    plt.legend(by_label.values(), by_label.keys(), loc="best")
-    plt.xticks(range(0, len(results.keys()), 15))
-    if metric == "loss":
-        plt.yscale("log")
-    plt.show()
 
 
 class RunningStats(object):
@@ -479,7 +384,71 @@ class RunningStats(object):
         )
 
 
-def get_layer_type(model, lname):
-    for name, layer in model.named_modules():
-        if name == lname[6:]:
-            return str(type(layer)).split(".")[-1][:-2]
+### Visualization ###
+
+
+def plot_results(results, layers, metric):
+    m_ids = {m: 2 * i for i, m in enumerate(["loss", "acc", "miou"])}
+
+    x = [int(i) for i, _ in results.items()]
+    y = [metrics[m_ids[metric]] for _, metrics in results.items()]
+    # plt.rcParams['figure.figsize'] = [4, 4]
+    plt.plot(x, y, label=metric, color="tab:grey", alpha=0.3)
+
+    for i, metrics in results.items():
+        noisy_loss, loss, noisy_acc, acc, noisy_miou, miou = metrics  # NOQA
+        layer_type = layers[int(i)]["layer_type"]
+        layer_color = (
+            "tab:orange"
+            if layer_type == "Conv2d"
+            else "tab:blue" if layer_type == "BatchNorm2d" else "tab:red"
+        )
+        plt.scatter(i, eval(f"noisy_{metric}"), color=layer_color, label=layer_type)
+    plt.hlines(eval(metric), 0, i, color="tab:green", label="Original", linestyle="--")
+    plt.xlabel("Layer")
+    plt.ylabel(metric)
+    handles, labels = plt.gca().get_legend_handles_labels()
+    by_label = dict(zip(labels, handles))
+    plt.legend(by_label.values(), by_label.keys(), loc="best")
+    plt.xticks(range(0, len(results.keys()), 15))
+    if metric == "loss":
+        plt.yscale("log")
+    plt.show()
+
+
+def plot_stats(results, fresults, ltype=None):
+    ax = plt.gca()
+    results.plot(
+        ax=ax,
+        kind="line",
+        xlabel="Layer" if ltype is None else ltype,
+        ylabel="Activation",
+        figsize=(20, 10),
+        style="--",
+        color=["C0", "C1", "C2", "C3"],
+    )
+    fresults.plot(
+        ax=ax,
+        kind="line",
+        xlabel="Layer" if ltype is None else ltype,
+        ylabel="Activation",
+        figsize=(20, 10),
+        style="-",
+        color=["C0", "C1", "C2", "C3"],
+    )
+    plt.show()
+
+
+def plot_intermediate_stats(results, fresults, per_layer=False):
+    if per_layer:
+        for ltype in results["layer_type"].unique():
+            plot_stats(
+                results[results["layer_type"] == ltype],
+                fresults[fresults["layer_type"] == ltype],
+                ltype=ltype,
+            )
+    else:
+        plot_stats(results, fresults)
+
+
+### Utils ###

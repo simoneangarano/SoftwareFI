@@ -106,7 +106,7 @@ class CifarDataModule(pl.LightningDataModule):
     def train_dataloader(self):
         return get_loader(
             self.train_data,
-            self.batch_size // self.num_gpus,
+            self.args.batch_size // self.num_gpus,
             8 * self.num_gpus,
             self.n_classes,
             self.stats,
@@ -135,20 +135,7 @@ class CoreDataset(torch.utils.data.DataLoader):
         self.args = args
         if self.args is not None and self.args.num_classes == 0:
             # unsuperivised feature comparison
-            self.model = build_model(
-                model=args.model,
-                n_classes=args.num_classes,
-                optim_params={},
-                loss=args.loss,
-                error_model=args.error_model,
-                inject_p=0,
-                inject_epoch=args.inject_epoch,
-                order=args.order,
-                activation=args.activation,
-                nan=args.nan,
-                affine=args.affine,
-                ckpt=args.ckpt,
-            )
+            self.model = build_model(args)
             self.model.eval()
 
     def __len__(self):
@@ -174,7 +161,7 @@ class CoreDataset(torch.utils.data.DataLoader):
 
 
 class CoreDataModule(pl.LightningDataModule):
-    def __init__(self, args=None, batch_size: int = 4, drop_last: bool = False):
+    def __init__(self, args=None):
         super().__init__()
 
         # Load the metadata from the MLSTAC Collection file
@@ -198,38 +185,36 @@ class CoreDataModule(pl.LightningDataModule):
         ]
 
         # Define the batch_size
-        self.batch_size = batch_size
-        self.drop_last = drop_last
         self.args = args
 
     def train_dataloader(self):
         return torch.utils.data.DataLoader(
             dataset=CoreDataset(self.train_dataset, args=self.args),
-            batch_size=self.batch_size,
-            num_workers=8,
+            batch_size=self.args.batch_size,
+            num_workers=self.args.num_workers,
             shuffle=True,
-            pin_memory=True,
+            pin_memory=self.args.pin_memory,
             drop_last=True,
         )
 
     def val_dataloader(self):
         return torch.utils.data.DataLoader(
             dataset=CoreDataset(self.validation_dataset, args=self.args),
-            num_workers=8,
-            batch_size=self.batch_size,
+            num_workers=self.args.num_workers,
+            batch_size=self.args.batch_size,
             shuffle=False,
-            pin_memory=True,
-            drop_last=self.drop_last,
+            pin_memory=self.args.pin_memory,
+            drop_last=self.args.drop_last,
         )
 
     def test_dataloader(self):
         return torch.utils.data.DataLoader(
             dataset=CoreDataset(self.test_dataset, args=self.args),
-            num_workers=8,
-            batch_size=self.batch_size,
+            num_workers=self.args.num_workers,
+            batch_size=self.args.batch_size,
             shuffle=False,
-            pin_memory=True,
-            drop_last=self.drop_last,
+            pin_memory=self.args.pin_memory,
+            drop_last=self.args.drop_last,
         )
 
 

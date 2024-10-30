@@ -5,9 +5,8 @@ from multiprocessing.dummy import Pool as ThreadPool
 
 from utils.data.data_module import CoreDataModule
 from utils.models.ghostnetv2 import *
-from utils.utils import ModelWrapper, RunningStats, get_parser, parse_args
+from utils.utils import ModelWrapper, RunningStats, get_parser, parse_args, build_model
 
-INJECT = True
 
 LAYERS = [
     ConvInjector,
@@ -20,24 +19,16 @@ ACTIVATIONS, STATS = {}, {}
 
 
 def main(args):
-    datamodule = CoreDataModule(args, batch_size=args.batch_size, drop_last=True)
+    datamodule = CoreDataModule(args)
 
     # Define the model
-    backbone = ghostnetv2(
-        inject=INJECT,
-        error_model=args.error_model,
-        inject_p=args.inject_p,
-        inject_epoch=args.inject_epoch,
-    )
-    head = SegmentationHeadGhostBN(inject=INJECT)
-    model = GhostNetSS(backbone, head)
-    model = load_fi_weights(model, args.ckpt).cuda()
-    model = ModelWrapper(model, args.num_classes, loss=args.loss)
+    net = build_model(args)
+    net = net.cuda().eval()
 
-    get_stats(model, datamodule, args, inject=INJECT)
+    get_stats(net, datamodule, args, inject=args.inject)
 
     results = {key: val.get_stats() for key, val in STATS.items()}
-    json.dump(results, open(f"ckpt/{args.name}_stats_{INJECT}.json", "w"))
+    json.dump(results, open(f"ckpt/{args.exp}_stats.json", "w"))
 
 
 @torch.no_grad()
@@ -53,7 +44,7 @@ def get_stats(net: ModelWrapper, datamodule, args, inject=False):
         x, _ = batch
         _ = net(x, inject=inject, inject_index=args.inject_index)
 
-        POOL = ThreadPool(8)
+        POOL = ThreadPool(args.num_workers)
 
         def update_stats(inputs):
             name, out = inputs
@@ -75,6 +66,6 @@ def get_activation(name):
 if __name__ == "__main__":
 
     parser, config_parser = get_parser()
-    args = parse_args(parser, config_parser, args="", verbose=False)
+    args = parse_args(parser, config_parser, args="", verbose=True)
 
     main(args)

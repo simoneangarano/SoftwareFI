@@ -4,31 +4,32 @@ import torch
 import torch.nn as nn
 from torch.optim import SGD, AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
+from utils.segmentation.stream_metrics import StreamSegMetrics
 
 
 class ModelWrapper(pl.LightningModule):
-    def __init__(self, model, n_classes=0, optim=None, loss="mse"):
+    def __init__(self, model, args):
         super(ModelWrapper, self).__init__()
 
         self.model = model
-        self.n_classes = n_classes
-        self.optim = optim
+        self.n_classes = args.num_classes
+        self.optim = None
 
-        if loss == "bce":
+        if args.loss == "bce":
             self.criterion = nn.BCEWithLogitsLoss()
             self.use_one_hot = True
-        elif loss == "ce":
+        elif args.loss == "ce":
             self.criterion = nn.CrossEntropyLoss()
             self.use_one_hot = False
-        elif loss == "sce":
+        elif args.loss == "sce":
             self.criterion = SymmetricCELoss()
             self.use_one_hot = True
-        elif loss == "mse":
+        elif args.loss == "mse":
             self.criterion = nn.MSELoss()
             self.use_one_hot = False
 
-        self.miou = iouCalc(validClasses=range(n_classes))
-
+        # self.miou = iouCalc(validClasses=range(n_classes))
+        self.metrics = StreamSegMetrics(self.n_classes)
         # self.save_hyperparameters("model", "n_classes", "optim", "loss")
 
     def forward(self, x, inject=True, inject_index=0):
@@ -74,10 +75,19 @@ class ModelWrapper(pl.LightningModule):
         # Accuracy and Mean IoU
         if not self.training and self.n_classes > 0:
             probs, preds = torch.max(outputs, 1)
-            acc = torch.mean((preds == y).float())
-            self.miou.evaluateBatch(preds, y)
-            miou = self.miou.outputScores()
-            self.miou.clear()
+
+            # acc = torch.mean((preds == y).float())
+            # self.miou.evaluateBatch(preds, y)
+            # miou = self.miou.outputScores()
+            # self.miou.clear()
+
+            self.metrics.update(y.cpu().numpy(), preds.cpu().numpy())
+            results = self.metrics.get_results()
+            acc = results["Overall Acc"]
+            # acc_cls = results["Mean Acc"]
+            # fwavacc = results["FreqW Acc"]
+            miou = results["Mean IoU"]
+            # cls_iu = results["Class IoU"]
         else:
             acc, probs, preds, miou = 0, 0, 0, 0
 
@@ -109,10 +119,10 @@ class ModelWrapper(pl.LightningModule):
     def validation_step(self, val_batch, _, check_criticality=True, inject_index=0):
         # loss, acc, clean_vals = 0, 0, 0
         loss, acc, miou, clean_vals = self.get_metrics(
-            val_batch, False, inject_index=inject_index
-        )  ############# Comment it out
+            val_batch, inject=False, inject_index=inject_index
+        )
         noisy_loss, noisy_acc, noisy_miou, noisy_vals = self.get_metrics(
-            val_batch, True, inject_index=inject_index
+            val_batch, inject=True, inject_index=inject_index
         )
 
         # Test the accuracy

@@ -62,16 +62,7 @@ def get_loader(
     data,
     batch_size=128,
     workers=4,
-    n_classes=100,
-    stats=None,
-    mixup_cutmix=True,
-    rand_erasing=0.0,
-    label_smooth=0.1,
-    rand_aug="rand-m9-mstd0.5-inc1",
-    jitter=0.0,
-    rcc=0.75,
     size=32,
-    fp16=True,
 ):
     # Segmentation
     assert dataset_name == "cityscapes"
