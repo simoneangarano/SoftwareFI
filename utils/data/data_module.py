@@ -1,6 +1,7 @@
 import os
 
 import mlstac
+import random
 import numpy as np
 import pandas as pd
 import pytorch_lightning as pl
@@ -26,7 +27,7 @@ class CifarDataModule(pl.LightningDataModule):
         self.size = 32 if "cifar" in dataset else 64  # TinyImagenet is 64x64
         self.batch_size = batch_size
         self.num_gpus = num_gpus
-        self.n_classes = None
+        self.num_classes = None
         self.train_trans = None
         self.test_trans = None
         self.train_data = None
@@ -79,7 +80,7 @@ class CifarDataModule(pl.LightningDataModule):
                 transform=self.test_trans,
                 download=False,
             )
-            self.n_classes = 10
+            self.num_classes = 10
         elif self.dataset == "cifar100":
             self.train_data = CIFAR100(
                 root=self.data_dir, train=True, transform=None, download=False
@@ -90,7 +91,7 @@ class CifarDataModule(pl.LightningDataModule):
                 transform=self.test_trans,
                 download=False,
             )
-            self.n_classes = 100
+            self.num_classes = 100
         elif self.dataset == "tinyimagenet":
             self.train_data = TinyImageNet(
                 root=self.data_dir, split="train", download=False, transform=None
@@ -101,14 +102,14 @@ class CifarDataModule(pl.LightningDataModule):
                 download=False,
                 transform=self.test_trans,
             )
-            self.n_classes = 200
+            self.num_classes = 200
 
     def train_dataloader(self):
         return get_loader(
             self.train_data,
             self.args.batch_size // self.num_gpus,
             8 * self.num_gpus,
-            self.n_classes,
+            self.num_classes,
             self.stats,
             self.mixup_cutmix,
             rand_erasing=self.rand_erasing,
@@ -135,7 +136,7 @@ class CoreDataset(torch.utils.data.DataLoader):
         self.args = args
         if self.args is not None and self.args.num_classes == 0:
             # unsuperivised feature comparison
-            self.model = build_model(args)
+            self.model = build_model(args).cuda()
             self.model.eval()
 
     def __len__(self):
@@ -184,8 +185,10 @@ class CoreDataModule(pl.LightningDataModule):
             & (metadata["proj_shape"] == 509)
         ]
 
-        # Define the batch_size
         self.args = args
+
+        self.gen = torch.Generator()
+        self.gen.manual_seed(args.seed)
 
     def train_dataloader(self):
         return torch.utils.data.DataLoader(
@@ -195,6 +198,8 @@ class CoreDataModule(pl.LightningDataModule):
             shuffle=True,
             pin_memory=self.args.pin_memory,
             drop_last=True,
+            worker_init_fn=seed_worker,
+            generator=self.gen,
         )
 
     def val_dataloader(self):
@@ -205,6 +210,8 @@ class CoreDataModule(pl.LightningDataModule):
             shuffle=False,
             pin_memory=self.args.pin_memory,
             drop_last=self.args.drop_last,
+            worker_init_fn=seed_worker,
+            generator=self.gen,
         )
 
     def test_dataloader(self):
@@ -215,6 +222,8 @@ class CoreDataModule(pl.LightningDataModule):
             shuffle=False,
             pin_memory=self.args.pin_memory,
             drop_last=self.args.drop_last,
+            worker_init_fn=seed_worker,
+            generator=self.gen,
         )
 
 
@@ -330,3 +339,9 @@ class CloudSen12(torch.utils.data.Dataset):
         label_tensor = torch.cat((label_tensor, torch.zeros((1, 512, 2))), dim=2)
 
         return img_tensor, label_tensor
+
+
+def seed_worker(worker_id):
+    worker_seed = torch.seed() % 2**32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)

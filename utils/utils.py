@@ -90,7 +90,7 @@ def get_parser():
     )
     parser.add_argument(
         "--inject_p",
-        default=0.001,
+        default=1.0,
         help="Probability of noise injection at training time.",
     )
     parser.add_argument(
@@ -147,13 +147,17 @@ def parse_args(parser, config_parser, args=None, verbose=True):
     args = parser.parse_args(remaining)
 
     args.name = f"{args.model}_{args.task}"
-    args.exp = f"{args.name}_i{args.inject}_p{args.inject_p}_{args.activation}"
+    args.exp = f"{args.name}_i{args.inject}_f{args.inject_first}_p{args.inject_p}_{args.activation}"
 
     if verbose:
         print("\n==> Config parsed:")
         for k, v in sorted(vars(args).items()):
             print(f"{k}: {v}")
         print()
+
+    # save config
+    with open(f"log/{args.exp}.yaml", "w") as f:
+        yaml.dump(vars(args), f)
 
     return args
 
@@ -165,7 +169,7 @@ def get_loader(
     data,
     batch_size=128,
     workers=4,
-    n_classes=1000,
+    num_classes=1000,
     stats=None,
     mixup_cutmix=True,
     rand_erasing=0.0,
@@ -192,7 +196,7 @@ def get_loader(
         switch_prob=switch_prob,
         mode="batch",
         label_smoothing=label_smooth,
-        num_classes=n_classes,
+        num_classes=num_classes,
     )
     return create_loader(
         data,
@@ -267,10 +271,10 @@ def validate(net: ModelWrapper, datamodule, args):
     total_loss, total_noisy_loss = 0, 0
     total_acc, total_noisy_acc = 0, 0
     total_noisy_miou, total_miou = 0, 0
-    for batch_idx, batch in tqdm(enumerate(datamodule.val_dataloader())):
+    for _, batch in tqdm(enumerate(datamodule.val_dataloader())):
         batch = [b.cuda() for b in batch]
         noisy_loss, loss, noisy_acc, acc, noisy_miou, miou = net.validation_step(
-            batch, batch_idx, inject_index=args.inject_index
+            batch, inject_index=args.inject_index
         )
         total_loss += loss
         total_noisy_loss += noisy_loss
@@ -306,12 +310,13 @@ class RunningStats(object):
         print(rs.mean, rs.std)
     """
 
-    def __init__(self, num=0.0, mean=None, var=None, min=None, max=None):
+    def __init__(self, num=0.0, mean=None, var=None, min=None, max=None, clip=1e9):
         self.num = num  # number of samples
         self.mean = mean  # mean
         self.var = var  # sum of squared differences from the mean
         self.min = min  # min value
         self.max = max  # max value
+        self.clip = clip  # clip values
 
     def clear(self):
         self.num = 0.0
@@ -325,6 +330,7 @@ class RunningStats(object):
                 self.update_params(el)
 
     def update_params(self, x):
+        x = np.clip(x, -self.clip, self.clip)
         self.num += 1
         if self.num == 1:
             self.mean = x
@@ -396,7 +402,7 @@ def plot_results(results, layers, metric):
     plt.plot(x, y, label=metric, color="tab:grey", alpha=0.3)
 
     for i, metrics in results.items():
-        noisy_loss, loss, noisy_acc, acc, noisy_miou, miou = metrics  # NOQA
+        noisy_loss, loss, noisy_acc, acc, noisy_miou, miou = metrics  # NOQA F841
         layer_type = layers[int(i)]["layer_type"]
         layer_color = (
             "tab:orange"
@@ -416,7 +422,7 @@ def plot_results(results, layers, metric):
     plt.show()
 
 
-def plot_stats(results, fresults, ltype=None):
+def plot_stats(results, fresults=None, ltype=None, ylim=None, log=False, alpha=1.0):
     ax = plt.gca()
     results.plot(
         ax=ax,
@@ -426,29 +432,45 @@ def plot_stats(results, fresults, ltype=None):
         figsize=(20, 10),
         style="--",
         color=["C0", "C1", "C2", "C3"],
+        ylim=ylim,
+        alpha=alpha,
     )
-    fresults.plot(
-        ax=ax,
-        kind="line",
-        xlabel="Layer" if ltype is None else ltype,
-        ylabel="Activation",
-        figsize=(20, 10),
-        style="-",
-        color=["C0", "C1", "C2", "C3"],
-    )
+    if fresults is not None:
+        fresults.plot(
+            ax=ax,
+            kind="line",
+            xlabel="Layer" if ltype is None else ltype,
+            ylabel="Activation",
+            figsize=(20, 10),
+            style="-",
+            color=["C0", "C1", "C2", "C3"],
+            ylim=ylim,
+            alpha=alpha,
+        )
+    if log:
+        plt.yscale("symlog")
     plt.show()
 
 
-def plot_intermediate_stats(results, fresults, per_layer=False):
+def plot_intermediate_stats(
+    results, fresults=None, per_layer=False, ylim=None, log=False, alpha=1.0
+):
     if per_layer:
         for ltype in results["layer_type"].unique():
             plot_stats(
                 results[results["layer_type"] == ltype],
-                fresults[fresults["layer_type"] == ltype],
+                (
+                    fresults[fresults["layer_type"] == ltype]
+                    if fresults is not None
+                    else None
+                ),
                 ltype=ltype,
+                ylim=ylim,
+                log=log,
+                alpha=alpha,
             )
     else:
-        plot_stats(results, fresults)
+        plot_stats(results, fresults, ylim=ylim, log=log, alpha=alpha)
 
 
 ### Utils ###

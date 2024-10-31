@@ -29,7 +29,7 @@ class LitModel(pl.LightningModule):
         f = self(x, inject=False)
         f_hat = self(x)
         loss = self.loss(f, f_hat)
-        self.log("val_loss", loss)
+        # self.log("val_loss", loss)
         return loss
 
     def test_step(self, batch, batch_idx):

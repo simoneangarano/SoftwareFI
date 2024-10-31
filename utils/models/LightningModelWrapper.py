@@ -12,7 +12,7 @@ class ModelWrapper(pl.LightningModule):
         super(ModelWrapper, self).__init__()
 
         self.model = model
-        self.n_classes = args.num_classes
+        self.num_classes = args.num_classes
         self.optim = None
 
         if args.loss == "bce":
@@ -28,12 +28,17 @@ class ModelWrapper(pl.LightningModule):
             self.criterion = nn.MSELoss()
             self.use_one_hot = False
 
-        # self.miou = iouCalc(validClasses=range(n_classes))
-        self.metrics = StreamSegMetrics(self.n_classes)
-        # self.save_hyperparameters("model", "n_classes", "optim", "loss")
+        # self.miou = iouCalc(validClasses=range(self.num_classes))
+        self.metrics = StreamSegMetrics(self.num_classes)
+        # self.save_hyperparameters("model", "num_classes", "optim", "loss")
 
     def forward(self, x, inject=True, inject_index=0):
-        return self.model(x, inject, self.current_epoch, inject_index=inject_index)
+        return self.model(
+            x,
+            inject=inject,
+            current_epoch=self.current_epoch,
+            inject_index=inject_index,
+        )
 
     def configure_optimizers(self):
         if self.optim["optimizer"] == "sgd":
@@ -52,18 +57,18 @@ class ModelWrapper(pl.LightningModule):
         scheduler = CosineAnnealingLR(optimizer, self.optim["epochs"], eta_min=1e-4)
         return {"optimizer": optimizer, "lr_scheduler": scheduler}
 
-    def get_metrics(self, batch, inject=True, inject_index=0):
+    def get_metrics(self, batch, inject, inject_index=0):
         x, y = batch
 
         # forward
-        outputs = self(x, inject, inject_index=inject_index)
-        if self.n_classes == 0:
+        outputs = self(x, inject=inject, inject_index=inject_index)
+        if self.num_classes == 0:
             outputs = outputs[0]
 
         # Loss
         if self.use_one_hot and not self.training:
             # bce or sce
-            loss = self.criterion(outputs, get_one_hot(y, self.n_classes))
+            loss = self.criterion(outputs, get_one_hot(y, self.num_classes))
         else:
             # ce
             loss = self.criterion(outputs, y)
@@ -73,16 +78,17 @@ class ModelWrapper(pl.LightningModule):
             pass  # print("Large Loss detected")
 
         # Accuracy and Mean IoU
-        if not self.training and self.n_classes > 0:
+        if not self.training and self.num_classes > 0:
             probs, preds = torch.max(outputs, 1)
 
-            # acc = torch.mean((preds == y).float())
+            # acc = torch.mean((preds == y).float()).cpu().numpy()
             # self.miou.evaluateBatch(preds, y)
             # miou = self.miou.outputScores()
             # self.miou.clear()
 
             self.metrics.update(y.cpu().numpy(), preds.cpu().numpy())
             results = self.metrics.get_results()
+            self.metrics.reset()
             acc = results["Overall Acc"]
             # acc_cls = results["Mean Acc"]
             # fwavacc = results["FreqW Acc"]
@@ -116,7 +122,7 @@ class ModelWrapper(pl.LightningModule):
         self.epoch_log("value_diff_pct", value_diff_pct)
         self.epoch_log("preds_diff_pct", preds_diff_pct)
 
-    def validation_step(self, val_batch, _, check_criticality=True, inject_index=0):
+    def validation_step(self, val_batch, inject_index=0, check_criticality=False):
         # loss, acc, clean_vals = 0, 0, 0
         loss, acc, miou, clean_vals = self.get_metrics(
             val_batch, inject=False, inject_index=inject_index
@@ -132,7 +138,7 @@ class ModelWrapper(pl.LightningModule):
         self.epoch_log("noisy_val_loss", noisy_loss)
         self.epoch_log("noisy_val_acc", noisy_acc)
         self.epoch_log("noisy_val_miou", noisy_miou)
-        if check_criticality and self.n_classes > 0:
+        if check_criticality and self.num_classes > 0:
             self.check_criticality(gold=clean_vals, faulty=noisy_vals)
 
         return noisy_loss, loss, noisy_acc, acc, noisy_miou, miou
@@ -142,11 +148,12 @@ class ModelWrapper(pl.LightningModule):
         self.epoch_log("lr", lr)
 
     def epoch_log(self, name, value, prog_bar=True):
-        self.log(name, value, on_step=False, on_epoch=True, prog_bar=prog_bar)
+        pass
+        # self.log(name, value, on_step=False, on_epoch=True, prog_bar=prog_bar)
 
 
-def get_one_hot(target, n_classes=10, device="cuda"):
-    one_hot = torch.zeros(target.shape[0], n_classes, device=device)
+def get_one_hot(target, num_classes=10, device="cuda"):
+    one_hot = torch.zeros(target.shape[0], num_classes, device=device)
     one_hot = one_hot.scatter(dim=1, index=target.long().view(-1, 1), value=1.0)
     return one_hot
 

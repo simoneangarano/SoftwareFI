@@ -30,9 +30,9 @@ class StreamSegMetrics(_StreamMetrics):
     Stream Metrics for Semantic Segmentation Task
     """
 
-    def __init__(self, n_classes):
-        self.n_classes = n_classes
-        self.confusion_matrix = np.zeros((n_classes, n_classes))
+    def __init__(self, num_classes):
+        self.num_classes = num_classes
+        self.confusion_matrix = np.zeros((num_classes, num_classes))
 
     def update(self, label_trues, label_preds):
         for lt, lp in zip(label_trues, label_preds):
@@ -51,12 +51,12 @@ class StreamSegMetrics(_StreamMetrics):
         return string
 
     def _fast_hist(self, label_true, label_pred):
-        mask = (label_true >= 0) & (label_true < self.n_classes)
+        mask = (label_true >= 0) & (label_true < self.num_classes)
         hist = np.bincount(
-            self.n_classes * label_true[mask].astype(int) + label_pred[mask],
-            minlength=self.n_classes**2,
-        )[: self.n_classes * self.n_classes]
-        hist = hist.reshape(self.n_classes, self.n_classes)
+            self.num_classes * label_true[mask].astype(int) + label_pred[mask],
+            minlength=self.num_classes**2,
+        )[: self.num_classes * self.num_classes]
+        hist = hist.reshape(self.num_classes, self.num_classes)
         return hist
 
     def get_results(self):
@@ -74,7 +74,7 @@ class StreamSegMetrics(_StreamMetrics):
         mean_iu = np.nanmean(iu)
         freq = hist.sum(axis=1) / hist.sum()
         fwavacc = (freq[freq > 0] * iu[freq > 0]).sum()
-        cls_iu = dict(zip(range(self.n_classes), iu))
+        cls_iu = dict(zip(range(self.num_classes), iu))
 
         return {
             "Overall Acc": acc,
@@ -85,7 +85,7 @@ class StreamSegMetrics(_StreamMetrics):
         }
 
     def reset(self):
-        self.confusion_matrix = np.zeros((self.n_classes, self.n_classes))
+        self.confusion_matrix = np.zeros((self.num_classes, self.num_classes))
 
     def fast_reset(self):
         self.confusion_matrix.fill(0)

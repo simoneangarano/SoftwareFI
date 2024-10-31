@@ -49,3 +49,4 @@ __pycache__
 lightning_logs/
 ckpt/
 *.pyc
+log/

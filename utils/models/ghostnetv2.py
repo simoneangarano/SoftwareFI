@@ -36,10 +36,13 @@ class NaNAct(nn.Module):
         self.nan = args.nan
 
     def forward(self, x):
+        x = self.act(x)
         if self.nan:
-            return torch.nan_to_num(self.act(x), 0.0)
-        else:
-            return self.act(x)
+            return torch.nan_to_num(x, 0.0)
+        # if hasattr(self, "stats"):
+        #     x[x > self.stats[3] * 10] = self.stats[3]  # or 0?
+        #     x[x < self.stats[2] * 10] = self.stats[3]  # or 0?
+        return x
 
 
 class ConvInjector(nn.Module):
@@ -65,13 +68,25 @@ class ConvInjector(nn.Module):
         if args.inject:
             self.injector = HansGruberNI(args)
         else:
-            self.injector = SequentialInjector(multi_output=False)
+            self.injector = SequentialInjector()
+
+        self.inject_first = args.inject_first
 
     def forward(self, x, fwargs):
-        x = self.conv(x)
+        if not self.inject_first:
+            x = self.conv(x)
+
         if fwargs["inj"] and (fwargs["cnt"] == fwargs["idx"] or fwargs["idx"] == -1):
-            x = self.injector(x, fwargs)
+            x, fwargs = self.injector(x, fwargs)
         fwargs["cnt"] += 1
+
+        if self.inject_first:
+            x = self.conv(x)
+
+        # if hasattr(self, "stats"):
+        #     x[x > self.stats[3]*10] = self.stats[3] # or 0?
+        #     x[x < self.stats[2]*10] = self.stats[3] # or 0?
+
         return x, fwargs
 
 
@@ -86,13 +101,25 @@ class BNInjector(nn.Module):
         if args.inject:
             self.injector = HansGruberNI(args)
         else:
-            self.injector = SequentialInjector(multi_output=False)
+            self.injector = SequentialInjector()
+
+        self.inject_first = args.inject_first
 
     def forward(self, x, fwargs):
-        x = self.bn(x)
+        if not self.inject_first:
+            x = self.bn(x)
+
         if fwargs["inj"] and (fwargs["cnt"] == fwargs["idx"] or fwargs["idx"] == -1):
-            x = self.injector(x, fwargs)
+            x, fwargs = self.injector(x, fwargs)
         fwargs["cnt"] += 1
+
+        if self.inject_first:
+            x = self.bn(x)
+
+        # if hasattr(self, "stats"):
+        #     x[x > self.stats[3] * 10] = self.stats[3]  # or 0?
+        #     x[x < self.stats[2] * 10] = self.stats[3]  # or 0?
+
         return x, fwargs
 
 
@@ -113,22 +140,34 @@ class LinearInjector(nn.Module):
         if args.inject:
             self.injector = HansGruberNI(args)
         else:
-            self.injector = SequentialInjector(multi_output=False)
+            self.injector = SequentialInjector()
+
+        self.inject_first = args.inject_first
 
     def forward(self, x, fwargs):
-        x = self.linear(x)
+        if not self.inject_first:
+            x = self.linear(x)
+
         if (
             fwargs["inj"]
             and (fwargs["cnt"] == fwargs["idx"] or fwargs["idx"] == -1)
             and isinstance(self.linear, nn.Linear)
         ):
-            x = self.injector(x, fwargs)
+            x, fwargs = self.injector(x, fwargs)
         fwargs["cnt"] += 1
+
+        if self.inject_first:
+            x = self.linear(x)
+
+        # if hasattr(self, "stats"):
+        #     x[x > self.stats[3] * 10] = self.stats[3]  # or 0?
+        #     x[x < self.stats[2] * 10] = self.stats[3]  # or 0?
+
         return x
 
 
 class SequentialInjector(nn.Module):
-    def __init__(self, *args, multi_output=True):
+    def __init__(self, *args):
         super(SequentialInjector, self).__init__()
         self.layers = nn.ModuleList(args)
         self.injection_layers = [
@@ -140,7 +179,6 @@ class SequentialInjector(nn.Module):
             ConvBnAct,
             BNInjector,
         ]
-        self.multi_output = multi_output
 
     def forward(self, x, fwargs):
         for layer in self.layers:
@@ -150,10 +188,7 @@ class SequentialInjector(nn.Module):
                 x = layer(x, fwargs)
             else:
                 x = layer(x)
-                
-        if self.multi_output:
-            return x, fwargs
-        return x
+        return x, fwargs
 
 
 class HardSigmoid(nn.Module):
@@ -200,6 +235,9 @@ class ClampAvgPool2d(nn.Module):
     def forward(self, x):
         # if self.max is not None:
         #     x[x > self.max] = self.max  # or 0?
+        # if hasattr(self, "stats"):
+        #     x[x > self.stats[3] * 10] = self.stats[3]  # or 0?
+        #     x[x < self.stats[2] * 10] = self.stats[3]  # or 0?
         return self.avg_pool(x)
 
 
@@ -697,6 +735,8 @@ def ghostnetv2(args):
 ###############
 #  Seg. Head  #
 ###############
+
+
 class SegmentationHeadGhostBN(nn.Module):
 
     def __init__(self, args):
@@ -788,6 +828,8 @@ class SegmentationHeadGhostBN(nn.Module):
 ###############
 # GhostNet+SS #
 ###############
+
+
 class GhostNetSS(nn.Module):
 
     def __init__(self, ghostnet, head, args):
@@ -798,20 +840,29 @@ class GhostNetSS(nn.Module):
         self.head = head
         if args.ckpt is not None:
             self = load_fi_weights(self, args.ckpt)
+        if args.stats is not None:
+            self.apply_stats(args.stats)
 
     def forward(
-        self, tensors, inject=False, current_epoch=0, counter=0, inject_index=0
+        self, tensors, inject=False, current_epoch=0, counter=0, inject_index=-1
     ):
         fwargs = {
             "inj": inject,
             "idx": inject_index,
             "ep": current_epoch,
             "cnt": counter,
+            "faulty_idxs": torch.ones(tensors.shape[0]) * -1,
         }
         (_, fwargs), intermediate_features = self.ghostnet(tensors, fwargs)
         outputs = self.head(intermediate_features, fwargs)
 
         return outputs
+
+    def apply_stats(self, stats):
+        # apply stats to each layer using the stats dictionary
+        for name, layer in self.named_modules():
+            if name in stats.keys():
+                layer.stats = stats[name]
 
 
 def load_fi_weights(model, filename, verbose=False):
@@ -858,7 +909,6 @@ def load_fi_weights(model, filename, verbose=False):
 
 
 def __main__():
-
     model = ghostnetv2()
     x = torch.randn(1, 5, 224, 224)
     y, intermediates = model(x)

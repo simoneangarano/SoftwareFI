@@ -84,9 +84,11 @@ class ConvInjector(nn.Module):
 
 
 class LinearInjector(nn.Module):
-    def __init__(self, inplanes, n_classes, error_model, inject_p=0.01, inject_epoch=0):
+    def __init__(
+        self, inplanes, num_classes, error_model, inject_p=0.01, inject_epoch=0
+    ):
         super(LinearInjector, self).__init__()
-        self.linear = nn.Linear(inplanes, n_classes)
+        self.linear = nn.Linear(inplanes, num_classes)
         self.injector = HansGruberNI(error_model, p=inject_p, inject_epoch=inject_epoch)
 
     def forward(self, x, inject=True, current_epoch=0, counter=0, inject_index=0):
@@ -280,7 +282,7 @@ class HardResNet(nn.Module):
         )
         self.linear = LinearInjector(
             64,
-            n_classes=num_classes,
+            num_classes=num_classes,
             error_model=error_model,
             inject_p=inject_p,
             inject_epoch=inject_epoch,
@@ -340,7 +342,7 @@ class HardResNet(nn.Module):
 
 
 def hard_resnet20(
-    n_classes=10,
+    num_classes=10,
     error_model="random",
     inject_p=0.1,
     inject_epoch=0,
@@ -352,7 +354,7 @@ def hard_resnet20(
     return HardResNet(
         BasicBlock,
         [3, 3, 3],
-        n_classes,
+        num_classes,
         error_model,
         inject_p,
         inject_epoch,
@@ -364,7 +366,7 @@ def hard_resnet20(
 
 
 def hard_resnet32(
-    n_classes=10,
+    num_classes=10,
     error_model="random",
     inject_p=0.1,
     inject_epoch=0,
@@ -376,7 +378,7 @@ def hard_resnet32(
     return HardResNet(
         BasicBlock,
         [5, 5, 5],
-        n_classes,
+        num_classes,
         error_model,
         inject_p,
         inject_epoch,
@@ -388,7 +390,7 @@ def hard_resnet32(
 
 
 def hard_resnet44(
-    n_classes=10,
+    num_classes=10,
     error_model="random",
     inject_p=0.1,
     inject_epoch=0,
@@ -400,7 +402,7 @@ def hard_resnet44(
     return HardResNet(
         BasicBlock,
         [7, 7, 7],
-        n_classes,
+        num_classes,
         error_model,
         inject_p,
         inject_epoch,
@@ -412,7 +414,7 @@ def hard_resnet44(
 
 
 def hard_resnet56(
-    n_classes=10,
+    num_classes=10,
     error_model="random",
     inject_p=0.1,
     inject_epoch=0,
@@ -424,7 +426,7 @@ def hard_resnet56(
     return HardResNet(
         BasicBlock,
         [9, 9, 9],
-        n_classes,
+        num_classes,
         error_model,
         inject_p,
         inject_epoch,

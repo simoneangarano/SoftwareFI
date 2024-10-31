@@ -16,7 +16,7 @@ from .transforms import (
 
 def build_model(
     model=None,
-    n_classes=10,
+    num_classes=10,
     optim_params={},
     loss="bce",
     error_model="random",
@@ -32,13 +32,13 @@ def build_model(
     if model == "deeplab":
         from .deeplabv3_custom.models import deeplabv3_resnet101
 
-        net = deeplabv3_resnet101(n_classes, pretrained=pretrained)
+        net = deeplabv3_resnet101(num_classes, pretrained=pretrained)
 
     elif model == "deeplab_relumax":
         from .deeplabv3_custom.deeplab_relumax import deeplabv3_resnet101
 
         net = deeplabv3_resnet101(
-            n_classes, pretrained=pretrained, activation=activation
+            num_classes, pretrained=pretrained, activation=activation
         )
 
     # Hook clipping and NaNs
@@ -54,7 +54,7 @@ def build_model(
                 )
 
     print(f"\n==> {model} built.")
-    return ModelWrapper(net, n_classes, optim_params, loss, freeze, inject_p)
+    return ModelWrapper(net, num_classes, optim_params, loss, freeze, inject_p)
 
 
 def get_loader(

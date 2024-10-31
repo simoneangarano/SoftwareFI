@@ -18,7 +18,7 @@ def load_ptl_model(args):
         "lr": args.lr,
         "wd": args.wd,
     }
-    n_classes = 10 if args.dataset == "cifar10" else 100
+    num_classes = 10 if args.dataset == "cifar10" else 100
 
     ptl_model = build_model(args)
     checkpoint = torch.load(args.ckpt, map_location=torch.device("cpu"))

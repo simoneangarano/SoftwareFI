@@ -267,5 +267,5 @@ def _densenet(
     return model
 
 
-def densenet100(n_classes):
-    return _densenet(12, [31, 31, 31], 16, num_classes=n_classes)
+def densenet100(num_classes):
+    return _densenet(12, [31, 31, 31], 16, num_classes=num_classes)

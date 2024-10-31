@@ -4,20 +4,28 @@ in the training process
 """
 
 import random
+from typing import List, Tuple
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import torch
 import torch.nn as nn
 
 
-def generate_4Dmask(shape, batch_ids=[], channel_ids=[], row_ids=[], column_ids=[]):
+def generate_4Dmask(
+    shape: Tuple[int, int, int, int],
+    batch_ids: List[int] = [],
+    channel_ids: List[int] = [],
+    row_ids: List[int] = [],
+    column_ids: List[int] = [],
+) -> torch.Tensor:
     b, c, w, h = shape
-    batch_ids = [idx for idx in range(b) if batch_ids[idx]]
+    batch_ids = [idx for idx in range(b) if idx in batch_ids]
     mask = torch.zeros((b, c, w, h))
     mask_2d = torch.zeros((w, h))
 
-    r, c = len(row_ids), len(column_ids)
-    if r and c:
+    r, col = len(row_ids), len(column_ids)
+    if r and col:
         # single or square
         for row_id in row_ids:
             for column_id in column_ids:
@@ -28,7 +36,7 @@ def generate_4Dmask(shape, batch_ids=[], channel_ids=[], row_ids=[], column_ids=
         for row_id in row_ids:
             mask_2d[row_id, :] = 1
 
-    elif c:
+    elif col:
         # line - columns
         for column_id in column_ids:
             mask_2d[:, column_id] = 1
@@ -37,9 +45,17 @@ def generate_4Dmask(shape, batch_ids=[], channel_ids=[], row_ids=[], column_ids=
         # all
         mask_2d = torch.ones((w, h))
 
-    for batch_id in batch_ids:
-        for channel_id in channel_ids:
-            mask[batch_id, channel_id] = mask_2d
+    def set_mask(batch_id, channel_id):
+        mask[batch_id, channel_id] = mask_2d
+
+    with ThreadPoolExecutor() as executor:
+        futures = [
+            executor.submit(set_mask, batch_id, channel_id)
+            for batch_id in batch_ids
+            for channel_id in channel_ids
+        ]
+        for future in futures:
+            future.result()  # Wait for all threads to complete
 
     return mask > 0
 
@@ -115,13 +131,16 @@ def generate_all_masks(shape, sampled_indexes):
 
 class HansGruberNI(torch.nn.Module):
     def __init__(
-        self, args,
+        self,
+        args,
     ):
         super(HansGruberNI, self).__init__()
         # Error model necessary for the forward
         self.error_model = args.error_model
         self.noise_data = list()
-        self.p = args.inject_p  # fraction of the samples which the injection is applied to
+        self.p = (
+            args.inject_p
+        )  # fraction of the samples which the injection is applied to
         self.inject_epoch = (
             args.inject_epoch  # how many epochs before starting the injection
         )
@@ -246,10 +265,14 @@ class HansGruberNI(torch.nn.Module):
 
         output[mask] = output[mask].mul_(error)
 
-        return output
+        # check if the input has been modified
+        # clean = torch.allclose(forward_input, output)
+        return output, sampled_indexes
 
     def forward(
-        self, forward_input: torch.Tensor, fwargs,
+        self,
+        forward_input: torch.Tensor,
+        fwargs,
     ) -> torch.Tensor:
         r"""Perform a 'forward' operation to simulate the error model injection
         in the training process
@@ -259,12 +282,16 @@ class HansGruberNI(torch.nn.Module):
         """
         output = forward_input
         if self.training:
-            if fwargs['ep'] >= self.inject_epoch:
+            if fwargs["ep"] >= self.inject_epoch:
                 # inject noise to each sample with probability p
-                output = self.inject(forward_input, self.p)
+                output, sampled_indexes = self.inject(forward_input, self.p)
         else:
-            if fwargs['inj']:
+            if fwargs["inj"]:
                 # inject noise to all samples
-                output = self.inject(forward_input, self.p)
+                output, sampled_indexes = self.inject(forward_input, self.p)
 
-        return output
+        fwargs["faulty_idxs"] += (
+            (fwargs["faulty_idxs"] < 0) * sampled_indexes * (fwargs["cnt"] + 1)
+        )
+
+        return output, fwargs

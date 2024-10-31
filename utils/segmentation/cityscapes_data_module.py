@@ -34,7 +34,7 @@ class CityscapesDataModule(pl.LightningDataModule):
         self.size = size
         self.batch_size = batch_size
         self.num_gpus = num_gpus
-        self.n_classes = None
+        self.num_classes = None
         self.train_trans = None
         self.test_trans = None
         self.train_data = None
@@ -69,7 +69,7 @@ class CityscapesDataModule(pl.LightningDataModule):
         self.test_data = Cityscapes(
             root=self.data_dir, split="val", mode="fine", transform=self.test_trans
         )
-        self.n_classes = 19
+        self.num_classes = 19
 
     def train_dataloader(self):
         return get_loader(
@@ -77,7 +77,7 @@ class CityscapesDataModule(pl.LightningDataModule):
             self.train_data,
             self.batch_size // self.num_gpus,
             self.num_workers,
-            self.n_classes,
+            self.num_classes,
             self.stats,
             self.mixup_cutmix,
             rand_erasing=self.rand_erasing,

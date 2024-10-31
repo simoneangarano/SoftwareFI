@@ -1,3 +1,4 @@
+# General
 mode: validation
 dataset: sentinel
 data_dir: ./data
@@ -23,13 +24,15 @@ pin_memory: true
 drop_last: true
 
 # Injection
-seed: 0
+seed: 42
 error_model: random
 inject: true ##############################################
 inject_p: !!float 1.0 #####################################
+inject_index: 0 ########## -1 means all layers ###########
+inject_first: true ########################################
 inject_epoch: 0
-inject_index: -1 ########## -1 means all layers ###########
 nan: true
+stats: null
 comment: null
 
 # Training (old)

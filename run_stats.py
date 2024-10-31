@@ -1,7 +1,9 @@
 import json
+import numpy as np
+import random
 import torch
 from tqdm import tqdm
-from multiprocessing.dummy import Pool as ThreadPool
+from concurrent.futures import ThreadPoolExecutor
 
 from utils.data.data_module import CoreDataModule
 from utils.models.ghostnetv2 import *
@@ -33,7 +35,6 @@ def main(args):
 
 @torch.no_grad()
 def get_stats(net: ModelWrapper, datamodule, args, inject=False):
-
     for name, layer in net.named_modules():
         if any(isinstance(layer, t) for t in LAYERS):
             layer.register_forward_hook(get_activation(name))
@@ -44,21 +45,25 @@ def get_stats(net: ModelWrapper, datamodule, args, inject=False):
         x, _ = batch
         _ = net(x, inject=inject, inject_index=args.inject_index)
 
-        POOL = ThreadPool(args.num_workers)
+        with ThreadPoolExecutor(max_workers=args.num_workers) as executor:
 
-        def update_stats(inputs):
-            name, out = inputs
-            STATS[name].push(out.cpu().numpy())
+            def update_stats(inputs):
+                name, out = inputs
+                STATS[name].push(out.cpu().numpy())
 
-        POOL.map(update_stats, ACTIVATIONS.items())
-        POOL.close()
-        POOL.join()
+            futures = [
+                executor.submit(update_stats, item) for item in ACTIVATIONS.items()
+            ]
+            for future in futures:
+                future.result()  # Wait for all threads to complete
 
 
 @torch.no_grad()
 def get_activation(name):
     def hook(model, input, output):
-        ACTIVATIONS[name] = output[0].detach()
+        if isinstance(output, tuple):
+            output = output[0]
+        ACTIVATIONS[name] = output.detach()
 
     return hook
 
@@ -67,5 +72,13 @@ if __name__ == "__main__":
 
     parser, config_parser = get_parser()
     args = parse_args(parser, config_parser, args="", verbose=True)
+
+    # Avoid memory issues
+    args.batch_size //= 4
+
+    # torch.manual_seed(args.seed)
+    # torch.backends.cudnn.deterministic = True
+    # random.seed(0)
+    # np.random.seed(0)
 
     main(args)

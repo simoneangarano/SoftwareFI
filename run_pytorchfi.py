@@ -32,11 +32,11 @@ def load_ptl_model(args):
         "lr": args.lr,
         "wd": args.wd,
     }
-    n_classes = 1000
+    num_classes = 1000
 
     ptl_model = build_model(
         model=args.model,
-        n_classes=n_classes,
+        num_classes=num_classes,
         optim_params=optim_params,
         loss=args.loss,
         inject_p=args.inject_p,
