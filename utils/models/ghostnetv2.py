@@ -76,7 +76,9 @@ class ConvInjector(nn.Module):
         if not self.inject_first:
             x = self.conv(x)
 
-        if fwargs["inj"] and (fwargs["cnt"] == fwargs["idx"] or fwargs["idx"] == -1):
+        if fwargs["inj"] and (
+            (fwargs["cnt"] == fwargs["idx"]) or (fwargs["idx"] == -1)
+        ):
             x, fwargs = self.injector(x, fwargs)
         fwargs["cnt"] += 1
 
@@ -109,7 +111,9 @@ class BNInjector(nn.Module):
         if not self.inject_first:
             x = self.bn(x)
 
-        if fwargs["inj"] and (fwargs["cnt"] == fwargs["idx"] or fwargs["idx"] == -1):
+        if fwargs["inj"] and (
+            (fwargs["cnt"] == fwargs["idx"]) or (fwargs["idx"] == -1)
+        ):
             x, fwargs = self.injector(x, fwargs)
         fwargs["cnt"] += 1
 
@@ -150,7 +154,7 @@ class LinearInjector(nn.Module):
 
         if (
             fwargs["inj"]
-            and (fwargs["cnt"] == fwargs["idx"] or fwargs["idx"] == -1)
+            and ((fwargs["cnt"] == fwargs["idx"]) or (fwargs["idx"] == -1))
             and isinstance(self.linear, nn.Linear)
         ):
             x, fwargs = self.injector(x, fwargs)
@@ -184,7 +188,7 @@ class SequentialInjector(nn.Module):
         for layer in self.layers:
             if any(isinstance(layer, t) for t in self.injection_layers):
                 x, fwargs = layer(x, fwargs)
-            elif any(isinstance(layer, t) for t in [LinearInjector]):
+            elif isinstance(layer, LinearInjector):
                 x = layer(x, fwargs)
             else:
                 x = layer(x)
@@ -816,10 +820,10 @@ class SegmentationHeadGhostBN(nn.Module):
         out_9, fwargs = self.conv_block_960(out_9, fwargs)  # [..., H/32, W/32]
         x_2upsampled_pred = self.up2(out_9)  # [..., H/16, W/16]
         out_6, fwargs = self.conv_block_112(out_6, fwargs)  # [..., H/16, W/16]
-        x = self.ff.add(x_2upsampled_pred, out_6)  # [..., H/16, W/16]
+        x = x_2upsampled_pred + out_6  # [..., H/16, W/16]
         x_2upsampled_pred = self.up2(x)  # [..., H/8, W/8]
         out_4, _ = self.conv_block_40(out_4, fwargs)  # [..., H/8, W/8]
-        x = self.ff.add(x_2upsampled_pred, out_4)  # [..., H/8, W/8]
+        x = x_2upsampled_pred + out_4  # [..., H/8, W/8]
         x = self.up8(x)  # [..., H, W]
 
         return x

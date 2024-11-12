@@ -13,8 +13,8 @@ wandb: null
 # Model
 width: 1.6
 se_ratio: 0.25
-activation: relu6 #########################################
-loss: ce 
+activation: relu #########################################
+loss: ce
 
 # Environment
 num_gpus: 0
@@ -28,8 +28,8 @@ seed: 42
 error_model: random
 inject: true ##############################################
 inject_p: !!float 1.0 #####################################
-inject_index: 0 ########## -1 means all layers ###########
-inject_first: true ########################################
+inject_index: -1 ########## -1 means all layers ###########
+inject_first: false ########################################
 inject_epoch: 0
 nan: true
 stats: null
@@ -43,7 +43,7 @@ epochs: 1
 lr: !!float 1e-3
 wd: !!float 1e-3
 optimizer: adamw
-optim_params: None
+optim_params: null
 
 # run_pytorchfi.py (old)
 randrange: 1000

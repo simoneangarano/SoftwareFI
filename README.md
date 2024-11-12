@@ -83,3 +83,8 @@ optional arguments:
 
 The setup files and scripts for validating with neutron beams are available at
 [diehardnetradsetup](https://github.com/diehardnet/diehardnetradsetup)
+
+### Experiment Name Convention
+
+The experiment name is composed of the following fields:
+```{args.name}_i{args.inject}_f{args.inject_first}_p{args.inject_p}_{args.activation}```

@@ -64,7 +64,8 @@ def generate_2Dmask(shape, batch_ids=[]):
     b, c = shape
     batch_ids = [idx for idx in range(b) if batch_ids[idx]]
 
-    rand_c = torch.bernoulli(torch.ones(c) * 0.3) > 0
+    # rand_c = torch.bernoulli(torch.ones(c) * 0.3) > 0
+    rand_c = torch.bernoulli(torch.ones(c) * 1) > 0
     channel_ids = [idx for idx in range(c) if rand_c[idx]]
 
     mask = torch.zeros((b, c))
@@ -92,7 +93,8 @@ def generate_line_masks(shape, sampled_indexes):
     b, c, w, h = shape
     # Corrupt rows or columns in multiple channels
     rand_line = torch.randint(high=h, size=(1,))
-    rand_c = torch.bernoulli(torch.ones(c) * 0.75) > 0
+    # rand_c = torch.bernoulli(torch.ones(c) * 0.75) > 0
+    rand_c = torch.bernoulli(torch.ones(c) * 1) > 0
     rand_c = [idx for idx in range(c) if rand_c[idx]]
     if torch.bernoulli(torch.ones(1) * 0.5):
         mask = generate_4Dmask(shape, sampled_indexes, rand_c, [], rand_line)
@@ -104,7 +106,8 @@ def generate_line_masks(shape, sampled_indexes):
 def generate_square_masks(shape, sampled_indexes):
     b, c, w, h = shape
     # Corrupt squares in multiple channels
-    rand_c = torch.bernoulli(torch.ones(c) * 0.3) > 0
+    # rand_c = torch.bernoulli(torch.ones(c) * 0.3) > 0
+    rand_c = torch.bernoulli(torch.ones(c) * 1) > 0
     if h - 1 == 0:
         h_0 = torch.tensor(0)
     else:
@@ -124,7 +127,8 @@ def generate_square_masks(shape, sampled_indexes):
 def generate_all_masks(shape, sampled_indexes):
     b, c, w, h = shape
     # Corrupt entire channels
-    rand_c = torch.bernoulli(torch.ones(c) * 0.1) > 0
+    # rand_c = torch.bernoulli(torch.ones(c) * 0.1) > 0
+    rand_c = torch.bernoulli(torch.ones(c) * 1) > 0
     mask = generate_4Dmask(shape, sampled_indexes, rand_c)
     return mask
 
@@ -239,8 +243,13 @@ class HansGruberNI(torch.nn.Module):
                 mask = generate_2Dmask((b, c), sampled_indexes)
                 output[mask] = output[mask].mul_(error)
             else:
-                f = random.choice(self.mask_generators)
-                mask = f(forward_input.shape, sampled_indexes)
+                if self.error_model == "random":
+                    f = random.choice(self.mask_generators)
+                    mask = f(forward_input.shape, sampled_indexes)
+                elif self.error_model == "all":
+                    mask = generate_all_masks(forward_input.shape, sampled_indexes)
+                else:
+                    raise ValueError("Error model not supported")
 
         else:
             if linear:

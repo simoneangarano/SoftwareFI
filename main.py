@@ -26,15 +26,13 @@ def software_fault_injection(args, net, datamodule):
     if args.mode == "train" or args.mode == "training":
         pass
     elif args.mode == "validation" or args.mode == "validate":
-        noisy_loss, loss, noisy_acc, acc, noisy_miou, miou = validate(
-            net, datamodule, args
-        )
+        results = validate(net, datamodule, args)
     else:
         print(
             'ERROR: select a suitable mode "train/training" or "validation/validate".'
         )
 
-    return noisy_loss, loss, noisy_acc, acc, noisy_miou, miou
+    return results
 
 
 def main():
@@ -84,12 +82,12 @@ def main():
 
     if args.inject_index == -1:
         # inject all layers
-        noisy_loss, loss, noisy_acc, acc, noisy_miou, miou = software_fault_injection(
-            args, net, datamodule
-        )
+        results = software_fault_injection(args, net, datamodule)
         print(
-            f"All Layers - Noisy Loss: {noisy_loss:.1e}, Loss: {loss:.1e},\n"
-            + f"Noisy Acc: {noisy_acc:.2f}, Acc: {acc:.2f}, Noisy mIoU: {noisy_miou:.2f}, mIoU: {miou:.2f}"
+            f'All Layers - Noisy Loss: {results["noisy_loss"]:.1e}, Loss: {results["loss"]:.1e},\n'
+            + f'Noisy Acc: {results["noisy_acc"]:.2f}, Acc: {results["acc"]:.2f},\n'
+            + f'Noisy mIoU: {results["noisy_miou"]:.2f}, mIoU: {results["miou"]:.2f},\n'
+            + f'Noisy F1: {results["noisy_f1"]:.2f}, F1: {results["f1"]:.2f}'
         )
         return
 
@@ -104,20 +102,22 @@ def main():
         except:
             results = {}
 
-        noisy_loss, loss, noisy_acc, acc, noisy_miou, miou = software_fault_injection(
-            args, net, datamodule
-        )
+        results = software_fault_injection(args, net, datamodule)
         print(
-            f"Layer {args.inject_index} ({layers[args.inject_index]}): Noisy Loss: {noisy_loss:.1e}, Loss: {loss:.1e},\n"
-            + f"Noisy Acc: {noisy_acc:.2f}, Acc: {acc:.2f}, Noisy mIoU: {noisy_miou:.2f}, mIoU: {miou:.2f}"
+            f'Layer {args.inject_index} ({layers[args.inject_index]}): Noisy Loss: {results["noisy_loss"]:.1e}, Loss: {results["loss"]:.1e},\n'
+            + f'Noisy Acc: {results["noisy_acc"]:.2f}, Acc: {results["acc"]:.2f},\n'
+            + f'Noisy mIoU: {results["noisy_miou"]:.2f}, mIoU: {results["miou"]:.2f},\n'
+            + f'Noisy F1: {results["noisy_f1"]:.2f}, F1: {results["f1"]:.2f}'
         )
         results[args.inject_index] = (
-            float(noisy_loss.cpu().numpy()),
-            float(loss.cpu().numpy()),
-            float(noisy_acc),
-            float(acc),
-            float(noisy_miou),
-            float(miou),
+            float(results["noisy_loss"].cpu().numpy()),
+            float(results["loss"].cpu().numpy()),
+            float(results["noisy_acc"]),
+            float(results["acc"]),
+            float(results["noisy_miou"]),
+            float(results["miou"]),
+            float(results["noisy_f1"]),
+            float(results["f1"]),
         )
         json.dump(results, open(f"ckpt/{args.exp}_eval.json", "w"))
 

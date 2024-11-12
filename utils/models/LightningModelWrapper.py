@@ -1,10 +1,14 @@
 import numpy as np
 import pytorch_lightning as pl
 import torch
+from torchmetrics.segmentation import MeanIoU
+from torchmetrics.classification import MulticlassF1Score, MulticlassAccuracy
 import torch.nn as nn
 from torch.optim import SGD, AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
-from utils.segmentation.stream_metrics import StreamSegMetrics
+
+# import torcheval.metrics.metric
+# from utils.segmentation.stream_metrics import StreamSegMetrics
 
 
 class ModelWrapper(pl.LightningModule):
@@ -29,7 +33,13 @@ class ModelWrapper(pl.LightningModule):
             self.use_one_hot = False
 
         # self.miou = iouCalc(validClasses=range(self.num_classes))
-        self.metrics = StreamSegMetrics(self.num_classes)
+        # self.metrics = StreamSegMetrics(self.num_classes)
+        self.miou = MeanIoU(
+            num_classes=self.num_classes, input_format="index", include_background=True
+        )
+        self.f1 = MulticlassF1Score(num_classes=self.num_classes, average="macro")
+        self.acc = MulticlassAccuracy(num_classes=self.num_classes, average="macro")
+
         # self.save_hyperparameters("model", "num_classes", "optim", "loss")
 
     def forward(self, x, inject=True, inject_index=0):
@@ -59,45 +69,42 @@ class ModelWrapper(pl.LightningModule):
 
     def get_metrics(self, batch, inject, inject_index=0):
         x, y = batch
+        metrics = {"y": y}
 
         # forward
         outputs = self(x, inject=inject, inject_index=inject_index)
-        if self.num_classes == 0:
+        if isinstance(outputs, tuple):
             outputs = outputs[0]
 
         # Loss
         if self.use_one_hot and not self.training:
             # bce or sce
-            loss = self.criterion(outputs, get_one_hot(y, self.num_classes))
+            metrics["loss"] = self.criterion(outputs, get_one_hot(y, self.num_classes))
         else:
-            # ce
-            loss = self.criterion(outputs, y)
-        if loss.isnan():
-            print("NaN detected")
-        elif loss > 1e5:
-            pass  # print("Large Loss detected")
+            metrics["loss"] = self.criterion(outputs, y)
 
         # Accuracy and Mean IoU
         if not self.training and self.num_classes > 0:
-            probs, preds = torch.max(outputs, 1)
+            metrics["probs"], metrics["preds"] = torch.max(outputs, 1)
+            metrics["acc"] = self.acc(outputs, y)
+            metrics["miou"] = self.miou(metrics["preds"], y)
+            metrics["f1"] = self.acc(outputs, y)
 
             # acc = torch.mean((preds == y).float()).cpu().numpy()
             # self.miou.evaluateBatch(preds, y)
             # miou = self.miou.outputScores()
             # self.miou.clear()
 
-            self.metrics.update(y.cpu().numpy(), preds.cpu().numpy())
-            results = self.metrics.get_results()
-            self.metrics.reset()
-            acc = results["Overall Acc"]
+            # self.metrics.update(y.cpu().numpy(), preds.cpu().numpy())
+            # results = self.metrics.get_results()
+            # self.metrics.reset()
+            # acc = results["Overall Acc"]
             # acc_cls = results["Mean Acc"]
             # fwavacc = results["FreqW Acc"]
-            miou = results["Mean IoU"]
+            # miou = results["Mean IoU"]
             # cls_iu = results["Class IoU"]
-        else:
-            acc, probs, preds, miou = 0, 0, 0, 0
 
-        return loss, acc, miou, (probs, preds)
+        return metrics
 
     def training_step(self, train_batch, _, inject=True, inject_index=0):
         loss, acc, _ = self.get_metrics(
@@ -122,26 +129,27 @@ class ModelWrapper(pl.LightningModule):
         self.epoch_log("value_diff_pct", value_diff_pct)
         self.epoch_log("preds_diff_pct", preds_diff_pct)
 
+    @torch.no_grad()
     def validation_step(self, val_batch, inject_index=0, check_criticality=False):
-        # loss, acc, clean_vals = 0, 0, 0
-        loss, acc, miou, clean_vals = self.get_metrics(
-            val_batch, inject=False, inject_index=inject_index
-        )
-        noisy_loss, noisy_acc, noisy_miou, noisy_vals = self.get_metrics(
+        metrics = self.get_metrics(val_batch, inject=False, inject_index=inject_index)
+        noisy_metrics = self.get_metrics(
             val_batch, inject=True, inject_index=inject_index
         )
 
         # Test the accuracy
-        self.epoch_log("val_loss", loss)
-        self.epoch_log("val_acc", acc)
-        self.epoch_log("val_miou", miou)
-        self.epoch_log("noisy_val_loss", noisy_loss)
-        self.epoch_log("noisy_val_acc", noisy_acc)
-        self.epoch_log("noisy_val_miou", noisy_miou)
+        # self.epoch_log("val_loss", loss)
+        # self.epoch_log("val_acc", acc)
+        # self.epoch_log("val_miou", miou)
+        # self.epoch_log("noisy_val_loss", noisy_loss)
+        # self.epoch_log("noisy_val_acc", noisy_acc)
+        # self.epoch_log("noisy_val_miou", noisy_miou)
         if check_criticality and self.num_classes > 0:
-            self.check_criticality(gold=clean_vals, faulty=noisy_vals)
+            self.check_criticality(
+                gold=(metrics["probs"], metrics["preds"]),
+                faulty=(noisy_metrics["probs"], noisy_metrics["preds"]),
+            )
 
-        return noisy_loss, loss, noisy_acc, acc, noisy_miou, miou
+        return noisy_metrics, metrics
 
     def on_train_epoch_start(self):
         lr = self.optimizers().param_groups[0]["lr"]
