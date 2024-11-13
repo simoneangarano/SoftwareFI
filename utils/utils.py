@@ -36,100 +36,33 @@ def get_parser():
 
     parser = argparse.ArgumentParser(description="PyTorch Training")
 
-    # # General
-    # parser.add_argument("--name", default="test", help="Experiment name.")
-    # parser.add_argument(
-    #     "--mode",
-    #     default="validation",
-    #     help="Mode: train/training or validation/validate.",
-    # )
-    # parser.add_argument(
-    #     "--ckpt",
-    #     default="ckpt/GN_SSL_280.pt",
-    #     help="Pass the name of a checkpoint to resume training.",
-    # )
-    # parser.add_argument(
-    #     "--dataset", default="sentinel", help="Dataset name: cifar10 or cifar100."
-    # )
-    # parser.add_argument("--num_classes", default=0, help="Number of classes.")
-    # parser.add_argument("--data_dir", default="./data", help="Path to dataset.")
-    # parser.add_argument("--device", default=0, help="Device number.")
+    # General
+    parser.add_argument("--name", default="test")
+    parser.add_argument("--mode", default="validation")
+    parser.add_argument("--ckpt", default=None)
+    parser.add_argument("--dataset", default="sentinel")
+    parser.add_argument("--num_classes", default=0)
+    parser.add_argument("--data_dir", default="./data")
+    parser.add_argument("--device", default=0)
 
-    # # Optimization
-    # parser.add_argument("--loss", default="mse", help="Loss: bce, ce or sce.")
-    # parser.add_argument("--clip", default=None, help="Gradient clipping value.")
-    # parser.add_argument("--epochs", default=150, help="Number of epochs.")
-    # parser.add_argument("--batch_size", default=128, help="Batch Size")
-    # parser.add_argument("--lr", default=1e-1, help="Learning rate.")
-    # parser.add_argument(
-    #     "--optimizer", default="sgd", help="Optimizer name: adamw or sgd."
-    # )
+    # Optimization
+    parser.add_argument("--loss", default="mse")
+    parser.add_argument("--batch_size", default=128)
 
-    # # Model
-    # parser.add_argument("--model", default="ghostnetv2", help="Network name.")
-    # parser.add_argument(
-    #     "--order",
-    #     default="bn-relu",
-    #     help="Order of activation and normalization: bn-relu or relu-bn.",
-    # )
-    # parser.add_argument(
-    #     "--affine",
-    #     default=True,
-    #     help="Whether to use Affine transform after normalization or not.",
-    # )
-    # parser.add_argument(
-    #     "--activation", default="relu", help="Non-linear activation: relu or relu6."
-    # )
-    # parser.add_argument(
-    #     "--nan", default=False, help="Whether to convert NaNs to 0 or not."
-    # )
+    # Model
+    parser.add_argument("--model", default="ghostnetv2")
+    parser.add_argument("--activation", default="relu")
+    parser.add_argument("--nan", default=False)
 
-    # # Injection
-    # parser.add_argument(
-    #     "--error_model", default="random", help="Optimizer name: adamw or sgd."
-    # )
-    # parser.add_argument(
-    #     "--inject_p",
-    #     default=1.0,
-    #     help="Probability of noise injection at training time.",
-    # )
-    # parser.add_argument(
-    #     "--inject_epoch",
-    #     default=0,
-    #     help="How many epochs before starting the injection.",
-    # )
+    # Injection
+    parser.add_argument("--error_model", default="random")
+    parser.add_argument("--inject_p", default=1.0)
+    parser.add_argument("--inject_epoch", default=0)
+    parser.add_argument("--inject_index", default=0)
 
-    # parser.add_argument(
-    #     "--inject_index",
-    #     default=0,
-    #     help="Injection index: specific layer.",
-    # )
-    # # Augmentations and Regularisations
-    # parser.add_argument("--wd", default=1e-4, help="Weight Decay.")
-    # parser.add_argument(
-    #     "--rand_aug", type=str, default=None, help="RandAugment magnitude and std."
-    # )
-    # parser.add_argument(
-    #     "--rand_erasing", type=float, default=0.0, help="Random Erasing propability."
-    # )
-    # parser.add_argument(
-    #     "--mixup_cutmix",
-    #     type=bool,
-    #     default=False,
-    #     help="Whether to use mixup/cutmix or not.",
-    # )
-    # parser.add_argument("--jitter", type=float, default=0.0, help="Color jitter.")
-    # parser.add_argument(
-    #     "--label_smooth", type=float, default=0.0, help="Label Smoothing."
-    # )
-
-    # # Others
-    # parser.add_argument("--seed", default=0, help="Random seed for reproducibility.")
-    # parser.add_argument(
-    #     "--comment",
-    #     default="ResNet trained with original settings but the scheduler.",
-    #     help="Optional comment.",
-    # )
+    # Others
+    parser.add_argument("--seed", default=0)
+    parser.add_argument("--comment", default="_")
 
     return parser, config_parser
 
@@ -275,8 +208,8 @@ def validate(net: ModelWrapper, datamodule, args):
         "noisy_acc": 0.0,
         "miou": 0.0,
         "noisy_miou": 0.0,
-        "f1": 0.0,
-        "noisy_f1": 0.0,
+        "bacc": 0.0,
+        "noisy_bacc": 0.0,
     }
     for _, batch in tqdm(enumerate(datamodule.val_dataloader())):
         batch = [b.cuda() for b in batch]
@@ -289,8 +222,8 @@ def validate(net: ModelWrapper, datamodule, args):
         total["noisy_acc"] += noisy_metrics["acc"]
         total["miou"] += metrics["miou"]
         total["noisy_miou"] += noisy_metrics["miou"]
-        total["f1"] += metrics["f1"]
-        total["noisy_f1"] += noisy_metrics["f1"]
+        total["bacc"] += metrics["bacc"]
+        total["noisy_bacc"] += noisy_metrics["bacc"]
 
     return {key: val / len(datamodule.val_dataloader()) for key, val in total.items()}
 
@@ -396,7 +329,7 @@ class RunningStats(object):
 
 
 def plot_results(results, layers, metric):
-    m_ids = {m: 2 * i for i, m in enumerate(["loss", "acc", "miou"])}
+    m_ids = {m: 2 * i for i, m in enumerate(["loss", "acc", "miou", "bacc"])}
 
     x = [int(i) for i, _ in results.items()]
     y = [metrics[m_ids[metric]] for _, metrics in results.items()]
@@ -404,7 +337,9 @@ def plot_results(results, layers, metric):
     plt.plot(x, y, label=metric, color="tab:grey", alpha=0.3)
 
     for i, metrics in results.items():
-        noisy_loss, loss, noisy_acc, acc, noisy_miou, miou = metrics  # NOQA F841
+        noisy_loss, loss, noisy_acc, acc, noisy_miou, miou, noisy_bacc, bacc = (
+            metrics  # NOQA F841
+        )
         layer_type = layers[int(i)]["layer_type"]
         layer_color = (
             "tab:orange"

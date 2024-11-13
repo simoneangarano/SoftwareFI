@@ -15,10 +15,7 @@ from utils.data.data_module import CoreDataModule
 from utils.utils import build_model, get_parser, parse_args, validate
 
 # Suppress the annoying warning for non-empty checkpoint directory
-# warnings.filterwarnings("ignore")
-# torch.set_float32_matmul_precision("high")
-# torch.backends.cudnn.benchmark = True
-# torch.backends.cudnn.deterministic = True
+warnings.filterwarnings("ignore")
 
 
 def software_fault_injection(args, net, datamodule):
@@ -42,10 +39,12 @@ def main():
     ### Initialization ###
 
     # Set random seed
-    # torch.manual_seed(args.seed)
-    # torch.backends.cudnn.deterministic = True
-    # random.seed(0)
-    # np.random.seed(0)
+    torch.manual_seed(args.seed)
+    torch.set_float32_matmul_precision("high")
+    torch.backends.cudnn.benchmark = True
+    torch.backends.cudnn.deterministic = True
+    random.seed(args.seed)
+    np.random.seed(args.seed)
 
     if args.dataset == "sentinel":
         datamodule = CoreDataModule(args)
@@ -62,8 +61,10 @@ def main():
         else args.optim_params
     )
 
-    # results = json.load(open(f"ckpt/{args.exp}_stats.json", "r"))
-    # args.stats = results
+    # Load Stats
+    if args.stats is not None:
+        results = json.load(open(f"ckpt/{args.exp}_stats.json", "r"))
+        args.stats = results
 
     net = build_model(args)
     net = net.cuda().eval()
@@ -84,10 +85,10 @@ def main():
         # inject all layers
         results = software_fault_injection(args, net, datamodule)
         print(
-            f'All Layers - Noisy Loss: {results["noisy_loss"]:.1e}, Loss: {results["loss"]:.1e},\n'
+            f'All Layers: \nNoisy Loss: {results["noisy_loss"]:.1e}, Loss: {results["loss"]:.1e},\n'
             + f'Noisy Acc: {results["noisy_acc"]:.2f}, Acc: {results["acc"]:.2f},\n'
             + f'Noisy mIoU: {results["noisy_miou"]:.2f}, mIoU: {results["miou"]:.2f},\n'
-            + f'Noisy F1: {results["noisy_f1"]:.2f}, F1: {results["f1"]:.2f}'
+            + f'Noisy BAcc: {results["noisy_bacc"]:.2f}, BAcc: {results["bacc"]:.2f}'
         )
         return
 
@@ -102,22 +103,22 @@ def main():
         except:
             results = {}
 
-        results = software_fault_injection(args, net, datamodule)
+        res = software_fault_injection(args, net, datamodule)
         print(
-            f'Layer {args.inject_index} ({layers[args.inject_index]}): Noisy Loss: {results["noisy_loss"]:.1e}, Loss: {results["loss"]:.1e},\n'
-            + f'Noisy Acc: {results["noisy_acc"]:.2f}, Acc: {results["acc"]:.2f},\n'
-            + f'Noisy mIoU: {results["noisy_miou"]:.2f}, mIoU: {results["miou"]:.2f},\n'
-            + f'Noisy F1: {results["noisy_f1"]:.2f}, F1: {results["f1"]:.2f}'
+            f'Layer {args.inject_index} ({layers[args.inject_index]}): \nNoisy Loss: {res["noisy_loss"]:.1e}, Loss: {res["loss"]:.1e},\n'
+            + f'Noisy Acc: {res["noisy_acc"]:.2f}, Acc: {res["acc"]:.2f},\n'
+            + f'Noisy mIoU: {res["noisy_miou"]:.2f}, mIoU: {res["miou"]:.2f},\n'
+            + f'Noisy BAcc: {res["noisy_bacc"]:.2f}, BAcc: {res["bacc"]:.2f}\n'
         )
         results[args.inject_index] = (
-            float(results["noisy_loss"].cpu().numpy()),
-            float(results["loss"].cpu().numpy()),
-            float(results["noisy_acc"]),
-            float(results["acc"]),
-            float(results["noisy_miou"]),
-            float(results["miou"]),
-            float(results["noisy_f1"]),
-            float(results["f1"]),
+            float(res["noisy_loss"].cpu().numpy()),
+            float(res["loss"].cpu().numpy()),
+            float(res["noisy_acc"]),
+            float(res["acc"]),
+            float(res["noisy_miou"]),
+            float(res["miou"]),
+            float(res["noisy_bacc"]),
+            float(res["bacc"]),
         )
         json.dump(results, open(f"ckpt/{args.exp}_eval.json", "w"))
 

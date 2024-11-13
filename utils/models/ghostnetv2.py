@@ -39,9 +39,9 @@ class NaNAct(nn.Module):
         x = self.act(x)
         if self.nan:
             return torch.nan_to_num(x, 0.0)
-        # if hasattr(self, "stats"):
-        #     x[x > self.stats[3] * 10] = self.stats[3]  # or 0?
-        #     x[x < self.stats[2] * 10] = self.stats[3]  # or 0?
+        if hasattr(self, "stats"):
+            x[x > self.stats[3] * 10] = self.stats[3]  # or 0?
+            x[x < self.stats[2] * 10] = self.stats[3]  # or 0?
         return x
 
 
@@ -85,9 +85,9 @@ class ConvInjector(nn.Module):
         if self.inject_first:
             x = self.conv(x)
 
-        # if hasattr(self, "stats"):
-        #     x[x > self.stats[3]*10] = self.stats[3] # or 0?
-        #     x[x < self.stats[2]*10] = self.stats[3] # or 0?
+        if hasattr(self, "stats"):
+            x[x > self.stats[3] * 10] = self.stats[3]  # or 0?
+            x[x < self.stats[2] * 10] = self.stats[3]  # or 0?
 
         return x, fwargs
 
@@ -120,9 +120,9 @@ class BNInjector(nn.Module):
         if self.inject_first:
             x = self.bn(x)
 
-        # if hasattr(self, "stats"):
-        #     x[x > self.stats[3] * 10] = self.stats[3]  # or 0?
-        #     x[x < self.stats[2] * 10] = self.stats[3]  # or 0?
+        if hasattr(self, "stats"):
+            x[x > self.stats[3] * 10] = self.stats[3]  # or 0?
+            x[x < self.stats[2] * 10] = self.stats[3]  # or 0?
 
         return x, fwargs
 
@@ -163,9 +163,9 @@ class LinearInjector(nn.Module):
         if self.inject_first:
             x = self.linear(x)
 
-        # if hasattr(self, "stats"):
-        #     x[x > self.stats[3] * 10] = self.stats[3]  # or 0?
-        #     x[x < self.stats[2] * 10] = self.stats[3]  # or 0?
+        if hasattr(self, "stats"):
+            x[x > self.stats[3] * 10] = self.stats[3]  # or 0?
+            x[x < self.stats[2] * 10] = self.stats[3]  # or 0?
 
         return x
 
@@ -239,9 +239,9 @@ class ClampAvgPool2d(nn.Module):
     def forward(self, x):
         # if self.max is not None:
         #     x[x > self.max] = self.max  # or 0?
-        # if hasattr(self, "stats"):
-        #     x[x > self.stats[3] * 10] = self.stats[3]  # or 0?
-        #     x[x < self.stats[2] * 10] = self.stats[3]  # or 0?
+        if hasattr(self, "stats"):
+            x[x > self.stats[3] * 10] = self.stats[3]  # or 0?
+            x[x < self.stats[2] * 10] = self.stats[3]  # or 0?
         return self.avg_pool(x)
 
 

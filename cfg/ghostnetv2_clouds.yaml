@@ -13,23 +13,23 @@ wandb: null
 # Model
 width: 1.6
 se_ratio: 0.25
-activation: relu #########################################
+activation: relu6 #########################################
 loss: ce
 
 # Environment
 num_gpus: 0
-batch_size: 128
+batch_size: 64
 num_workers: 8
 pin_memory: true
-drop_last: true
+drop_last: false
 
 # Injection
-seed: 42
+seed: 0
 error_model: random
 inject: true ##############################################
 inject_p: !!float 1.0 #####################################
-inject_index: -1 ########## -1 means all layers ###########
-inject_first: false ########################################
+inject_index: 0 ########## -1 means all layers ###########
+inject_first: true ########################################
 inject_epoch: 0
 nan: true
 stats: null

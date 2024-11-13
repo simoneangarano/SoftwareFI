@@ -4,7 +4,6 @@ in the training process
 """
 
 import random
-from typing import List, Tuple
 from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
@@ -12,15 +11,9 @@ import torch
 import torch.nn as nn
 
 
-def generate_4Dmask(
-    shape: Tuple[int, int, int, int],
-    batch_ids: List[int] = [],
-    channel_ids: List[int] = [],
-    row_ids: List[int] = [],
-    column_ids: List[int] = [],
-) -> torch.Tensor:
+def generate_4Dmask(shape, batch_ids=[], channel_ids=[], row_ids=[], column_ids=[]):
     b, c, w, h = shape
-    batch_ids = [idx for idx in range(b) if idx in batch_ids]
+    batch_ids = [idx for idx in range(b) if batch_ids[idx]]
     mask = torch.zeros((b, c, w, h))
     mask_2d = torch.zeros((w, h))
 
@@ -48,14 +41,13 @@ def generate_4Dmask(
     def set_mask(batch_id, channel_id):
         mask[batch_id, channel_id] = mask_2d
 
-    with ThreadPoolExecutor() as executor:
+    with ThreadPoolExecutor(max_workers=24) as executor:
         futures = [
             executor.submit(set_mask, batch_id, channel_id)
             for batch_id in batch_ids
             for channel_id in channel_ids
         ]
-        for future in futures:
-            future.result()  # Wait for all threads to complete
+        results = [future.result() for future in futures]
 
     return mask > 0
 
@@ -64,8 +56,7 @@ def generate_2Dmask(shape, batch_ids=[]):
     b, c = shape
     batch_ids = [idx for idx in range(b) if batch_ids[idx]]
 
-    # rand_c = torch.bernoulli(torch.ones(c) * 0.3) > 0
-    rand_c = torch.bernoulli(torch.ones(c) * 1) > 0
+    rand_c = torch.bernoulli(torch.ones(c) * 0.3) > 0  # CHECK
     channel_ids = [idx for idx in range(c) if rand_c[idx]]
 
     mask = torch.zeros((b, c))
@@ -93,8 +84,7 @@ def generate_line_masks(shape, sampled_indexes):
     b, c, w, h = shape
     # Corrupt rows or columns in multiple channels
     rand_line = torch.randint(high=h, size=(1,))
-    # rand_c = torch.bernoulli(torch.ones(c) * 0.75) > 0
-    rand_c = torch.bernoulli(torch.ones(c) * 1) > 0
+    rand_c = torch.bernoulli(torch.ones(c) * 0.75) > 0  # CHECK
     rand_c = [idx for idx in range(c) if rand_c[idx]]
     if torch.bernoulli(torch.ones(1) * 0.5):
         mask = generate_4Dmask(shape, sampled_indexes, rand_c, [], rand_line)
@@ -106,8 +96,7 @@ def generate_line_masks(shape, sampled_indexes):
 def generate_square_masks(shape, sampled_indexes):
     b, c, w, h = shape
     # Corrupt squares in multiple channels
-    # rand_c = torch.bernoulli(torch.ones(c) * 0.3) > 0
-    rand_c = torch.bernoulli(torch.ones(c) * 1) > 0
+    rand_c = torch.bernoulli(torch.ones(c) * 0.3) > 0  # CHECK
     if h - 1 == 0:
         h_0 = torch.tensor(0)
     else:
@@ -127,8 +116,7 @@ def generate_square_masks(shape, sampled_indexes):
 def generate_all_masks(shape, sampled_indexes):
     b, c, w, h = shape
     # Corrupt entire channels
-    # rand_c = torch.bernoulli(torch.ones(c) * 0.1) > 0
-    rand_c = torch.bernoulli(torch.ones(c) * 1) > 0
+    rand_c = torch.bernoulli(torch.ones(c) * 0.1) > 0  # CHECK
     mask = generate_4Dmask(shape, sampled_indexes, rand_c)
     return mask
 
@@ -142,12 +130,8 @@ class HansGruberNI(torch.nn.Module):
         # Error model necessary for the forward
         self.error_model = args.error_model
         self.noise_data = list()
-        self.p = (
-            args.inject_p
-        )  # fraction of the samples which the injection is applied to
-        self.inject_epoch = (
-            args.inject_epoch  # how many epochs before starting the injection
-        )
+        self.p = args.inject_p
+        self.inject_epoch = args.inject_epoch
         self.dummy_param = nn.Parameter(torch.empty(0))  # just to get the device
         self.mask_generators = [
             generate_line_masks,

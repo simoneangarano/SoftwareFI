@@ -76,9 +76,12 @@ if __name__ == "__main__":
     # Avoid memory issues
     args.batch_size //= 4
 
-    # torch.manual_seed(args.seed)
-    # torch.backends.cudnn.deterministic = True
-    # random.seed(0)
-    # np.random.seed(0)
+    # Set random seed
+    torch.manual_seed(args.seed)
+    torch.set_float32_matmul_precision("high")
+    torch.backends.cudnn.benchmark = True
+    torch.backends.cudnn.deterministic = True
+    random.seed(args.seed)
+    np.random.seed(args.seed)
 
     main(args)

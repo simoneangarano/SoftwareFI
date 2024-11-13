@@ -30,9 +30,10 @@ class StreamSegMetrics(_StreamMetrics):
     Stream Metrics for Semantic Segmentation Task
     """
 
-    def __init__(self, num_classes):
+    def __init__(self, num_classes, ignore_index=None):
         self.num_classes = num_classes
         self.confusion_matrix = np.zeros((num_classes, num_classes))
+        self.ignore_index = ignore_index
 
     def update(self, label_trues, label_preds):
         for lt, lp in zip(label_trues, label_preds):
@@ -70,18 +71,21 @@ class StreamSegMetrics(_StreamMetrics):
         acc = np.diag(hist).sum() / hist.sum()
         acc_cls = np.diag(hist) / hist.sum(axis=1)
         acc_cls = np.nanmean(acc_cls)
+        if self.ignore_index is not None:
+            hist = np.delete(hist, self.ignore_index, 0)
+            hist = np.delete(hist, self.ignore_index, 1)
         iu = np.diag(hist) / (hist.sum(axis=1) + hist.sum(axis=0) - np.diag(hist))
         mean_iu = np.nanmean(iu)
-        freq = hist.sum(axis=1) / hist.sum()
-        fwavacc = (freq[freq > 0] * iu[freq > 0]).sum()
-        cls_iu = dict(zip(range(self.num_classes), iu))
+        # freq = hist.sum(axis=1) / hist.sum()
+        # fwavacc = (freq[freq > 0] * iu[freq > 0]).sum()
+        # cls_iu = dict(zip(range(self.num_classes), iu))
 
         return {
             "Overall Acc": acc,
             "Mean Acc": acc_cls,
-            "FreqW Acc": fwavacc,
+            # "FreqW Acc": fwavacc,
             "Mean IoU": mean_iu,
-            "Class IoU": cls_iu,
+            # "Class IoU": cls_iu,
         }
 
     def reset(self):
@@ -91,6 +95,7 @@ class StreamSegMetrics(_StreamMetrics):
         self.confusion_matrix.fill(0)
 
 
+# deprecated
 class AverageMeter(object):
     """Computes average values"""
 
