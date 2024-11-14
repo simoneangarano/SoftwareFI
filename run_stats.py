@@ -74,8 +74,9 @@ if __name__ == "__main__":
     args = parse_args(parser, config_parser, args="", verbose=True)
 
     # Avoid memory issues
-    args.batch_size //= 4
-
+    args.batch_size //= 2
+    args.drop_last = True
+    
     # Set random seed
     torch.manual_seed(args.seed)
     torch.set_float32_matmul_precision("high")

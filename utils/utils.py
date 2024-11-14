@@ -80,7 +80,15 @@ def parse_args(parser, config_parser, args=None, verbose=True):
     args = parser.parse_args(remaining)
 
     args.name = f"{args.model}_{args.task}"
-    args.exp = f"{args.name}_i{args.inject}_f{args.inject_first}_p{args.inject_p}_{args.activation}"
+    args.exp = f"{args.name}_{args.activation}"
+    if args.inject:
+        args.exp += f"_{args.inject_p:.0e}"
+        if args.inject_first:
+            args.exp += "_first"
+    if args.stats:
+        args.exp += "_stats"
+        if args.clip:
+            args.exp += "_clip"
 
     if verbose:
         print("\n==> Config parsed:")
@@ -329,11 +337,15 @@ class RunningStats(object):
 
 
 def plot_results(results, layers, metric):
+    if metric == "all":
+        for m in ["loss", "acc", "miou", "bacc"]:
+            plot_results(results, layers, m)
+        return
     m_ids = {m: 2 * i for i, m in enumerate(["loss", "acc", "miou", "bacc"])}
 
     x = [int(i) for i, _ in results.items()]
     y = [metrics[m_ids[metric]] for _, metrics in results.items()]
-    # plt.rcParams['figure.figsize'] = [4, 4]
+    plt.rcParams['figure.figsize'] = [15, 7]
     plt.plot(x, y, label=metric, color="tab:grey", alpha=0.3)
 
     for i, metrics in results.items():

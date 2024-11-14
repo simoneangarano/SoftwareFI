@@ -1,51 +1,41 @@
 # General
 mode: validation
-dataset: sentinel
-data_dir: ./data
-num_classes: 3
 task: clouds # clouds or features
-model: ghostnetv2
-
-# Logging
-ckpt: "ckpt/bb_heads_clouds.pth"
-wandb: null
-
-# Model
-width: 1.6
-se_ratio: 0.25
-activation: relu6 #########################################
-loss: ce
+comment: null
 
 # Environment
-num_gpus: 0
+seed: 0
+gpu: 0
+wandb: null
+
+
+# Data
+dataset: sentinel
+data_dir: ./data
+num_classes: 3 # 3 for clouds, 0 for features
 batch_size: 64
-num_workers: 8
+num_workers: 4
 pin_memory: true
 drop_last: false
 
-# Injection
-seed: 0
-error_model: random
+# Model
+model: ghostnetv2
+ckpt: "ckpt/bb_heads_clouds.pth"
+width: 1.6
+se_ratio: 0.25
+loss: ce
+
+
+# Fault Injection
 inject: true ##############################################
 inject_p: !!float 1.0 #####################################
-inject_index: 0 ########## -1 means all layers ###########
+inject_index: -1 ########## -1 means all layers ###########
 inject_first: true ########################################
 inject_epoch: 0
+error_model: random
+
+# Fault Rejection
+activation: relu ##########################################
+stats: true ###############################################
+clip: false ###############################################
 nan: true
-stats: null
-comment: null
-
-# Training (old)
-clip: !!float 0.05
-order: relu-bn
-affine: false
-epochs: 1
-lr: !!float 1e-3
-wd: !!float 1e-3
-optimizer: adamw
-optim_params: null
-
-# run_pytorchfi.py (old)
-randrange: 1000
-csv: ghostnetv2.csv
-injsite: neuron

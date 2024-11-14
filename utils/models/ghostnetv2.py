@@ -26,22 +26,18 @@ class NaNAct(nn.Module):
             self.act = nn.ReLU(inplace=inplace)
         elif act == "relu6":
             self.act = nn.ReLU6(inplace=inplace)
-        elif act == "relumax":
-            self.act = ReLUMax(inplace=inplace)
         elif act == "sigmoid":
             self.act = torch.sigmoid
         elif act == "hard_sigmoid":
             self.act = HardSigmoid(inplace=inplace)
 
         self.nan = args.nan
+        self.clip = args.clip
 
     def forward(self, x):
         x = self.act(x)
-        if self.nan:
-            return torch.nan_to_num(x, 0.0)
-        if hasattr(self, "stats"):
-            x[x > self.stats[3] * 10] = self.stats[3]  # or 0?
-            x[x < self.stats[2] * 10] = self.stats[3]  # or 0?
+        x = fault_reject(self, x)
+
         return x
 
 
@@ -71,6 +67,8 @@ class ConvInjector(nn.Module):
             self.injector = SequentialInjector()
 
         self.inject_first = args.inject_first
+        self.clip = args.clip
+        self.nan = args.nan
 
     def forward(self, x, fwargs):
         if not self.inject_first:
@@ -85,9 +83,7 @@ class ConvInjector(nn.Module):
         if self.inject_first:
             x = self.conv(x)
 
-        if hasattr(self, "stats"):
-            x[x > self.stats[3] * 10] = self.stats[3]  # or 0?
-            x[x < self.stats[2] * 10] = self.stats[3]  # or 0?
+        x = fault_reject(self, x)
 
         return x, fwargs
 
@@ -106,6 +102,8 @@ class BNInjector(nn.Module):
             self.injector = SequentialInjector()
 
         self.inject_first = args.inject_first
+        self.clip = args.clip
+        self.nan = args.nan
 
     def forward(self, x, fwargs):
         if not self.inject_first:
@@ -120,9 +118,7 @@ class BNInjector(nn.Module):
         if self.inject_first:
             x = self.bn(x)
 
-        if hasattr(self, "stats"):
-            x[x > self.stats[3] * 10] = self.stats[3]  # or 0?
-            x[x < self.stats[2] * 10] = self.stats[3]  # or 0?
+        x = fault_reject(self, x)
 
         return x, fwargs
 
@@ -147,6 +143,8 @@ class LinearInjector(nn.Module):
             self.injector = SequentialInjector()
 
         self.inject_first = args.inject_first
+        self.clip = args.clip
+        self.nan = args.nan
 
     def forward(self, x, fwargs):
         if not self.inject_first:
@@ -163,9 +161,7 @@ class LinearInjector(nn.Module):
         if self.inject_first:
             x = self.linear(x)
 
-        if hasattr(self, "stats"):
-            x[x > self.stats[3] * 10] = self.stats[3]  # or 0?
-            x[x < self.stats[2] * 10] = self.stats[3]  # or 0?
+        x = fault_reject(self, x)
 
         return x
 
@@ -208,17 +204,6 @@ class HardSigmoid(nn.Module):
             return self.activation(x + 3.0) / 6.0
 
 
-class ReLUMax(nn.Module):
-    def __init__(self, inplace: bool = False, args=None):
-        super().__init__()
-        self.activation = nn.ReLU(inplace=inplace)
-
-    def forward(self, x):
-        x = self.activation(x)
-        # x[x > self.max] = 0.0
-        return x
-
-
 class ClampAvgPool2d(nn.Module):
     def __init__(
         self,
@@ -235,14 +220,24 @@ class ClampAvgPool2d(nn.Module):
             self.avg_pool = nn.AvgPool2d(kernel_size, stride, padding)
         else:
             raise ValueError("output_size or kernel_size must be defined")
+        
+        self.nan = args.nan
+        self.clip = args.clip
 
     def forward(self, x):
-        # if self.max is not None:
-        #     x[x > self.max] = self.max  # or 0?
-        if hasattr(self, "stats"):
-            x[x > self.stats[3] * 10] = self.stats[3]  # or 0?
-            x[x < self.stats[2] * 10] = self.stats[3]  # or 0?
+        x = fault_reject(self, x)
         return self.avg_pool(x)
+
+
+def fault_reject(layer, x):
+    if layer.nan:
+        x = torch.nan_to_num(x, 0.0)
+    if hasattr(layer, "stats"):
+        M = max(layer.stats[3] * 10, layer.stats[3] / 10)
+        m = min(layer.stats[2] * 10, layer.stats[2] / 10)
+        x[x > M] = M if layer.clip else 0
+        x[x < m] = 0 if layer.clip else m
+        return x
 
 
 def _make_divisible(v, divisor, min_value=None):
@@ -786,7 +781,6 @@ class SegmentationHeadGhostBN(nn.Module):
             se_ratio=args.se_ratio,
             args=args,
         )
-        self.ff = torch.nn.quantized.FloatFunctional()
 
     def forward(self, tensors, fwargs):
         """
@@ -844,7 +838,7 @@ class GhostNetSS(nn.Module):
         self.head = head
         if args.ckpt is not None:
             self = load_fi_weights(self, args.ckpt)
-        if args.stats is not None:
+        if args.stats:
             self.apply_stats(args.stats)
 
     def forward(
@@ -865,6 +859,7 @@ class GhostNetSS(nn.Module):
     def apply_stats(self, stats):
         # apply stats to each layer using the stats dictionary
         for name, layer in self.named_modules():
+            name = "model." + name
             if name in stats.keys():
                 layer.stats = stats[name]
 

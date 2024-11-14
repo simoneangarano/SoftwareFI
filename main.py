@@ -50,20 +50,20 @@ def main():
         datamodule = CoreDataModule(args)
 
     # Build model (Resnet only up to now)
-    args.optim_params = (
-        {
-            "optimizer": args.optimizer,
-            "epochs": args.epochs,
-            "lr": args.lr,
-            "wd": args.wd,
-        }
-        if args.optim_params is None
-        else args.optim_params
-    )
+    # args.optim_params = (
+    #     {
+    #         "optimizer": args.optimizer,
+    #         "epochs": args.epochs,
+    #         "lr": args.lr,
+    #         "wd": args.wd,
+    #     }
+    #     if args.optim_params is None
+    #     else args.optim_params
+    # )
 
     # Load Stats
-    if args.stats is not None:
-        results = json.load(open(f"ckpt/{args.exp}_stats.json", "r"))
+    if args.stats:
+        results = json.load(open(f"ckpt/{args.exp.replace('iTrue','iFalse')}_stats.json", "r"))
         args.stats = results
 
     net = build_model(args)
