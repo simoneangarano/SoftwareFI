@@ -47,18 +47,8 @@ class CoreDataModule(pl.LightningDataModule):
         metadata = mlstac.load(snippet="data/main.json").metadata
 
         # Split the metadata into train, validation and test sets
-        self.train_dataset = metadata[
-            (metadata["split"] == "test")
-            & (metadata["label_type"] == "high")
-            & (metadata["proj_shape"] == 509)
-        ]
-        self.validation_dataset = metadata[
-            (metadata["split"] == "test")
-            & (metadata["label_type"] == "high")
-            & (metadata["proj_shape"] == 509)
-        ]
-        self.test_dataset = metadata[
-            (metadata["split"] == "test")
+        self.dataset = metadata[
+            (metadata["split"] == args.split)
             & (metadata["label_type"] == "high")
             & (metadata["proj_shape"] == 509)
         ]
@@ -68,33 +58,9 @@ class CoreDataModule(pl.LightningDataModule):
         self.gen = torch.Generator()
         self.gen.manual_seed(args.seed)
 
-    def train_dataloader(self):
+    def dataloader(self):
         return torch.utils.data.DataLoader(
-            dataset=CoreDataset(self.train_dataset, args=self.args),
-            batch_size=self.args.batch_size,
-            num_workers=self.args.num_workers,
-            shuffle=True,
-            pin_memory=self.args.pin_memory,
-            drop_last=True,
-            worker_init_fn=seed_worker,
-            generator=self.gen,
-        )
-
-    def val_dataloader(self):
-        return torch.utils.data.DataLoader(
-            dataset=CoreDataset(self.validation_dataset, args=self.args),
-            num_workers=self.args.num_workers,
-            batch_size=self.args.batch_size,
-            shuffle=False,
-            pin_memory=self.args.pin_memory,
-            drop_last=self.args.drop_last,
-            worker_init_fn=seed_worker,
-            generator=self.gen,
-        )
-
-    def test_dataloader(self):
-        return torch.utils.data.DataLoader(
-            dataset=CoreDataset(self.test_dataset, args=self.args),
+            dataset=CoreDataset(self.dataset, args=self.args),
             num_workers=self.args.num_workers,
             batch_size=self.args.batch_size,
             shuffle=False,

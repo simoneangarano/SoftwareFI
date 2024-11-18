@@ -63,7 +63,7 @@ def main():
 
     # Load Stats
     if args.stats:
-        results = json.load(open(f"ckpt/{args.exp.replace('iTrue','iFalse')}_stats.json", "r"))
+        results = json.load(open(f"ckpt/{args.name}_{args.activation}_stats.json", "r"))
         args.stats = results
 
     net = build_model(args)

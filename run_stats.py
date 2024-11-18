@@ -39,11 +39,15 @@ def get_stats(net: ModelWrapper, datamodule, args, inject=False):
         if any(isinstance(layer, t) for t in LAYERS):
             layer.register_forward_hook(get_activation(name))
             STATS[name] = RunningStats()
+    STATS["logits"] = RunningStats()
 
-    for _, batch in tqdm(enumerate(datamodule.val_dataloader())):
+    for _, batch in tqdm(enumerate(datamodule.dataloader())):
         batch = [b.cuda() for b in batch]
         x, _ = batch
-        _ = net(x, inject=inject, inject_index=args.inject_index)
+        outputs = net(x, inject=inject, inject_index=args.inject_index)
+        if isinstance(outputs, tuple):
+            outputs = outputs[0]
+        ACTIVATIONS["logits"] = outputs
 
         with ThreadPoolExecutor(max_workers=args.num_workers) as executor:
 
@@ -74,9 +78,11 @@ if __name__ == "__main__":
     args = parse_args(parser, config_parser, args="", verbose=True)
 
     # Avoid memory issues
-    args.batch_size //= 2
+    args.split = "validation"
+    args.batch_size //= 8
     args.drop_last = True
-    
+    args.stats = False
+
     # Set random seed
     torch.manual_seed(args.seed)
     torch.set_float32_matmul_precision("high")

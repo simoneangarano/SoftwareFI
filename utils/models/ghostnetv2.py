@@ -32,7 +32,6 @@ class NaNAct(nn.Module):
             self.act = HardSigmoid(inplace=inplace)
 
         self.nan = args.nan
-        self.clip = args.clip
 
     def forward(self, x):
         x = self.act(x)
@@ -67,7 +66,6 @@ class ConvInjector(nn.Module):
             self.injector = SequentialInjector()
 
         self.inject_first = args.inject_first
-        self.clip = args.clip
         self.nan = args.nan
 
     def forward(self, x, fwargs):
@@ -102,7 +100,6 @@ class BNInjector(nn.Module):
             self.injector = SequentialInjector()
 
         self.inject_first = args.inject_first
-        self.clip = args.clip
         self.nan = args.nan
 
     def forward(self, x, fwargs):
@@ -143,7 +140,6 @@ class LinearInjector(nn.Module):
             self.injector = SequentialInjector()
 
         self.inject_first = args.inject_first
-        self.clip = args.clip
         self.nan = args.nan
 
     def forward(self, x, fwargs):
@@ -220,9 +216,8 @@ class ClampAvgPool2d(nn.Module):
             self.avg_pool = nn.AvgPool2d(kernel_size, stride, padding)
         else:
             raise ValueError("output_size or kernel_size must be defined")
-        
+
         self.nan = args.nan
-        self.clip = args.clip
 
     def forward(self, x):
         x = fault_reject(self, x)
@@ -233,11 +228,11 @@ def fault_reject(layer, x):
     if layer.nan:
         x = torch.nan_to_num(x, 0.0)
     if hasattr(layer, "stats"):
-        M = max(layer.stats[3] * 10, layer.stats[3] / 10)
-        m = min(layer.stats[2] * 10, layer.stats[2] / 10)
+        M = max(layer.stats[3] * layer.mult, layer.stats[3] / layer.mult)
+        m = min(layer.stats[2] * layer.mult, layer.stats[2] / layer.mult)
         x[x > M] = M if layer.clip else 0
         x[x < m] = 0 if layer.clip else m
-        return x
+    return x
 
 
 def _make_divisible(v, divisor, min_value=None):
@@ -839,7 +834,7 @@ class GhostNetSS(nn.Module):
         if args.ckpt is not None:
             self = load_fi_weights(self, args.ckpt)
         if args.stats:
-            self.apply_stats(args.stats)
+            self.apply_stats(args)
 
     def forward(
         self, tensors, inject=False, current_epoch=0, counter=0, inject_index=-1
@@ -856,12 +851,14 @@ class GhostNetSS(nn.Module):
 
         return outputs
 
-    def apply_stats(self, stats):
+    def apply_stats(self, args):
         # apply stats to each layer using the stats dictionary
         for name, layer in self.named_modules():
             name = "model." + name
-            if name in stats.keys():
-                layer.stats = stats[name]
+            if name in args.stats.keys():
+                layer.stats = args.stats[name]
+                layer.clip = args.clip
+                layer.mult = args.multiplier
 
 
 def load_fi_weights(model, filename, verbose=False):

@@ -12,9 +12,10 @@ wandb: null
 # Data
 dataset: sentinel
 data_dir: ./data
+split: test # test or validation
 num_classes: 3 # 3 for clouds, 0 for features
 batch_size: 64
-num_workers: 4
+num_workers: 8
 pin_memory: true
 drop_last: false
 
@@ -27,8 +28,8 @@ loss: ce
 
 
 # Fault Injection
-inject: true ##############################################
-inject_p: !!float 1.0 #####################################
+inject: true #############################################
+inject_p: !!float 1.0e-2 #####################################
 inject_index: -1 ########## -1 means all layers ###########
 inject_first: true ########################################
 inject_epoch: 0
@@ -36,6 +37,14 @@ error_model: random
 
 # Fault Rejection
 activation: relu ##########################################
-stats: true ###############################################
+stats: false ##############################################
+multiplier: 100.0 #########################################
 clip: false ###############################################
 nan: true
+
+# Fault Detection
+detect: true ##############################################
+detect_p: 1.0e-3 ##########################################
+detect_index: -1 # last layer
+mean: -0.55
+std: 1.8

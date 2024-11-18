@@ -88,13 +88,14 @@ The setup files and scripts for validating with neutron beams are available at
 
 The experiment name is composed of the following fields:
 ```
+args.name = f"{args.model}_{args.task}"
 args.exp = f"{args.name}_{args.activation}"
 if args.inject:
     args.exp += f"_{args.inject_p:.0e}"
     if args.inject_first:
         args.exp += "_first"
-if args.stats:
-    args.exp += "_stats"
-    if args.clip:
-        args.exp += "_clip"
+    if args.stats:
+        args.exp += "_stats"
+        if args.clip:
+            args.exp += "_clip"
 ```

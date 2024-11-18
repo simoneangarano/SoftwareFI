@@ -8,7 +8,7 @@ import torchvision
 from pytorchfi import core as pfi_core
 from pytorchfi import neuron_error_models as pfi_neuron_error_models
 
-from utils.test_utils import CoreDataModule
+from utils.data.data_module import CoreDataModule
 from utils.utils import build_model, parse_args
 
 
@@ -64,7 +64,7 @@ def perform_fault_injection_for_a_model(args):
 
     # Load the dataset
     datamodule = CoreDataModule(batch_size=128)
-    test_loader = datamodule.test_dataloader()
+    test_loader = datamodule.dataloader()
 
     # Testing PytorchFI
     pfi_model = pfi_core.fault_injection(

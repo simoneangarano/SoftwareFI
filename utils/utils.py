@@ -85,10 +85,10 @@ def parse_args(parser, config_parser, args=None, verbose=True):
         args.exp += f"_{args.inject_p:.0e}"
         if args.inject_first:
             args.exp += "_first"
-    if args.stats:
-        args.exp += "_stats"
-        if args.clip:
-            args.exp += "_clip"
+        if args.stats:
+            args.exp += "_stats"
+            if args.clip:
+                args.exp += "_clip"
 
     if verbose:
         print("\n==> Config parsed:")
@@ -97,7 +97,7 @@ def parse_args(parser, config_parser, args=None, verbose=True):
         print()
 
     # save config
-    with open(f"log/{args.exp}.yaml", "w") as f:
+    with open(f"ckpt/log/{args.exp}.yaml", "w") as f:
         yaml.dump(vars(args), f)
 
     return args
@@ -219,7 +219,7 @@ def validate(net: ModelWrapper, datamodule, args):
         "bacc": 0.0,
         "noisy_bacc": 0.0,
     }
-    for _, batch in tqdm(enumerate(datamodule.val_dataloader())):
+    for _, batch in tqdm(enumerate(datamodule.dataloader())):
         batch = [b.cuda() for b in batch]
         noisy_metrics, metrics = net.validation_step(
             batch, inject_index=args.inject_index
@@ -233,7 +233,7 @@ def validate(net: ModelWrapper, datamodule, args):
         total["bacc"] += metrics["bacc"]
         total["noisy_bacc"] += noisy_metrics["bacc"]
 
-    return {key: val / len(datamodule.val_dataloader()) for key, val in total.items()}
+    return {key: val / len(datamodule.dataloader()) for key, val in total.items()}
 
 
 class RunningStats(object):
@@ -273,17 +273,21 @@ class RunningStats(object):
                 self.update_params(el)
 
     def update_params(self, x):
-        x = np.clip(x, -self.clip, self.clip)
         self.num += 1
+        x = np.clip(x, -self.clip, self.clip)
+        x = np.nan_to_num(x)
+        h = entropy(x)
         if self.num == 1:
             self.mean = x
             self.var = 0.0
             self.min = x
             self.max = x
+            self.h = h
         else:
             prev_m = self.mean.copy()
             self.mean += (x - self.mean) / self.num
             self.var += (x - prev_m) * (x - self.mean)
+            self.h += (h - self.h) / self.num
 
     def __add__(self, other):
         if isinstance(other, RunningStats):
@@ -300,7 +304,7 @@ class RunningStats(object):
             return self
 
     def get_stats(self):
-        return self._mean, self._std, self._min, self._max
+        return self._mean, self._std, self._min, self._max, self._h
 
     @property
     def _mean(self):
@@ -321,17 +325,25 @@ class RunningStats(object):
     @property
     def _max(self):
         return float(self.max.max()) if self.num else 0.0
+    
+    @property
+    def _h(self):
+        return float(self.h) if self.num else 0.0
 
     def __repr__(self):
-        return "<RunningMean(mean={: 2.4f}, std={: 2.4f}, min={: 2.4f}, max={: 2.4f})>".format(
-            self._mean, self._std, self._min, self._max
+        return "<RunningMean(mean={: 2.4f}, std={: 2.4f}, min={: 2.4f}, max={: 2.4f}, h={: 2.4f})>".format(
+            self._mean, self._std, self._min, self._max, self._h
         )
 
     def __str__(self):
-        return "mean={: 2.4f}, std={: 2.4f}, min={: 2.4f}, max={: 2.4f}".format(
-            self._mean, self._std, self._min, self._max
+        return "mean={: 2.4f}, std={: 2.4f}, min={: 2.4f}, max={: 2.4f}, h={: 2.4f}".format(
+            self._mean, self._std, self._min, self._max, self._h
         )
 
+def entropy(x):
+    norm = np.linalg.norm(x, ord=2, axis=1)
+    hist = np.histogram(norm, bins="fd", density=True)
+    return -np.sum(hist[0] * np.log2(hist[0] + 1e-6))
 
 ### Visualization ###
 
@@ -345,7 +357,7 @@ def plot_results(results, layers, metric):
 
     x = [int(i) for i, _ in results.items()]
     y = [metrics[m_ids[metric]] for _, metrics in results.items()]
-    plt.rcParams['figure.figsize'] = [15, 7]
+    plt.rcParams["figure.figsize"] = [15, 7]
     plt.plot(x, y, label=metric, color="tab:grey", alpha=0.3)
 
     for i, metrics in results.items():
@@ -380,7 +392,7 @@ def plot_stats(results, fresults=None, ltype=None, ylim=None, log=False, alpha=1
         ylabel="Activation",
         figsize=(20, 10),
         style="--",
-        color=["C0", "C1", "C2", "C3"],
+        color=["C0", "C1", "C2", "C3", "C4"],
         ylim=ylim,
         alpha=alpha,
     )
@@ -392,7 +404,7 @@ def plot_stats(results, fresults=None, ltype=None, ylim=None, log=False, alpha=1
             ylabel="Activation",
             figsize=(20, 10),
             style="-",
-            color=["C0", "C1", "C2", "C3"],
+            color=["C0", "C1", "C2", "C3", "C4"],
             ylim=ylim,
             alpha=alpha,
         )

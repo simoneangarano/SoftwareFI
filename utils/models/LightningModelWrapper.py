@@ -1,6 +1,8 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import pytorch_lightning as pl
+from scipy.stats import norm
 from utils.segmentation.stream_metrics import StreamSegMetrics
 
 
@@ -9,7 +11,7 @@ class ModelWrapper(pl.LightningModule):
         super(ModelWrapper, self).__init__()
 
         self.model = model
-        self.num_classes = args.num_classes
+        self.args = args
         self.optim = None
 
         if args.loss == "bce":
@@ -25,7 +27,7 @@ class ModelWrapper(pl.LightningModule):
             self.criterion = nn.MSELoss()
             self.use_one_hot = False
 
-        self.metrics = StreamSegMetrics(self.num_classes, ignore_index=None)
+        self.metrics = StreamSegMetrics(self.args.num_classes, ignore_index=None)
         # self.save_hyperparameters("model", "num_classes", "optim", "loss")
 
     def forward(self, x, inject=True, inject_index=0):
@@ -63,15 +65,27 @@ class ModelWrapper(pl.LightningModule):
         outputs = self(x, inject=inject, inject_index=inject_index)
         if isinstance(outputs, tuple):
             outputs = outputs[0]
+        metrics["logits"] = outputs
+        # Fault Detection
+        if self.args.detect:
+            clean = torch.logical_and(metrics["logits"] > -10, metrics["logits"] < 10).any((1,2,3))
+
+            # p = calculate_gaussian_probability(outputs.detach().cpu(), self.args.mean, self.args.std)
+            # p = np.mean(p, axis=(1, 2, 3))
+            # clean = p > self.args.detect_p
+
+            metrics["clean"] = clean
+            outputs = outputs[clean]
+            y = y[clean]
 
         # Loss
         if self.use_one_hot and not self.training:
-            metrics["loss"] = self.criterion(outputs, get_one_hot(y, self.num_classes))
+            metrics["loss"] = self.criterion(outputs, get_one_hot(y, self.args.num_classes))
         else:
             metrics["loss"] = self.criterion(outputs, y)
 
         # Accuracy and Mean IoU
-        if not self.training and self.num_classes > 0:
+        if not self.training and self.args.num_classes > 0:
             metrics["probs"], metrics["preds"] = torch.max(outputs, 1)
 
             self.metrics.update(y.cpu().numpy(), metrics["preds"].cpu().numpy())
@@ -123,7 +137,7 @@ class ModelWrapper(pl.LightningModule):
         # self.epoch_log("noisy_val_loss", noisy_loss)
         # self.epoch_log("noisy_val_acc", noisy_acc)
         # self.epoch_log("noisy_val_miou", noisy_miou)
-        if check_criticality and self.num_classes > 0:
+        if check_criticality and self.args.num_classes > 0:
             self.check_criticality(
                 gold=(metrics["probs"], metrics["preds"]),
                 faulty=(noisy_metrics["probs"], noisy_metrics["preds"]),
@@ -164,3 +178,26 @@ class SymmetricCELoss(nn.Module):
         # reverse crossEntropy
         rce = self.negative_log_likelihood(targets, inputs)
         return ce * self.alpha + rce * self.beta
+
+
+def calculate_gaussian_probability(sample, mean, std_dev, two_tailed=False):
+    """
+    Calculate the probability that a sample belongs to a Gaussian distribution.
+    
+    Parameters:
+    sample (float): The sample value to test
+    mean (float): Mean of the Gaussian distribution
+    std_dev (float): Standard deviation of the distribution
+    two_tailed (bool): If True, calculate a two-tailed p-value. If False, calculate the pdf
+    
+    Returns:
+    float: The probability that the sample belongs to the distribution
+    """
+    if two_tailed:
+        # Calculate z-score (number of standard deviations from mean)
+        z_score = (sample - mean) / std_dev
+        # Calculate two-tailed p-value (probability of observing a value this extreme or more extreme)
+        return 2 * (1 - norm.cdf(abs(z_score)))
+
+    # Calculate probability density at the sample point
+    return norm.pdf(sample, mean, std_dev)
