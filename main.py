@@ -99,7 +99,7 @@ def main():
         # save results
         json.dump(results, open(f"ckpt/{args.exp}_results.json", "w"))
         return
-    
+
     # inject specific layer
     while args.inject_index < len(layers):
         try:

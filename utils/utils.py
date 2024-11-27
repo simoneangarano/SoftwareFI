@@ -346,9 +346,11 @@ class RunningStats(object):
             self._mean, self._std, self._min, self._max, self._h
         )
 
+
 def hist_1d(a):
     hist = np.histogram(a, bins="sqrt", density=True)
     return hist[0]
+
 
 def entropy(x):
     b, c, *_ = x.shape
@@ -356,6 +358,7 @@ def entropy(x):
     norm = np.linalg.norm(x, ord=2, axis=1)
     hist = np.apply_along_axis(hist_1d, axis=1, arr=norm)
     return -np.sum(hist * np.log2(hist + 1e-9), axis=1)
+
 
 ### Visualization ###
 

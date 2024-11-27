@@ -66,12 +66,11 @@ class ModelWrapper(pl.LightningModule):
         if isinstance(outputs, tuple):
             outputs = outputs[0]
 
-        # Fault Detection
+        # Fault Detection
         if self.args.detect:
             clean_range = torch.logical_and(
-                outputs > -self.args.range, 
-                outputs < self.args.range).all((1,2,3)
-            )
+                outputs > -self.args.range, outputs < self.args.range
+            ).all((1, 2, 3))
 
             # p = calculate_gaussian_probability(outputs.detach().cpu(), self.args.mean, self.args.std)
             # metrics["p"] = np.mean(p, axis=(1, 2, 3))
