@@ -218,20 +218,24 @@ def validate(net: ModelWrapper, datamodule, args):
         "noisy_miou": 0.0,
         "bacc": 0.0,
         "noisy_bacc": 0.0,
+        "clean": 0.0,
+        "clean_pred": 0.0,
     }
     for _, batch in tqdm(enumerate(datamodule.dataloader())):
         batch = [b.cuda() for b in batch]
         noisy_metrics, metrics = net.validation_step(
             batch, inject_index=args.inject_index
         )
-        total["loss"] += metrics["loss"]
-        total["noisy_loss"] += noisy_metrics["loss"]
+        total["loss"] += metrics["loss"].item()
+        total["noisy_loss"] += noisy_metrics["loss"].item()
         total["acc"] += metrics["acc"]
         total["noisy_acc"] += noisy_metrics["acc"]
         total["miou"] += metrics["miou"]
         total["noisy_miou"] += noisy_metrics["miou"]
         total["bacc"] += metrics["bacc"]
         total["noisy_bacc"] += noisy_metrics["bacc"]
+        total["clean"] += sum(noisy_metrics['fwargs']['faulty_idxs'] < 0).item() / batch[0].shape[0]
+        total["clean_pred"] += noisy_metrics['clean'].item() / batch[0].shape[0]
 
     return {key: val / len(datamodule.dataloader()) for key, val in total.items()}
 
@@ -328,7 +332,7 @@ class RunningStats(object):
     
     @property
     def _h(self):
-        return float(self.h) if self.num else 0.0
+        return float(self.h.mean()) if self.num else 0.0
 
     def __repr__(self):
         return "<RunningMean(mean={: 2.4f}, std={: 2.4f}, min={: 2.4f}, max={: 2.4f}, h={: 2.4f})>".format(
@@ -340,10 +344,16 @@ class RunningStats(object):
             self._mean, self._std, self._min, self._max, self._h
         )
 
+def hist_1d(a):
+    hist = np.histogram(a, bins="sqrt", density=True)
+    return hist[0]
+
 def entropy(x):
+    b, c, *_ = x.shape
+    x = x.reshape(b, c, -1)
     norm = np.linalg.norm(x, ord=2, axis=1)
-    hist = np.histogram(norm, bins="fd", density=True)
-    return -np.sum(hist[0] * np.log2(hist[0] + 1e-6))
+    hist = np.apply_along_axis(hist_1d, axis=1, arr=norm)
+    return -np.sum(hist * np.log2(hist + 1e-9), axis=1)
 
 ### Visualization ###
 

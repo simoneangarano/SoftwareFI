@@ -811,11 +811,11 @@ class SegmentationHeadGhostBN(nn.Module):
         out_6, fwargs = self.conv_block_112(out_6, fwargs)  # [..., H/16, W/16]
         x = x_2upsampled_pred + out_6  # [..., H/16, W/16]
         x_2upsampled_pred = self.up2(x)  # [..., H/8, W/8]
-        out_4, _ = self.conv_block_40(out_4, fwargs)  # [..., H/8, W/8]
+        out_4, fwargs = self.conv_block_40(out_4, fwargs)  # [..., H/8, W/8]
         x = x_2upsampled_pred + out_4  # [..., H/8, W/8]
         x = self.up8(x)  # [..., H, W]
 
-        return x
+        return x, fwargs
 
 
 ###############
@@ -847,9 +847,9 @@ class GhostNetSS(nn.Module):
             "faulty_idxs": torch.ones(tensors.shape[0]) * -1,
         }
         (_, fwargs), intermediate_features = self.ghostnet(tensors, fwargs)
-        outputs = self.head(intermediate_features, fwargs)
+        outputs, fwargs = self.head(intermediate_features, fwargs)
 
-        return outputs
+        return outputs, fwargs
 
     def apply_stats(self, args):
         # apply stats to each layer using the stats dictionary

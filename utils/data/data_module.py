@@ -63,7 +63,7 @@ class CoreDataModule(pl.LightningDataModule):
             dataset=CoreDataset(self.dataset, args=self.args),
             num_workers=self.args.num_workers,
             batch_size=self.args.batch_size,
-            shuffle=False,
+            shuffle=self.args.shuffle,
             pin_memory=self.args.pin_memory,
             drop_last=self.args.drop_last,
             worker_init_fn=seed_worker,

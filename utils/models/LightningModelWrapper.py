@@ -59,24 +59,32 @@ class ModelWrapper(pl.LightningModule):
 
     def get_metrics(self, batch, inject, inject_index=0):
         x, y = batch
-        metrics = {"y": y}
+        metrics = {"y": y, "clean": torch.zeros(1)}
 
         # forward
-        outputs = self(x, inject=inject, inject_index=inject_index)
+        outputs, fwargs = self(x, inject=inject, inject_index=inject_index)
         if isinstance(outputs, tuple):
             outputs = outputs[0]
-        metrics["logits"] = outputs
+
         # Fault Detection
         if self.args.detect:
-            clean = torch.logical_and(metrics["logits"] > -10, metrics["logits"] < 10).any((1,2,3))
+            clean_range = torch.logical_and(
+                outputs > -self.args.range, 
+                outputs < self.args.range).all((1,2,3)
+            )
 
             # p = calculate_gaussian_probability(outputs.detach().cpu(), self.args.mean, self.args.std)
-            # p = np.mean(p, axis=(1, 2, 3))
-            # clean = p > self.args.detect_p
+            # metrics["p"] = np.mean(p, axis=(1, 2, 3))
+            # clean_p = p > self.args.detect_p
 
-            metrics["clean"] = clean
+            clean = clean_range # & clean_p
+            metrics["clean"] = sum(clean)
+
             outputs = outputs[clean]
             y = y[clean]
+
+        metrics["logits"] = outputs
+        metrics["fwargs"] = fwargs
 
         # Loss
         if self.use_one_hot and not self.training:
@@ -86,7 +94,8 @@ class ModelWrapper(pl.LightningModule):
 
         # Accuracy and Mean IoU
         if not self.training and self.args.num_classes > 0:
-            metrics["probs"], metrics["preds"] = torch.max(outputs, 1)
+            _, metrics["preds"] = torch.max(outputs, 1)
+            metrics["probs"] = torch.nn.functional.softmax(outputs, dim=1)
 
             self.metrics.update(y.cpu().numpy(), metrics["preds"].cpu().numpy())
             results = self.metrics.get_results()

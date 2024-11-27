@@ -78,10 +78,11 @@ if __name__ == "__main__":
     args = parse_args(parser, config_parser, args="", verbose=True)
 
     # Avoid memory issues
-    args.split = "validation"
+    args.split = "test"
     args.batch_size //= 8
     args.drop_last = True
     args.stats = False
+    args.detect = False
 
     # Set random seed
     torch.manual_seed(args.seed)

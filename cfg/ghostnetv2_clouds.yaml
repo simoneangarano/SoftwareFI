@@ -18,18 +18,19 @@ batch_size: 64
 num_workers: 8
 pin_memory: true
 drop_last: false
+shuffle: false
 
 # Model
 model: ghostnetv2
-ckpt: "ckpt/bb_heads_clouds.pth"
+ckpt: "ckpt/weights/bb_heads_clouds.pth"
 width: 1.6
 se_ratio: 0.25
 loss: ce
 
 
 # Fault Injection
-inject: true #############################################
-inject_p: !!float 1.0e-2 #####################################
+inject: true ##############################################
+inject_p: !!float 1.0e-2 ##################################
 inject_index: -1 ########## -1 means all layers ###########
 inject_first: true ########################################
 inject_epoch: 0
@@ -44,7 +45,8 @@ nan: true
 
 # Fault Detection
 detect: true ##############################################
-detect_p: 1.0e-3 ##########################################
+detect_p: 0.13 ############################################
 detect_index: -1 # last layer
 mean: -0.55
 std: 1.8
+range: 10.0

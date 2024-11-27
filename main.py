@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 
-import csv
-import json
+import csv, json
 import warnings
 
 import random
@@ -63,7 +62,7 @@ def main():
 
     # Load Stats
     if args.stats:
-        results = json.load(open(f"ckpt/{args.name}_{args.activation}_stats.json", "r"))
+        results = json.load(open(f"ckpt/stats/{args.name}_{args.activation}_stats.json", "r"))
         args.stats = results
 
     net = build_model(args)
@@ -90,8 +89,11 @@ def main():
             + f'Noisy mIoU: {results["noisy_miou"]:.2f}, mIoU: {results["miou"]:.2f},\n'
             + f'Noisy BAcc: {results["noisy_bacc"]:.2f}, BAcc: {results["bacc"]:.2f}'
         )
-        return
 
+        # save results
+        json.dump(results, open(f"ckpt/{args.exp}_results.json", "w"))
+        return
+    
     # inject specific layer
     while args.inject_index < len(layers):
         try:
@@ -109,10 +111,11 @@ def main():
             + f'Noisy Acc: {res["noisy_acc"]:.2f}, Acc: {res["acc"]:.2f},\n'
             + f'Noisy mIoU: {res["noisy_miou"]:.2f}, mIoU: {res["miou"]:.2f},\n'
             + f'Noisy BAcc: {res["noisy_bacc"]:.2f}, BAcc: {res["bacc"]:.2f}\n'
+            + f'Clean: {res["clean"]}, Clean Pred: {res["clean_pred"]}'
         )
         results[args.inject_index] = (
-            float(res["noisy_loss"].cpu().numpy()),
-            float(res["loss"].cpu().numpy()),
+            float(res["noisy_loss"]),
+            float(res["loss"]),
             float(res["noisy_acc"]),
             float(res["acc"]),
             float(res["noisy_miou"]),
