@@ -62,7 +62,9 @@ def main():
 
     # Load Stats
     if args.stats:
-        results = json.load(open(f"ckpt/stats/{args.name}_{args.activation}_stats.json", "r"))
+        results = json.load(
+            open(f"ckpt/stats/{args.name}_{args.activation}_stats.json", "r")
+        )
         args.stats = results
 
     net = build_model(args)
@@ -89,6 +91,10 @@ def main():
             + f'Noisy mIoU: {results["noisy_miou"]:.2f}, mIoU: {results["miou"]:.2f},\n'
             + f'Noisy BAcc: {results["noisy_bacc"]:.2f}, BAcc: {results["bacc"]:.2f}'
         )
+
+        # save results
+        json.dump(results, open(f"ckpt/{args.exp}_results.json", "w"))
+        return
 
         # save results
         json.dump(results, open(f"ckpt/{args.exp}_results.json", "w"))

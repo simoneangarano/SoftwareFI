@@ -234,8 +234,10 @@ def validate(net: ModelWrapper, datamodule, args):
         total["noisy_miou"] += noisy_metrics["miou"]
         total["bacc"] += metrics["bacc"]
         total["noisy_bacc"] += noisy_metrics["bacc"]
-        total["clean"] += sum(noisy_metrics['fwargs']['faulty_idxs'] < 0).item() / batch[0].shape[0]
-        total["clean_pred"] += noisy_metrics['clean'].item() / batch[0].shape[0]
+        total["clean"] += (
+            sum(noisy_metrics["fwargs"]["faulty_idxs"] < 0).item() / batch[0].shape[0]
+        )
+        total["clean_pred"] += noisy_metrics["clean"].item() / batch[0].shape[0]
 
     return {key: val / len(datamodule.dataloader()) for key, val in total.items()}
 
@@ -329,7 +331,7 @@ class RunningStats(object):
     @property
     def _max(self):
         return float(self.max.max()) if self.num else 0.0
-    
+
     @property
     def _h(self):
         return float(self.h.mean()) if self.num else 0.0

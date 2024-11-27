@@ -77,7 +77,7 @@ class ModelWrapper(pl.LightningModule):
             # metrics["p"] = np.mean(p, axis=(1, 2, 3))
             # clean_p = p > self.args.detect_p
 
-            clean = clean_range # & clean_p
+            clean = clean_range  # & clean_p
             metrics["clean"] = sum(clean)
 
             outputs = outputs[clean]
@@ -88,7 +88,9 @@ class ModelWrapper(pl.LightningModule):
 
         # Loss
         if self.use_one_hot and not self.training:
-            metrics["loss"] = self.criterion(outputs, get_one_hot(y, self.args.num_classes))
+            metrics["loss"] = self.criterion(
+                outputs, get_one_hot(y, self.args.num_classes)
+            )
         else:
             metrics["loss"] = self.criterion(outputs, y)
 
@@ -192,13 +194,13 @@ class SymmetricCELoss(nn.Module):
 def calculate_gaussian_probability(sample, mean, std_dev, two_tailed=False):
     """
     Calculate the probability that a sample belongs to a Gaussian distribution.
-    
+
     Parameters:
     sample (float): The sample value to test
     mean (float): Mean of the Gaussian distribution
     std_dev (float): Standard deviation of the distribution
     two_tailed (bool): If True, calculate a two-tailed p-value. If False, calculate the pdf
-    
+
     Returns:
     float: The probability that the sample belongs to the distribution
     """
