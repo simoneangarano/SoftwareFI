@@ -79,7 +79,7 @@ if __name__ == "__main__":
 
     # Avoid memory issues
     args.split = "test"
-    args.batch_size //= 8
+    args.batch_size //= 2
     args.drop_last = True
     args.stats = False
     args.detect = False

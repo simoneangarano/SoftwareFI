@@ -48,18 +48,6 @@ def main():
     if args.dataset == "sentinel":
         datamodule = CoreDataModule(args)
 
-    # Build model (Resnet only up to now)
-    # args.optim_params = (
-    #     {
-    #         "optimizer": args.optimizer,
-    #         "epochs": args.epochs,
-    #         "lr": args.lr,
-    #         "wd": args.wd,
-    #     }
-    #     if args.optim_params is None
-    #     else args.optim_params
-    # )
-
     # Load Stats
     if args.stats:
         results = json.load(
@@ -89,12 +77,12 @@ def main():
             f'All Layers: \nNoisy Loss: {results["noisy_loss"]:.1e}, Loss: {results["loss"]:.1e},\n'
             + f'Noisy Acc: {results["noisy_acc"]:.2f}, Acc: {results["acc"]:.2f},\n'
             + f'Noisy mIoU: {results["noisy_miou"]:.2f}, mIoU: {results["miou"]:.2f},\n'
-            + f'Noisy BAcc: {results["noisy_bacc"]:.2f}, BAcc: {results["bacc"]:.2f}'
+            + f'Noisy BAcc: {results["noisy_bacc"]:.2f}, BAcc: {results["bacc"]:.2f},\n'
+            + f'Clean: {results["clean"]:.2f}, '
+            + f'Noisy Critical: {results["crit"]:.2f}, Non-Critical: {results["non_crit"]:.2f}, '
+            + f'Clean Pred: {results["clean_pred"]:.2f}\n'
+            + f'CM: {results["cm"]}'
         )
-
-        # save results
-        json.dump(results, open(f"ckpt/{args.exp}_results.json", "w"))
-        return
 
         # save results
         json.dump(results, open(f"ckpt/{args.exp}_results.json", "w"))
@@ -113,11 +101,14 @@ def main():
 
         res = software_fault_injection(args, net, datamodule)
         print(
-            f'Layer {args.inject_index} ({layers[args.inject_index]}): \nNoisy Loss: {res["noisy_loss"]:.1e}, Loss: {res["loss"]:.1e},\n'
-            + f'Noisy Acc: {res["noisy_acc"]:.2f}, Acc: {res["acc"]:.2f},\n'
-            + f'Noisy mIoU: {res["noisy_miou"]:.2f}, mIoU: {res["miou"]:.2f},\n'
-            + f'Noisy BAcc: {res["noisy_bacc"]:.2f}, BAcc: {res["bacc"]:.2f}\n'
-            + f'Clean: {res["clean"]}, Clean Pred: {res["clean_pred"]}'
+            f'All Layers: \nNoisy Loss: {results["noisy_loss"]:.1e}, Loss: {results["loss"]:.1e},\n'
+            + f'Noisy Acc: {results["noisy_acc"]:.2f}, Acc: {results["acc"]:.2f},\n'
+            + f'Noisy mIoU: {results["noisy_miou"]:.2f}, mIoU: {results["miou"]:.2f},\n'
+            + f'Noisy BAcc: {results["noisy_bacc"]:.2f}, BAcc: {results["bacc"]:.2f},\n'
+            + f'Clean: {results["clean"]:.2f}, '
+            + f'Noisy Critical: {results["crit"]:.2f}, Non-Critical: {results["non_crit"]:.2f}, '
+            + f'Clean Pred: {results["clean_pred"]:.2f}\n'
+            + f'CM: {results["cm"]}'
         )
         results[args.inject_index] = (
             float(res["noisy_loss"]),
@@ -128,6 +119,11 @@ def main():
             float(res["miou"]),
             float(res["noisy_bacc"]),
             float(res["bacc"]),
+            float(res["clean"]),
+            float(res["crit"]),
+            float(res["non_crit"]),
+            float(res["clean_pred"]),
+            res["cm"],
         )
         json.dump(results, open(f"ckpt/{args.exp}_eval.json", "w"))
 

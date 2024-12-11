@@ -220,6 +220,9 @@ def validate(net: ModelWrapper, datamodule, args):
         "noisy_bacc": 0.0,
         "clean": 0.0,
         "clean_pred": 0.0,
+        "non_crit": 0.0,
+        "crit": 0.0,
+        "cm": [[0, 0, 0], [0, 0, 0]],
     }
     for _, batch in tqdm(enumerate(datamodule.dataloader())):
         batch = [b.cuda() for b in batch]
@@ -237,9 +240,55 @@ def validate(net: ModelWrapper, datamodule, args):
         total["clean"] += (
             sum(noisy_metrics["fwargs"]["faulty_idxs"] < 0).item() / batch[0].shape[0]
         )
-        total["clean_pred"] += noisy_metrics["clean"].item() / batch[0].shape[0]
+        total["clean_pred"] += sum(noisy_metrics["clean"]).item() / batch[0].shape[0]
+        total["non_crit"] += sum(noisy_metrics["non_crit"]).item() / batch[0].shape[0]
+        total["crit"] += sum(noisy_metrics["crit"]).item() / batch[0].shape[0]
+        total["cm"][0][0] += (
+            sum(
+                np.logical_and(
+                    noisy_metrics["fwargs"]["faulty_idxs"] < 0, noisy_metrics["clean"]
+                )
+            ).item()
+            / batch[0].shape[0]
+        )
+        total["cm"][0][1] += (
+            sum(
+                np.logical_and(noisy_metrics["non_crit"], noisy_metrics["clean"])
+            ).item()
+            / batch[0].shape[0]
+        )
+        total["cm"][0][2] += (
+            sum(np.logical_and(noisy_metrics["crit"], noisy_metrics["clean"])).item()
+            / batch[0].shape[0]
+        )
+        total["cm"][1][0] += (
+            sum(
+                np.logical_and(
+                    noisy_metrics["fwargs"]["faulty_idxs"] < 0, ~noisy_metrics["clean"]
+                )
+            ).item()
+            / batch[0].shape[0]
+        )
+        total["cm"][1][1] += (
+            sum(
+                np.logical_and(noisy_metrics["non_crit"], ~noisy_metrics["clean"])
+            ).item()
+            / batch[0].shape[0]
+        )
+        total["cm"][1][2] += (
+            sum(np.logical_and(noisy_metrics["crit"], ~noisy_metrics["clean"])).item()
+            / batch[0].shape[0]
+        )
 
-    return {key: val / len(datamodule.dataloader()) for key, val in total.items()}
+    results = {
+        key: val / len(datamodule.dataloader())
+        for key, val in total.items()
+        if key != "cm"
+    }
+    results["cm"] = [
+        [val / len(datamodule.dataloader()) for val in row] for row in total["cm"]
+    ]
+    return results
 
 
 class RunningStats(object):
@@ -259,13 +308,27 @@ class RunningStats(object):
         print(rs.mean, rs.std)
     """
 
-    def __init__(self, num=0.0, mean=None, var=None, min=None, max=None, clip=1e9):
+    def __init__(
+        self,
+        num=0.0,
+        mean=None,
+        min=None,
+        max=None,
+        clip=1e9,
+        std=None,
+        h=None,
+        amean=None,
+        asum=None,
+    ):
         self.num = num  # number of samples
         self.mean = mean  # mean
-        self.var = var  # sum of squared differences from the mean
         self.min = min  # min value
         self.max = max  # max value
         self.clip = clip  # clip values
+        self.std = std  # standard deviation
+        self.h = h  # entropy
+        self.amean = amean  # absolute mean
+        self.asum = asum  # absolute sum
 
     def clear(self):
         self.num = 0.0
@@ -284,57 +347,66 @@ class RunningStats(object):
         x = np.nan_to_num(x)
         h = entropy(x)
         if self.num == 1:
-            self.mean = x
-            self.var = 0.0
-            self.min = x
-            self.max = x
-            self.h = h
+            self.mean = np.mean(x)
+            self.std = np.mean(np.std(x, axis=(1, 2, 3)))
+            self.min = np.mean(np.min(x, axis=(1, 2, 3)))
+            self.max = np.mean(np.max(x, axis=(1, 2, 3)))
+            self.h = np.mean(h)
+            self.amean = np.mean(np.abs(x))
+            self.asum = np.mean(np.sum(np.abs(x), axis=(1, 2, 3)))
         else:
-            prev_m = self.mean.copy()
-            self.mean += (x - self.mean) / self.num
-            self.var += (x - prev_m) * (x - self.mean)
-            self.h += (h - self.h) / self.num
+            self.mean += (np.mean(x) - self.mean) / self.num
+            self.std += (np.mean(np.std(x, axis=(1, 2, 3))) - self.std) / self.num
+            self.min += (np.mean(np.min(x, axis=(1, 2, 3)) - self.min)) / self.num
+            self.max += (np.mean(np.max(x, axis=(1, 2, 3)) - self.max)) / self.num
+            self.h += (np.mean(h) - self.h) / self.num
+            self.amean += (np.mean(np.abs(x)) - self.amean) / self.num
+            self.asum += (
+                np.mean(np.sum(np.abs(x), axis=(1, 2, 3)) - self.asum)
+            ) / self.num
 
     def __add__(self, other):
-        if isinstance(other, RunningStats):
-            sum_ns = self.num + other.num
-            prod_ns = self.num * other.num
-            delta2 = (other.mean - self.mean) ** 2.0
-            return RunningStats(
-                sum_ns,
-                (self.mean * self.num + other.mean * other.num) / sum_ns,
-                self.var + other.var + delta2 * prod_ns / sum_ns,
-            )
-        else:
-            self.push(other)
-            return self
+        self.push(other)
+        return self
 
     def get_stats(self):
-        return self._mean, self._std, self._min, self._max, self._h
+        return (
+            self._mean,
+            self._std,
+            self._min,
+            self._max,
+            self._h,
+            self._amean,
+            self._asum,
+        )
 
     @property
     def _mean(self):
         return float(self.mean.mean()) if self.num else 0.0
 
     @property
-    def _var(self):
-        return float(self.var.mean() / (self.num - 1)) if self.num > 1 else 0.0
-
-    @property
     def _std(self):
-        return float(np.sqrt(self._var))
+        return float(self.std.mean()) if self.num else 0.0
 
     @property
     def _min(self):
-        return float(self.min.min()) if self.num else 0.0
+        return float(self.min.mean()) if self.num else 0.0
 
     @property
     def _max(self):
-        return float(self.max.max()) if self.num else 0.0
+        return float(self.max.mean()) if self.num else 0.0
 
     @property
     def _h(self):
         return float(self.h.mean()) if self.num else 0.0
+
+    @property
+    def _amean(self):
+        return float(self.amean.mean()) if self.num else 0.0
+
+    @property
+    def _asum(self):
+        return float(self.asum.mean()) if self.num else 0.0
 
     def __repr__(self):
         return "<RunningMean(mean={: 2.4f}, std={: 2.4f}, min={: 2.4f}, max={: 2.4f}, h={: 2.4f})>".format(
@@ -407,7 +479,7 @@ def plot_stats(results, fresults=None, ltype=None, ylim=None, log=False, alpha=1
         ylabel="Activation",
         figsize=(20, 10),
         style="--",
-        color=["C0", "C1", "C2", "C3", "C4"],
+        color=["C0", "C1", "C2", "C3", "C4", "C5", "C6"],
         ylim=ylim,
         alpha=alpha,
     )
@@ -419,7 +491,7 @@ def plot_stats(results, fresults=None, ltype=None, ylim=None, log=False, alpha=1
             ylabel="Activation",
             figsize=(20, 10),
             style="-",
-            color=["C0", "C1", "C2", "C3", "C4"],
+            color=["C0", "C1", "C2", "C3", "C4", "C5", "C6"],
             ylim=ylim,
             alpha=alpha,
         )
@@ -429,8 +501,16 @@ def plot_stats(results, fresults=None, ltype=None, ylim=None, log=False, alpha=1
 
 
 def plot_intermediate_stats(
-    results, fresults=None, per_layer=False, ylim=None, log=False, alpha=1.0
+    results,
+    fresults=None,
+    columns=None,
+    per_layer=False,
+    ylim=None,
+    log=False,
+    alpha=1.0,
 ):
+    results = results[columns] if columns is not None else results
+    fresults = fresults[columns] if fresults is not None else fresults
     if per_layer:
         for ltype in results["layer_type"].unique():
             plot_stats(

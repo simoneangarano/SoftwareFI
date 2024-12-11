@@ -68,19 +68,26 @@ class ModelWrapper(pl.LightningModule):
 
         # Fault Detection
         if self.args.detect:
-            clean_range = torch.logical_and(
-                outputs > -self.args.range, outputs < self.args.range
-            ).all((1, 2, 3))
+            if self.args.detect == "range":
+                clean_range = torch.logical_and(
+                    outputs > -self.args.range, outputs < self.args.range
+                ).all((1, 2, 3))
+            elif self.args.detect == "mean":
+                clean_range = (
+                    np.mean(np.abs(outputs.detach().cpu().numpy()), axis=(1, 2, 3))
+                    < self.args.range
+                )
 
             # p = calculate_gaussian_probability(outputs.detach().cpu(), self.args.mean, self.args.std)
             # metrics["p"] = np.mean(p, axis=(1, 2, 3))
             # clean_p = p > self.args.detect_p
 
             clean = clean_range  # & clean_p
-            metrics["clean"] = sum(clean)
+            metrics["clean"] = clean.cpu()
 
-            outputs = outputs[clean]
-            y = y[clean]
+            if self.args.filter:
+                outputs = outputs[clean]
+                y = y[clean]
 
         metrics["logits"] = outputs
         metrics["fwargs"] = fwargs
@@ -152,7 +159,13 @@ class ModelWrapper(pl.LightningModule):
                 gold=(metrics["probs"], metrics["preds"]),
                 faulty=(noisy_metrics["probs"], noisy_metrics["preds"]),
             )
-
+        # distinguish clean, non-critical and critical samples
+        noisy_metrics["crit"] = ~(
+            torch.eq(metrics["preds"], noisy_metrics["preds"]).all((1, 2)).cpu()
+        )
+        noisy_metrics["non_crit"] = torch.logical_and(
+            ~noisy_metrics["crit"], noisy_metrics["fwargs"]["faulty_idxs"] >= 0
+        )
         return noisy_metrics, metrics
 
     def on_train_epoch_start(self):
